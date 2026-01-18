@@ -1,0 +1,11 @@
+{
+  "id": "space-001",
+  "title": "Space Explorer",
+  "questions": [
+    {
+      "question": "Which planet is red?",
+      "options": ["Mars", "Venus", "Earth", "Jupiter"],
+      "correctIndex": 0
+    }
+  ]
+}
