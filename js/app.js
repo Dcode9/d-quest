@@ -1,10 +1,6 @@
-// CONFIGURATION - UPDATE THESE
-const GITHUB_USERNAME = "YOUR_USERNAME"; // e.g., "john-doe"
-const REPO_NAME = "YOUR_REPO_NAME";      // e.g., "my-quiz-app"
-// NOTE: For a public website, listing contents via API is readable. 
-// However, the rate limit is 60 requests/hr for unauthenticated IP addresses.
-// Consider generating a 'manifest.json' if you hit limits, but API works for small scale.
-
+// CONFIGURATION
+const GITHUB_USERNAME = "DCode9"; 
+const REPO_NAME = "d-quest";     
 const QUIZZES_PATH = "quizzes";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,49 +11,42 @@ async function fetchQuizzes() {
     const grid = document.getElementById('quiz-grid');
     
     try {
-        // 1. Fetch file list from GitHub API
+        // Try fetching from GitHub API
         const response = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${QUIZZES_PATH}`);
         
         if (!response.ok) {
-            // Fallback for local development if API fails (e.g. repo doesn't exist yet)
-            console.warn("GitHub API failed or repo not found. Showing demo data.");
-            renderQuizzes([{ name: "demo.json", download_url: "quizzes/demo.json" }]); 
+            // FALLBACK FOR DEMO / LOCAL USE
+            console.warn("GitHub API fetch failed (likely config not set). Showing demo.");
+            renderQuizzes([{ name: "demo-quiz.json" }]); 
             return;
         }
 
         const files = await response.json();
-        
-        // Filter for JSON files and exclude the 'generated' folder itself if returned
         const quizFiles = files.filter(file => file.name.endsWith('.json'));
-        
         renderQuizzes(quizFiles);
 
     } catch (error) {
-        console.error("Error loading quizzes:", error);
-        grid.innerHTML = `<p class="text-red-400">Error loading quizzes. Please check console.</p>`;
+        console.error("Network error:", error);
+        // Fallback on error too
+        renderQuizzes([{ name: "demo-quiz.json" }]);
     }
 }
 
-async function renderQuizzes(files) {
+function renderQuizzes(files) {
     const grid = document.getElementById('quiz-grid');
     grid.innerHTML = ''; // Clear loaders
 
     if (files.length === 0) {
-        grid.innerHTML = `<p class="text-slate-400">No quizzes found.</p>`;
+        grid.innerHTML = `<p class="text-slate-400 col-span-3 text-center">No quizzes found.</p>`;
         return;
     }
-
-    // Process each file to get its Title (requires fetching the JSON content)
-    // To save bandwidth, we'll just use the filename formatted nicely, 
-    // or you can fetch each json file if list is small. 
-    // Let's format the filename for speed.
     
     files.forEach(file => {
         const rawName = file.name.replace('.json', '').replace(/-/g, ' ');
-        // Capitalize words
         const title = rawName.replace(/\b\w/g, l => l.toUpperCase());
 
         const card = document.createElement('div');
+        // This class string applies the CSS from css/style.css
         card.className = "quiz-card p-6 rounded-xl flex flex-col justify-between h-48 group cursor-pointer";
         card.onclick = () => playQuiz(file.name);
 
@@ -81,5 +70,10 @@ async function renderQuizzes(files) {
 }
 
 function playQuiz(filename) {
-    window.location.href = `player.html?quiz=${filename}`;
+    // If it's the demo fallback, don't pass a filename, game.js handles the default
+    if (filename === 'demo-quiz.json') {
+        window.location.href = `player.html`;
+    } else {
+        window.location.href = `player.html?quiz=${filename}`;
+    }
 }
