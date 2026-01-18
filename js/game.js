@@ -1,7 +1,6 @@
 // --- ASSETS CONFIG ---
 const ASSETS = {
-    // Images
-    // Using RAW GitHub URLs for specific assets requested
+    // Images (Converted blob links to raw)
     timer: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/images/Timer.svg",
     line: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/line.svg",
     next: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/next.svg",
@@ -10,8 +9,7 @@ const ASSETS = {
     boxOrange: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20orange.svg",
     questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
-    // Audio
-    // Using RAW GitHub URLs for specific audio requested
+    // Audio (Converted blob links to raw)
     intro: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/audio/Kaun%20Banega%20Crorepati%20Intro%202019.wav",
     questionIncoming: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/KBC%20Question%20incoming.wav",
     clock: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/30%20second%20tic%20tic%20kbc%20clock.mp3",
@@ -30,7 +28,6 @@ const state = {
     audioRefs: {}
 };
 
-// --- DOM ELEMENTS ---
 const container = document.getElementById('game-container');
 const soundBtn = document.getElementById('sound-btn');
 const soundIcon = document.getElementById('sound-icon');
@@ -43,8 +40,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const quizFile = urlParams.get('quiz');
 
+    // MOCK DATA Fallback if no URL param (for testing)
     if (!quizFile) {
-        showError("No quiz selected.");
+        // Just load a demo quiz if nothing selected
+        state.quizData = {
+            title: "Demo Quiz",
+            questions: [
+                { question: "This is a demo question to test the player?", options: ["Option A", "Option B", "Option C", "Option D"], correctIndex: 0 }
+            ]
+        };
+        state.status = 'start';
+        renderStartScreen();
         return;
     }
 
@@ -59,13 +65,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderStartScreen();
     } catch (e) {
         console.error(e);
-        showError("Failed to load quiz data.");
+        container.innerHTML = `<div class="text-white text-center">Failed to load quiz.<br>Check console.</div>`;
     }
 });
-
-function showError(msg) {
-    container.innerHTML = `<div class="text-white text-2xl font-bold bg-red-900/50 p-8 rounded-xl border border-red-500">${msg} <br><a href="index.html" class="text-sm underline mt-4 block">Go Home</a></div>`;
-}
 
 // --- AUDIO HANDLING ---
 function initAudio() {
@@ -75,11 +77,8 @@ function initAudio() {
     state.audioRefs.correct = new Audio(ASSETS.correct);
     state.audioRefs.wrong = new Audio(ASSETS.wrong);
 
-    // Set Loop for Clock
     state.audioRefs.clock.loop = true;
-
-    // Preload
-    Object.values(state.audioRefs).forEach(audio => audio.load());
+    Object.values(state.audioRefs).forEach(audio => audio.load()); // Preload
 
     if(soundBtn) soundBtn.onclick = toggleSound;
 }
@@ -88,8 +87,14 @@ function toggleSound() {
     state.soundEnabled = !state.soundEnabled;
     if(soundIcon) soundIcon.setAttribute('data-lucide', state.soundEnabled ? 'volume-2' : 'volume-x');
     if(window.lucide) window.lucide.createIcons();
-
     if (!state.soundEnabled) stopAllAudio();
+}
+
+function stopAllAudio() {
+    Object.values(state.audioRefs).forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+    });
 }
 
 function playAudio(key, loop = false) {
@@ -99,17 +104,36 @@ function playAudio(key, loop = false) {
         audio.loop = loop;
         audio.currentTime = 0;
         const playPromise = audio.play();
+        
+        // --- AUTOPLAY HANDLING ---
         if (playPromise !== undefined) {
-            playPromise.catch(e => console.warn("Autoplay blocked. User interaction needed.", e));
+            playPromise.catch(e => {
+                console.warn("Autoplay prevented:", e);
+                showStartOverlay(); // Show interaction button if blocked
+            });
         }
     }
 }
 
-function stopAllAudio() {
-    Object.values(state.audioRefs).forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
-    });
+// Shows an overlay if audio is blocked
+function showStartOverlay() {
+    if (document.getElementById('start-overlay')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'start-overlay';
+    overlay.className = "absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto cursor-pointer";
+    overlay.innerHTML = `
+        <div class="text-center animate-pulse">
+            <i data-lucide="play-circle" class="w-16 h-16 text-yellow-400 mx-auto mb-2"></i>
+            <h3 class="text-white text-xl font-bold">TAP TO START</h3>
+        </div>
+    `;
+    overlay.onclick = () => {
+        overlay.remove();
+        playAudio('intro'); // Try playing again
+    };
+    document.body.appendChild(overlay);
+    if(window.lucide) window.lucide.createIcons();
 }
 
 function fadeOutIntro(callback) {
@@ -127,9 +151,8 @@ function fadeOutIntro(callback) {
     }, 100);
 }
 
-// --- RENDERING SCREENS ---
+// --- RENDER FUNCTIONS ---
 
-// 1. START SCREEN
 function renderStartScreen() {
     playAudio('intro');
     
@@ -150,6 +173,7 @@ function renderStartScreen() {
         </div>
     `;
 
+    // Wait 4 seconds then show play button (Timed with intro music build-up)
     setTimeout(() => {
         const wrapper = document.getElementById('play-btn-wrapper');
         if (wrapper) wrapper.classList.remove('opacity-0', 'translate-y-10');
@@ -164,7 +188,6 @@ window.handleStartClick = () => {
     });
 };
 
-// 2. QUESTION INTRO
 function renderQuestionIntro() {
     state.status = 'intro';
     stopAllAudio();
@@ -197,14 +220,12 @@ window.handleProceedToQuestion = () => {
     if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
 };
 
-// 3. MAIN GAME INTERFACE
 function renderGameInterface() {
     const q = state.quizData.questions[state.currentQuestionIndex];
     
     container.innerHTML = `
         <div id="game-interface" class="w-full h-full flex flex-col items-center justify-center relative pointer-events-auto">
             
-            <!-- Timer Area -->
             <div class="h-32 flex items-end justify-center pb-4 w-full shrink-0">
                 <div id="timer-box" class="relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center opacity-0 transition-opacity duration-300">
                     <img src="${ASSETS.timer}" class="absolute inset-0 w-full h-full object-contain animate-pulse">
@@ -212,10 +233,7 @@ function renderGameInterface() {
                 </div>
             </div>
 
-            <!-- Question & Options Stack -->
             <div class="w-full flex flex-col items-center gap-1">
-                
-                <!-- Question -->
                 <div class="relative w-full h-24 md:h-28 flex items-center justify-center animate-slideUp z-20">
                      <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
                      <div class="relative w-full max-w-4xl h-full flex items-center justify-center">
@@ -226,7 +244,6 @@ function renderGameInterface() {
                      </div>
                 </div>
 
-                <!-- Options Row 1 -->
                 <div id="options-row-1" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
                     <div class="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-8 px-2 md:px-12">
@@ -235,7 +252,6 @@ function renderGameInterface() {
                     </div>
                 </div>
 
-                <!-- Options Row 2 -->
                 <div id="options-row-2" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
                     <div class="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-8 px-2 md:px-12">
@@ -243,10 +259,8 @@ function renderGameInterface() {
                         ${renderOptionHTML(3, 'D', q.options[3])}
                     </div>
                 </div>
-
             </div>
 
-            <!-- Next Button (Hidden initially) -->
             <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300 scale-95">
                 <button onclick="handleNextQuestion()" class="relative w-36 h-14 group hover:scale-105 transition-transform">
                   <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
@@ -269,7 +283,6 @@ function renderOptionHTML(index, label, text) {
     `;
 }
 
-// --- GAMEPLAY TRIGGERS ---
 const handleTrigger = (e) => {
     if (state.status !== 'question-incoming') return;
     
@@ -296,8 +309,10 @@ let timerInterval;
 function startTimer() {
     let timeLeft = 30;
     const timerText = document.getElementById('timer-text');
-    timerText.textContent = timeLeft;
-    if(timerText) timerText.classList.remove('text-red-500');
+    if(timerText) {
+        timerText.textContent = timeLeft;
+        timerText.classList.remove('text-red-500');
+    }
 
     timerInterval = setInterval(() => {
         timeLeft--;
