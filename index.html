@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Arcade - Home</title>
+    <title>Quiz Arcade</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Combined CSS -->
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/home.css">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans">
-
+    
     <div class="container mx-auto px-4 py-10 max-w-5xl">
-        <!-- Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl md:text-7xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-lg">
                 QUIZ ARCADE
@@ -21,47 +22,33 @@
         </header>
 
         <!-- Generator Section -->
-        <section id="generator-section" class="mb-16">
-            <div class="bg-gradient-to-br from-blue-900 to-slate-800 p-8 rounded-2xl border border-blue-500/30 shadow-2xl relative overflow-hidden">
-                <div class="relative z-10 flex flex-col md:flex-row items-center gap-6">
-                    <div class="flex-1">
-                        <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                            <i data-lucide="brain-circuit" class="text-purple-400"></i> AI Quiz Generator
-                        </h2>
-                        <p class="text-blue-200 mb-4">Enter any topic (e.g., "90s Cartoons", "Quantum Physics") and our AI will build a quiz instantly.</p>
-                        
-                        <form id="ai-form" class="flex flex-col sm:flex-row gap-3">
-                            <input type="text" id="topic-input" placeholder="Enter a topic..." required
-                                class="flex-1 bg-slate-950/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500 transition-colors">
-                            <button type="submit" id="generate-btn" 
-                                class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg transition-transform hover:scale-105 flex items-center justify-center gap-2">
-                                <i data-lucide="wand-2"></i> Generate
-                            </button>
-                        </form>
-                        <div id="generator-status" class="mt-3 text-sm font-semibold h-5"></div>
-                    </div>
-                </div>
+        <section class="mb-16">
+            <div class="bg-gradient-to-br from-blue-900 to-slate-800 p-8 rounded-2xl border border-blue-500/30 shadow-2xl">
+                <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+                    <i data-lucide="brain-circuit" class="text-purple-400"></i> AI Quiz Generator
+                </h2>
+                <form id="ai-form" class="flex flex-col sm:flex-row gap-3 mt-4">
+                    <input type="text" id="topic-input" placeholder="Enter a topic (e.g. 'Science', '90s Movies')..." required 
+                           class="flex-1 bg-slate-950/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-yellow-500 transition-colors">
+                    <button type="submit" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg flex items-center justify-center gap-2 transition-transform hover:scale-105">
+                        <i data-lucide="wand-2"></i> Generate
+                    </button>
+                </form>
+                <div id="generator-status" class="mt-3 text-sm font-semibold h-5"></div>
             </div>
         </section>
 
         <!-- Quiz Grid -->
-        <section>
-            <h3 class="text-2xl font-bold mb-6 text-slate-300 border-b border-slate-700 pb-2">Available Quizzes</h3>
-            <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Quiz Cards will be injected here by app.js -->
-                <div class="animate-pulse bg-slate-800 h-48 rounded-xl"></div>
-                <div class="animate-pulse bg-slate-800 h-48 rounded-xl"></div>
-            </div>
-        </section>
+        <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Loading State -->
+            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
+            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
+        </div>
     </div>
 
-    <!-- Configuration Modal (Optional, for demo purposes to input Token) -->
-    <!-- You might want to hardcode credentials in local development or use a .env equivalent -->
-
+    <!-- Scripts -->
     <script src="js/ai-generator.js"></script>
     <script src="js/app.js"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
