@@ -1,22 +1,22 @@
 // --- ASSETS CONFIG ---
-// Update these paths if your folder structure differs. 
-// Currently set to use local assets folder.
 const ASSETS = {
-    // Images (SVGs)
-    timer: "assets/images/timer.svg",
-    line: "assets/images/line.svg",
-    next: "assets/images/next.svg",
-    boxNormal: "assets/images/normal option box.svg",
-    boxGreen: "assets/images/option box green.svg",
-    boxOrange: "assets/images/option box orange.svg",
-    questionBox: "assets/images/wide title and question.svg",
+    // Images
+    // Using RAW GitHub URLs for specific assets requested
+    timer: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/images/Timer.svg",
+    line: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/line.svg",
+    next: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/next.svg",
+    boxNormal: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/normal%20option%20box.svg",
+    boxGreen: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20green.svg",
+    boxOrange: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20orange.svg",
+    questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
     // Audio
-    intro: "assets/audio/Kaun Banega Crorepati Intro 2019.wav",
-    questionIncoming: "assets/audio/KBC Question incoming.wav",
-    clock: "assets/audio/30 second tic tic kbc clock.mp3",
-    correct: "assets/audio/Correct answer.mp3",
-    wrong: "assets/audio/Wrong Ans.mp3"
+    // Using RAW GitHub URLs for specific audio requested
+    intro: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/audio/Kaun%20Banega%20Crorepati%20Intro%202019.wav",
+    questionIncoming: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/KBC%20Question%20incoming.wav",
+    clock: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/30%20second%20tic%20tic%20kbc%20clock.mp3",
+    correct: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Correct%20answer.mp3",
+    wrong: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Wrong%20Ans.mp3"
 };
 
 // --- GAME STATE ---
@@ -24,7 +24,7 @@ const state = {
     quizData: null,
     currentQuestionIndex: 0,
     score: 0,
-    status: 'loading', // loading, start, intro, question-incoming, options, locked, revealed, finished
+    status: 'loading',
     selectedOption: null,
     soundEnabled: true,
     audioRefs: {}
@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. Fetch Quiz Data
     try {
-        // We look in the quizzes folder
         const response = await fetch(`quizzes/${quizFile}`);
         if (!response.ok) throw new Error("Quiz file not found");
         
@@ -76,16 +75,18 @@ function initAudio() {
     state.audioRefs.correct = new Audio(ASSETS.correct);
     state.audioRefs.wrong = new Audio(ASSETS.wrong);
 
+    // Set Loop for Clock
+    state.audioRefs.clock.loop = true;
+
     // Preload
     Object.values(state.audioRefs).forEach(audio => audio.load());
 
-    soundBtn.onclick = toggleSound;
+    if(soundBtn) soundBtn.onclick = toggleSound;
 }
 
 function toggleSound() {
     state.soundEnabled = !state.soundEnabled;
-    // Update Icon
-    soundIcon.setAttribute('data-lucide', state.soundEnabled ? 'volume-2' : 'volume-x');
+    if(soundIcon) soundIcon.setAttribute('data-lucide', state.soundEnabled ? 'volume-2' : 'volume-x');
     if(window.lucide) window.lucide.createIcons();
 
     if (!state.soundEnabled) stopAllAudio();
@@ -97,7 +98,10 @@ function playAudio(key, loop = false) {
     if (audio) {
         audio.loop = loop;
         audio.currentTime = 0;
-        audio.play().catch(e => console.warn("Autoplay blocked:", e));
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(e => console.warn("Autoplay blocked. User interaction needed.", e));
+        }
     }
 }
 
@@ -130,7 +134,7 @@ function renderStartScreen() {
     playAudio('intro');
     
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto text-center px-4">
+        <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto text-center px-4 w-full">
             <h1 class="text-5xl md:text-7xl text-white font-extrabold mb-8 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600">
                 ${state.quizData.title ? state.quizData.title.toUpperCase() : 'QUIZ'}
             </h1>
@@ -146,13 +150,10 @@ function renderStartScreen() {
         </div>
     `;
 
-    // Show button after delay to match music
     setTimeout(() => {
         const wrapper = document.getElementById('play-btn-wrapper');
-        if (wrapper) {
-            wrapper.classList.remove('opacity-0', 'translate-y-10');
-        }
-    }, 4000); // Shortened for UX, originally 18s in request but 4s is better for testing
+        if (wrapper) wrapper.classList.remove('opacity-0', 'translate-y-10');
+    }, 4000); 
 }
 
 window.handleStartClick = () => {
@@ -163,13 +164,13 @@ window.handleStartClick = () => {
     });
 };
 
-// 2. QUESTION INTRO ("Question 1")
+// 2. QUESTION INTRO
 function renderQuestionIntro() {
     state.status = 'intro';
     stopAllAudio();
 
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto">
+        <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto w-full">
             <div class="relative w-full max-w-3xl py-12 bg-gradient-to-r from-transparent via-blue-900/50 to-transparent border-y border-blue-500/30 mb-8">
                <h2 class="text-4xl md:text-6xl text-white font-bold text-center tracking-widest animate-pulse-glow">
                  QUESTION ${state.currentQuestionIndex + 1}
@@ -188,14 +189,12 @@ function renderQuestionIntro() {
 
 window.handleProceedToQuestion = () => {
     renderGameInterface();
-    // Animation for Question Incoming
     playAudio('incoming');
     state.status = 'question-incoming';
     
-    // Add keyboard listener for trigger
     document.addEventListener('keydown', handleTriggerKey);
-    // Add click listener to background
-    document.getElementById('game-interface').addEventListener('click', handleTrigger);
+    const gameInterface = document.getElementById('game-interface');
+    if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
 };
 
 // 3. MAIN GAME INTERFACE
@@ -270,27 +269,23 @@ function renderOptionHTML(index, label, text) {
     `;
 }
 
-// --- GAMEPLAY LOGIC ---
-
-// 1. Reveal Options
+// --- GAMEPLAY TRIGGERS ---
 const handleTrigger = (e) => {
-    // Only trigger if clicking background or if explicitly called
     if (state.status !== 'question-incoming') return;
     
     state.status = 'options';
     state.audioRefs.incoming.pause();
     playAudio('clock', true);
 
-    // Animate Options In
     document.getElementById('options-row-1').classList.remove('opacity-0', 'translate-y-10');
     document.getElementById('options-row-2').classList.remove('opacity-0', 'translate-y-10');
     document.getElementById('timer-box').classList.remove('opacity-0');
 
     startTimer();
     
-    // Remove listeners
     document.removeEventListener('keydown', handleTriggerKey);
-    document.getElementById('game-interface').removeEventListener('click', handleTrigger);
+    const gameInterface = document.getElementById('game-interface');
+    if(gameInterface) gameInterface.removeEventListener('click', handleTrigger);
 };
 
 const handleTriggerKey = (e) => {
@@ -302,12 +297,12 @@ function startTimer() {
     let timeLeft = 30;
     const timerText = document.getElementById('timer-text');
     timerText.textContent = timeLeft;
-    timerText.classList.remove('text-red-500');
+    if(timerText) timerText.classList.remove('text-red-500');
 
     timerInterval = setInterval(() => {
         timeLeft--;
-        timerText.textContent = timeLeft;
-        if (timeLeft <= 5) timerText.classList.add('text-red-500');
+        if(timerText) timerText.textContent = timeLeft;
+        if (timeLeft <= 5 && timerText) timerText.classList.add('text-red-500');
         
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
@@ -316,7 +311,6 @@ function startTimer() {
     }, 1000);
 }
 
-// 2. Select Option
 window.handleOptionClick = (index) => {
     if (state.status !== 'options') return;
 
@@ -325,13 +319,9 @@ window.handleOptionClick = (index) => {
     state.audioRefs.clock.pause();
     state.selectedOption = index;
 
-    // Visual: Lock (Orange)
     updateOptionVisual(index, 'selected');
 
-    // Wait then Reveal
-    setTimeout(() => {
-        revealAnswer();
-    }, 2000);
+    setTimeout(revealAnswer, 2000);
 };
 
 function revealAnswer() {
@@ -339,21 +329,20 @@ function revealAnswer() {
     const correctIndex = state.quizData.questions[state.currentQuestionIndex].correctIndex;
     const isCorrect = state.selectedOption === correctIndex;
 
-    // Visual: Correct (Green)
     updateOptionVisual(correctIndex, 'correct');
     
-    // Audio
     if (isCorrect) {
-        state.score += 1000; // Mock score
+        state.score += 1000;
         playAudio('correct');
     } else {
         playAudio('wrong');
     }
 
-    // Show Next Button
     const btn = document.getElementById('next-btn-container');
-    btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-    btn.classList.add('opacity-100', 'scale-100');
+    if(btn) {
+        btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+        btn.classList.add('opacity-100', 'scale-100');
+    }
 }
 
 function handleTimeUp() {
@@ -361,12 +350,11 @@ function handleTimeUp() {
     state.audioRefs.clock.pause();
     playAudio('wrong');
     
-    // Reveal correct answer
     const correctIndex = state.quizData.questions[state.currentQuestionIndex].correctIndex;
     updateOptionVisual(correctIndex, 'correct');
 
     const btn = document.getElementById('next-btn-container');
-    btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+    if(btn) btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
 }
 
 function updateOptionVisual(index, status) {
@@ -384,7 +372,6 @@ function updateOptionVisual(index, status) {
     }
 }
 
-// 3. Next Question
 window.handleNextQuestion = () => {
     stopAllAudio();
     if (state.currentQuestionIndex < state.quizData.questions.length - 1) {
@@ -395,7 +382,6 @@ window.handleNextQuestion = () => {
     }
 };
 
-// 4. Finished
 function renderFinishedScreen() {
     state.status = 'finished';
     container.innerHTML = `
