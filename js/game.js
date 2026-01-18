@@ -1,6 +1,8 @@
 // --- ASSETS CONFIG ---
+// Note: Ensure these raw links point to valid audio files. 
+// If they 404, the game will now skip sound silently.
 const ASSETS = {
-    // Images (Converted blob links to raw)
+    // Images
     timer: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/images/Timer.svg",
     line: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/line.svg",
     next: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/next.svg",
@@ -9,7 +11,7 @@ const ASSETS = {
     boxOrange: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20orange.svg",
     questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
-    // Audio (Converted blob links to raw)
+    // Audio
     intro: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/audio/Kaun%20Banega%20Crorepati%20Intro%202019.wav",
     questionIncoming: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/KBC%20Question%20incoming.wav",
     clock: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/30%20second%20tic%20tic%20kbc%20clock.mp3",
@@ -42,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // MOCK DATA Fallback if no URL param (for testing)
     if (!quizFile) {
-        // Just load a demo quiz if nothing selected
         state.quizData = {
             title: "Demo Quiz",
             questions: [
@@ -78,7 +79,14 @@ function initAudio() {
     state.audioRefs.wrong = new Audio(ASSETS.wrong);
 
     state.audioRefs.clock.loop = true;
-    Object.values(state.audioRefs).forEach(audio => audio.load()); // Preload
+
+    // Add error listeners to handle broken links gracefully
+    Object.values(state.audioRefs).forEach(audio => {
+        audio.addEventListener('error', (e) => {
+            console.warn("Audio file failed to load:", audio.src);
+        });
+        audio.load();
+    });
 
     if(soundBtn) soundBtn.onclick = toggleSound;
 }
@@ -100,22 +108,32 @@ function stopAllAudio() {
 function playAudio(key, loop = false) {
     if (!state.soundEnabled) return;
     const audio = state.audioRefs[key];
-    if (audio) {
-        audio.loop = loop;
-        audio.currentTime = 0;
-        const playPromise = audio.play();
-        
-        // --- AUTOPLAY HANDLING ---
-        if (playPromise !== undefined) {
-            playPromise.catch(e => {
-                console.warn("Autoplay prevented:", e);
-                showStartOverlay(); // Show interaction button if blocked
-            });
-        }
+    
+    // Safety check if audio object exists
+    if (!audio) return;
+
+    audio.loop = loop;
+    audio.currentTime = 0;
+    
+    const playPromise = audio.play();
+    
+    // --- ROBUST PROMISE HANDLING ---
+    if (playPromise !== undefined) {
+        playPromise.catch(e => {
+            if (e.name === 'NotAllowedError') {
+                // This is the ONLY case where we show the overlay (Autoplay policy)
+                console.warn("Autoplay prevented, showing overlay.");
+                showStartOverlay();
+            } else {
+                // NotSupportedError, NotFoundError, etc. -> Audio is broken.
+                // Log it, but DO NOT stop the game flow.
+                console.warn(`Audio '${key}' failed to play (${e.name}). Continuing without sound.`);
+            }
+        });
     }
 }
 
-// Shows an overlay if audio is blocked
+// Shows an overlay only if autoplay is strictly blocked
 function showStartOverlay() {
     if (document.getElementById('start-overlay')) return;
     
@@ -130,7 +148,7 @@ function showStartOverlay() {
     `;
     overlay.onclick = () => {
         overlay.remove();
-        playAudio('intro'); // Try playing again
+        playAudio('intro'); // Retry
     };
     document.body.appendChild(overlay);
     if(window.lucide) window.lucide.createIcons();
@@ -173,7 +191,6 @@ function renderStartScreen() {
         </div>
     `;
 
-    // Wait 4 seconds then show play button (Timed with intro music build-up)
     setTimeout(() => {
         const wrapper = document.getElementById('play-btn-wrapper');
         if (wrapper) wrapper.classList.remove('opacity-0', 'translate-y-10');
