@@ -3,10 +3,10 @@
 // For a personal project or demo, this is fine. For production, use a proxy server.
 
 const CONFIG = {
-    githubToken: "YOUR_GITHUB_PAT_TOKEN_HERE", // Must have 'repo' scope
-    githubOwner: "YOUR_USERNAME",
-    githubRepo: "YOUR_REPO_NAME",
-    geminiKey: "YOUR_AI_API_KEY_HERE" // Or Cerebras Key
+    githubToken: "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", // Must have 'repo' scope
+    githubOwner: "Dcode9",
+    githubRepo: "d-quest",
+    geminiKey: "csk-66mn2n8hej6dcex9r2krf5f9eytfhcpmvhv6m6wy626emnt4" // Or Cerebras Key
 };
 
 // --- SYSTEM PROMPT ---
@@ -27,7 +27,7 @@ Structure:
     }
   ]
 }
-Generate 5 questions. Ensure "correctIndex" is a number 0-3.
+Generate 10 questions. Ensure "correctIndex" is a number 0-3.
 `;
 
 const form = document.getElementById('ai-form');
