@@ -84,7 +84,7 @@ export default async function handler(req) {
             { role: "user", content: `Generate a quiz about: ${topic}` }
         ],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 1000
       }),
       signal: controller.signal
     });
