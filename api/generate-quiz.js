@@ -1,9 +1,8 @@
-export const config = {
-  runtime: 'edge', 
-};
+// Removed 'edge' runtime config to default to standard Node.js Serverless functions.
+// This often resolves 403 Forbidden issues related to IP reputation or header handling in Edge environments.
 
 export default async function handler(req) {
-  // 1. Setup CORS Headers (Fixes potential browser blocking)
+  // 1. Setup CORS Headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -33,18 +32,27 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'Topic is required' }), { status: 400, headers });
     }
 
-    // 2. Get the Key from Environment and TRIM whitespace
-    // 403 errors often happen if the key has a hidden space at the end
+    // 2. Get the Key
     const apiKey = process.env.CEREBRAS_API_KEY ? process.env.CEREBRAS_API_KEY.trim() : null; 
 
-    // Debug Log
+    // ANALYTICS: Collect debug info to return if it fails
+    const debugInfo = {
+        keyConfigured: !!apiKey,
+        keyLength: apiKey ? apiKey.length : 0,
+        keyPrefix: apiKey ? apiKey.substring(0, 4) : 'N/A',
+        model: "llama3.1-8b",
+        timestamp: new Date().toISOString()
+    };
+
     if (!apiKey) {
-      console.error("CRITICAL: CEREBRAS_API_KEY is missing in Vercel Environment Variables.");
-      return new Response(JSON.stringify({ error: 'Server Config Error: Missing API Key' }), { status: 500, headers });
-    } else {
-      console.log(`API Key detected. Starts with: ${apiKey.substring(0, 4)}... Length: ${apiKey.length}`);
+      console.error("CRITICAL: CEREBRAS_API_KEY is missing.");
+      return new Response(JSON.stringify({ 
+          error: 'Server Config Error: Missing API Key',
+          debug: debugInfo
+      }), { status: 500, headers });
     }
 
+    // 3. System Prompt
     const systemPrompt = `
     You are a Quiz JSON Generator. 
     User will give a topic. 
@@ -65,17 +73,16 @@ export default async function handler(req) {
     Generate exactly 5 questions. Ensure "correctIndex" is a number 0-3.
     `;
 
-    // 3. Call Cerebras API
-    // Switched to 'llama3.1-8b' as it is often safer for permissions than 70b
+    // 4. Call Cerebras API
     const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'QuizApp/1.0'
+        'User-Agent': 'QuizApp/1.0' // Explicit User-Agent
       },
       body: JSON.stringify({
-        model: "llama3.1-8b", 
+        model: debugInfo.model, 
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Generate a quiz about: ${topic}` }
@@ -89,18 +96,19 @@ export default async function handler(req) {
         const errText = await response.text();
         console.error("Cerebras API Failure:", response.status, errText);
         
+        // Populate debug info with upstream error
+        debugInfo.upstreamStatus = response.status;
+        debugInfo.upstreamStatusText = response.statusText;
+        debugInfo.upstreamBody = errText; // This contains the RAW reason from Cerebras
+
         let userMessage = `Cerebras API Error (${response.status})`;
         if (response.status === 403) {
-            userMessage = "Access Forbidden (403). Your API Key may not have permission for this model, or it contains whitespace.";
-        } else if (response.status === 401) {
-            userMessage = "Unauthorized (401). Invalid Cerebras API Key.";
-        } else if (response.status === 429) {
-            userMessage = "Rate limit exceeded. Try again later.";
+            userMessage = "403 Forbidden. Check the 'upstreamBody' in debug info. The key might be invalid, expired, or blocked from this IP.";
         }
 
         return new Response(JSON.stringify({ 
             error: userMessage, 
-            details: errText 
+            debug: debugInfo 
         }), {
             status: response.status, 
             headers 
@@ -109,7 +117,7 @@ export default async function handler(req) {
 
     const data = await response.json();
     
-    // 4. Send Data back to Frontend
+    // 5. Success
     return new Response(JSON.stringify(data), {
       status: 200,
       headers,
