@@ -9,7 +9,13 @@ export default async function handler(req) {
   }
 
   try {
-    const { topic } = await req.json();
+    let topic;
+    try {
+        const body = await req.json();
+        topic = body.topic;
+    } catch (e) {
+        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+    }
 
     if (!topic) {
       return new Response(JSON.stringify({ error: 'Topic is required' }), { status: 400 });
@@ -19,7 +25,8 @@ export default async function handler(req) {
     const apiKey = process.env.CEREBRAS_API_KEY; 
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Server configuration error: Missing API Key' }), { status: 500 });
+      console.error("Missing CEREBRAS_API_KEY in environment variables");
+      return new Response(JSON.stringify({ error: 'Server configuration error: Missing CEREBRAS_API_KEY in Vercel Settings' }), { status: 500 });
     }
 
     const systemPrompt = `
@@ -62,8 +69,15 @@ export default async function handler(req) {
 
     if (!response.ok) {
         const errText = await response.text();
-        console.error("Cerebras API Error:", errText);
-        throw new Error(`Cerebras API returned ${response.status}`);
+        console.error("Cerebras API Error:", response.status, errText);
+        // Return the actual upstream error to help debugging
+        return new Response(JSON.stringify({ 
+            error: `Cerebras API Error (${response.status})`, 
+            details: errText 
+        }), {
+            status: response.status, // Forward 400/401/etc
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
     const data = await response.json();
@@ -75,8 +89,11 @@ export default async function handler(req) {
     });
 
   } catch (error) {
-    console.error(error);
-    return new Response(JSON.stringify({ error: 'Failed to generate quiz' }), {
+    console.error("Quiz Generation Exception:", error);
+    return new Response(JSON.stringify({ 
+        error: 'Internal Server Error', 
+        details: error.message 
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
