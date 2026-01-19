@@ -1,3 +1,6 @@
+// CONFIGURATION
+// No GitHub tokens needed here anymore as the backend handles Supabase saving.
+
 const form = document.getElementById('ai-form');
 const statusDiv = document.getElementById('generator-status');
 
@@ -12,9 +15,10 @@ if (form) {
 }
 
 async function generateAndSaveQuiz(topic) {
-    updateStatus("Consulting Cerebras AI...", "text-blue-400");
+    updateStatus("Consulting Cerebras AI & Saving...", "text-blue-400");
     
     try {
+        // 1. Call Backend (handles AI generation + Supabase Save)
         const response = await fetch('/api/generate-quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -23,15 +27,23 @@ async function generateAndSaveQuiz(topic) {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || "Generation Failed");
+        // 2. Check for success flag from our backend
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "AI Generation Failed");
         }
 
-        updateStatus("Success! Quiz Saved.", "text-green-400");
+        // 3. Success!
+        // The backend has already saved it to Supabase, so we just finish up.
+        updateStatus("Success! Quiz Saved to Database.", "text-green-400");
         
-        // Refresh the homepage list to show the new quiz
         setTimeout(() => {
-            document.getElementById('topic-input').value = '';
+            const input = document.getElementById('topic-input');
+            if(input) input.value = '';
+            
+            // Clear status
+            if(statusDiv) statusDiv.innerHTML = '';
+            
+            // Refresh Homepage List (Function defined in app.js)
             if (window.fetchQuizzes) window.fetchQuizzes();
         }, 1500);
 
