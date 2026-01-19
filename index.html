@@ -1,6 +1,27 @@
-<!-- ... Header ... -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Arcade</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Combined CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-900 text-white font-sans">
+    
+    <div class="container mx-auto px-4 py-10 max-w-5xl">
+        <header class="text-center mb-12">
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-lg">
+                QUIZ ARCADE
+            </h1>
+            <p class="text-blue-200 text-xl">Select a challenge or generate a new one with AI</p>
+        </header>
 
-<!-- CREATOR SECTION (Replace old generator section with this) -->
+        <!-- CREATOR SECTION (Replace old generator section with this) -->
 <section class="mb-16">
     <div class="bg-gradient-to-br from-blue-900 to-slate-800 p-8 rounded-2xl border border-blue-500/30 shadow-2xl">
         
@@ -29,23 +50,17 @@
             </div>
         </div>
 
-        <!-- Questions Container (Populated by JS) -->
-        <div id="questions-container" class="space-y-4">
-            <!-- Questions will appear here -->
+        <!-- Quiz Grid -->
+        <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Loading State -->
+            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
+            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-4 mt-6 border-t border-slate-700 pt-6">
-            <button id="add-question-btn" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold flex items-center gap-2 transition-colors">
-                <i data-lucide="plus"></i> Add Question
-            </button>
-            <div class="flex-1"></div>
-            <button id="creator-save-btn" class="px-8 py-3 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
-                <i data-lucide="save"></i> Publish Quiz
-            </button>
-        </div>
-
     </div>
-</section>
 
-<!-- ... Quiz Grid ... -->
+    <!-- Scripts -->
+    <script src="js/ai-generator.js"></script>
+    <script src="js/app.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
