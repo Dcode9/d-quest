@@ -1,6 +1,4 @@
 // --- ASSETS CONFIG ---
-// Note: Ensure these raw links point to valid audio files. 
-// If they 404, the game will now skip sound silently.
 const ASSETS = {
     // Images
     timer: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/images/Timer.svg",
@@ -72,18 +70,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- AUDIO HANDLING ---
 function initAudio() {
-    state.audioRefs.intro = new Audio(ASSETS.intro);
-    state.audioRefs.incoming = new Audio(ASSETS.questionIncoming);
-    state.audioRefs.clock = new Audio(ASSETS.clock);
-    state.audioRefs.correct = new Audio(ASSETS.correct);
-    state.audioRefs.wrong = new Audio(ASSETS.wrong);
+    // We explicitly encode URI components to handle spaces in filenames
+    state.audioRefs.intro = new Audio(encodeURI(ASSETS.intro));
+    state.audioRefs.incoming = new Audio(encodeURI(ASSETS.questionIncoming));
+    state.audioRefs.clock = new Audio(encodeURI(ASSETS.clock));
+    state.audioRefs.correct = new Audio(encodeURI(ASSETS.correct));
+    state.audioRefs.wrong = new Audio(encodeURI(ASSETS.wrong));
 
     state.audioRefs.clock.loop = true;
 
-    // Add error listeners to handle broken links gracefully
+    // Robust Loading
     Object.values(state.audioRefs).forEach(audio => {
+        audio.crossOrigin = "anonymous"; // Helps with some CDN/CORS issues
+        audio.preload = "auto";
         audio.addEventListener('error', (e) => {
-            console.warn("Audio file failed to load:", audio.src);
+            console.warn("Audio load error:", audio.src, e);
         });
         audio.load();
     });
@@ -109,7 +110,6 @@ function playAudio(key, loop = false) {
     if (!state.soundEnabled) return;
     const audio = state.audioRefs[key];
     
-    // Safety check if audio object exists
     if (!audio) return;
 
     audio.loop = loop;
@@ -117,39 +117,44 @@ function playAudio(key, loop = false) {
     
     const playPromise = audio.play();
     
-    // --- ROBUST PROMISE HANDLING ---
     if (playPromise !== undefined) {
         playPromise.catch(e => {
-            if (e.name === 'NotAllowedError') {
-                // This is the ONLY case where we show the overlay (Autoplay policy)
-                console.warn("Autoplay prevented, showing overlay.");
+            console.warn(`Audio '${key}' error:`, e.name);
+            // If it's the Intro, we ALWAYS show the overlay on failure
+            // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
+            if (key === 'intro') {
                 showStartOverlay();
-            } else {
-                // NotSupportedError, NotFoundError, etc. -> Audio is broken.
-                // Log it, but DO NOT stop the game flow.
-                console.warn(`Audio '${key}' failed to play (${e.name}). Continuing without sound.`);
             }
         });
     }
 }
 
-// Shows an overlay only if autoplay is strictly blocked
 function showStartOverlay() {
     if (document.getElementById('start-overlay')) return;
     
     const overlay = document.createElement('div');
     overlay.id = 'start-overlay';
-    overlay.className = "absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto cursor-pointer";
+    overlay.className = "absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer animate-fadeIn";
     overlay.innerHTML = `
-        <div class="text-center animate-pulse">
-            <i data-lucide="play-circle" class="w-16 h-16 text-yellow-400 mx-auto mb-2"></i>
-            <h3 class="text-white text-xl font-bold">TAP TO START</h3>
+        <div class="text-center group">
+            <div class="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(234,179,8,0.5)]">
+                <i data-lucide="play" class="w-10 h-10 text-black fill-current ml-1"></i>
+            </div>
+            <h3 class="text-white text-2xl font-bold tracking-widest">TAP TO START</h3>
+            <p class="text-blue-200 text-sm mt-2">Enable Audio Experience</p>
         </div>
     `;
+    
     overlay.onclick = () => {
+        // Re-trigger intro on user click
+        const audio = state.audioRefs.intro;
+        if(audio) {
+            audio.load(); // Force reload in case of previous error
+            audio.play().catch(e => console.error("Manual play failed:", e));
+        }
         overlay.remove();
-        playAudio('intro'); // Retry
     };
+    
     document.body.appendChild(overlay);
     if(window.lucide) window.lucide.createIcons();
 }
