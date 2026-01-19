@@ -25,10 +25,28 @@ async function generateAndSaveQuiz(topic) {
             body: JSON.stringify({ topic })
         });
 
+        // 2. Handle Errors (Including 504 Timeouts)
+        if (!response.ok) {
+            // Check specifically for Vercel Timeout (504)
+            if (response.status === 504) {
+                throw new Error("Timeout: AI generation took too long. Please try again.");
+            }
+
+            // Try to parse error message from JSON, fallback to text if HTML
+            let errorMsg = `Server Error (${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData.error) errorMsg = errData.error;
+            } catch (e) {
+                // Response wasn't JSON (likely Vercel HTML error page)
+                console.warn("Non-JSON error response received");
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await response.json();
 
-        // 2. Check for success flag from our backend
-        if (!response.ok || !data.success) {
+        if (!data.success) {
             throw new Error(data.error || "AI Generation Failed");
         }
 
