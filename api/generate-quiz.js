@@ -3,9 +3,21 @@ export const config = {
 };
 
 export default async function handler(req) {
-  // 1. Only allow POST
+  // 1. Setup CORS Headers (Fixes potential browser blocking)
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
+
+  // Handle Preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
   }
 
   try {
@@ -14,19 +26,22 @@ export default async function handler(req) {
         const body = await req.json();
         topic = body.topic;
     } catch (e) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers });
     }
 
     if (!topic) {
-      return new Response(JSON.stringify({ error: 'Topic is required' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Topic is required' }), { status: 400, headers });
     }
 
-    // 2. Get the Key from Environment (Vercel)
+    // 2. Get the Key from Environment
     const apiKey = process.env.CEREBRAS_API_KEY; 
 
+    // Debug Log (Check Vercel Function Logs to see this)
     if (!apiKey) {
-      console.error("Missing CEREBRAS_API_KEY in environment variables");
-      return new Response(JSON.stringify({ error: 'Server configuration error: Missing CEREBRAS_API_KEY in Vercel Settings' }), { status: 500 });
+      console.error("CRITICAL: CEREBRAS_API_KEY is missing in Vercel Environment Variables.");
+      return new Response(JSON.stringify({ error: 'Server Config Error: Missing API Key' }), { status: 500, headers });
+    } else {
+      console.log(`API Key detected. Starts with: ${apiKey.substring(0, 4)}...`);
     }
 
     const systemPrompt = `
@@ -69,14 +84,21 @@ export default async function handler(req) {
 
     if (!response.ok) {
         const errText = await response.text();
-        console.error("Cerebras API Error:", response.status, errText);
-        // Return the actual upstream error to help debugging
+        console.error("Cerebras API Failure:", response.status, errText);
+        
+        let userMessage = `Cerebras API Error (${response.status})`;
+        if (response.status === 403 || response.status === 401) {
+            userMessage = "Invalid Cerebras API Key. Please check your Vercel Environment Variables.";
+        } else if (response.status === 429) {
+            userMessage = "Rate limit exceeded. Try again later.";
+        }
+
         return new Response(JSON.stringify({ 
-            error: `Cerebras API Error (${response.status})`, 
+            error: userMessage, 
             details: errText 
         }), {
-            status: response.status, // Forward 400/401/etc
-            headers: { 'Content-Type': 'application/json' }
+            status: response.status, 
+            headers 
         });
     }
 
@@ -85,7 +107,7 @@ export default async function handler(req) {
     // 4. Send Data back to Frontend
     return new Response(JSON.stringify(data), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
 
   } catch (error) {
