@@ -40,10 +40,11 @@ async function fetchQuizzes() {
             if (response.ok) {
                 const quizData = await response.json();
                 // Format local quiz to match Supabase structure
+                // Use a fixed date for local quizzes to ensure consistent ordering
                 allQuizzes.push({
                     id: quizData.id || file.replace('.json', ''),
                     content: quizData,
-                    created_at: new Date().toISOString(),
+                    created_at: '2024-01-01T00:00:00.000Z',
                     isLocal: true,
                     fileName: file
                 });

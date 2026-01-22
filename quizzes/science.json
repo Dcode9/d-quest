@@ -13,8 +13,8 @@
       "correctIndex": 1
     },
     {
-      "question": "What is the speed of light?",
-      "options": ["299,792 km/s", "199,792 km/s", "399,792 km/s", "99,792 km/s"],
+      "question": "What is the speed of light in a vacuum?",
+      "options": ["299,792,458 m/s", "199,792,458 m/s", "399,792,458 m/s", "99,792,458 m/s"],
       "correctIndex": 0
     },
     {

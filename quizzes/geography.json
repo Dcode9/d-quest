@@ -8,9 +8,9 @@
       "correctIndex": 1
     },
     {
-      "question": "Which country has the largest population?",
+      "question": "Which country has the largest population as of 2024?",
       "options": ["India", "United States", "China", "Indonesia"],
-      "correctIndex": 2
+      "correctIndex": 0
     },
     {
       "question": "What is the smallest country in the world?",
