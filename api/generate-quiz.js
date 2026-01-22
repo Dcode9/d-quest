@@ -7,30 +7,31 @@ export default async function handler(req) {
   console.log('[API] URL:', req.url);
   console.log('[API] Headers:', JSON.stringify(Object.fromEntries(req.headers.entries())));
   
-  // Handle OPTIONS for CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-    });
-  }
-  
-  if (req.method !== 'POST') {
-    console.log('[API] Invalid method:', req.method);
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
-      status: 405,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-  }
-
+  // Wrap entire handler in try-catch to prevent function crashes
   try {
+    // Handle OPTIONS for CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
+    }
+    
+    if (req.method !== 'POST') {
+      console.log('[API] Invalid method:', req.method);
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+        status: 405,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     console.log('[API] Parsing request body...');
     const body = await req.json();
     console.log('[API] Request body:', JSON.stringify(body));
@@ -210,16 +211,37 @@ Return only valid JSON.`;
       }
     });
 
-  } catch (error) {
-    console.error('[API] ========== ERROR OCCURRED ==========');
-    console.error('[API] Generate quiz error:', error);
-    console.error('[API] Error name:', error.name);
-    console.error('[API] Error message:', error.message);
-    console.error('[API] Error stack:', error.stack);
+  } catch (innerError) {
+    console.error('[API] ========== INNER ERROR OCCURRED ==========');
+    console.error('[API] Generate quiz error:', innerError);
+    console.error('[API] Error name:', innerError.name);
+    console.error('[API] Error message:', innerError.message);
+    console.error('[API] Error stack:', innerError.stack);
     console.error('[API] =======================================');
     return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to generate quiz',
-      details: error.stack,
+      error: innerError.message || 'Failed to generate quiz',
+      details: innerError.stack,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+  
+  } catch (outerError) {
+    // Top-level catch for any unhandled errors
+    console.error('[API] ========== FATAL ERROR - FUNCTION CRASH PREVENTED ==========');
+    console.error('[API] Fatal error:', outerError);
+    console.error('[API] Error name:', outerError.name);
+    console.error('[API] Error message:', outerError.message);
+    console.error('[API] Error stack:', outerError.stack);
+    console.error('[API] ================================================================');
+    return new Response(JSON.stringify({ 
+      error: 'Function error: ' + (outerError.message || 'Unknown error'),
+      details: outerError.stack,
       timestamp: new Date().toISOString()
     }), { 
       status: 500,
