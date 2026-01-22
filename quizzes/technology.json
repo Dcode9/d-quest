@@ -1,0 +1,31 @@
+{
+  "id": "technology-001",
+  "title": "Technology & Computing",
+  "questions": [
+    {
+      "question": "Who is known as the father of computers?",
+      "options": ["Steve Jobs", "Bill Gates", "Charles Babbage", "Alan Turing"],
+      "correctIndex": 2
+    },
+    {
+      "question": "What does HTTP stand for?",
+      "options": ["HyperText Transfer Protocol", "High Transfer Text Protocol", "HyperText Transmission Process", "High Tech Transfer Protocol"],
+      "correctIndex": 0
+    },
+    {
+      "question": "Which company developed the iPhone?",
+      "options": ["Samsung", "Google", "Apple", "Microsoft"],
+      "correctIndex": 2
+    },
+    {
+      "question": "What year was the first iPhone released?",
+      "options": ["2005", "2006", "2007", "2008"],
+      "correctIndex": 2
+    },
+    {
+      "question": "What does AI stand for?",
+      "options": ["Automated Intelligence", "Artificial Intelligence", "Advanced Integration", "Automatic Interface"],
+      "correctIndex": 1
+    }
+  ]
+}

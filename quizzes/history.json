@@ -1,0 +1,31 @@
+{
+  "id": "history-001",
+  "title": "World History Quiz",
+  "questions": [
+    {
+      "question": "Who was the first President of the United States?",
+      "options": ["Thomas Jefferson", "George Washington", "Abraham Lincoln", "John Adams"],
+      "correctIndex": 1
+    },
+    {
+      "question": "In which year did the Titanic sink?",
+      "options": ["1910", "1911", "1912", "1913"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Which ancient wonder of the world still exists today?",
+      "options": ["Hanging Gardens of Babylon", "Great Pyramid of Giza", "Colossus of Rhodes", "Lighthouse of Alexandria"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Who was the first person to walk on the moon?",
+      "options": ["Buzz Aldrin", "Neil Armstrong", "Yuri Gagarin", "Michael Collins"],
+      "correctIndex": 1
+    },
+    {
+      "question": "What year did the Berlin Wall fall?",
+      "options": ["1987", "1988", "1989", "1990"],
+      "correctIndex": 2
+    }
+  ]
+}

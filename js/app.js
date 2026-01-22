@@ -5,6 +5,9 @@ async function fetchQuizzes() {
     const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
 
+    let allQuizzes = [];
+
+    // 1. Fetch from Supabase
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?select=*&order=created_at.desc`, {
             headers: {
@@ -13,37 +16,56 @@ async function fetchQuizzes() {
             }
         });
 
-        if (!response.ok) throw new Error("Failed to fetch from Supabase");
-
-        const quizzes = await response.json();
-        
-        if (quizzes.length === 0) {
-            grid.innerHTML = `
-                <div class="col-span-full text-center py-12">
-                    <i data-lucide="inbox" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
-                    <p class="text-slate-400 text-lg">No quizzes yet. Generate one using AI above!</p>
-                </div>
-            `;
-            if(window.lucide) window.lucide.createIcons();
-            return;
+        if (response.ok) {
+            const supabaseQuizzes = await response.json();
+            allQuizzes = allQuizzes.concat(supabaseQuizzes);
         }
-        
-        renderQuizzes(quizzes);
-
     } catch (error) {
-        console.error("Error loading quizzes:", error);
+        console.warn("Could not fetch from Supabase:", error);
+    }
+
+    // 2. Fetch from local quizzes folder
+    const localQuizFiles = [
+        'demo.json',
+        'general-knowledge.json',
+        'science.json',
+        'history.json',
+        'geography.json',
+        'technology.json'
+    ];
+
+    for (const file of localQuizFiles) {
+        try {
+            const response = await fetch(`quizzes/${file}`);
+            if (response.ok) {
+                const quizData = await response.json();
+                // Format local quiz to match Supabase structure
+                allQuizzes.push({
+                    id: quizData.id || file.replace('.json', ''),
+                    content: quizData,
+                    created_at: new Date().toISOString(),
+                    isLocal: true,
+                    fileName: file
+                });
+            }
+        } catch (error) {
+            console.warn(`Could not load ${file}:`, error);
+        }
+    }
+
+    // 3. Render all quizzes
+    if (allQuizzes.length === 0) {
         grid.innerHTML = `
             <div class="col-span-full text-center py-12">
-                <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
-                <p class="text-red-400 text-lg font-semibold mb-2">Error loading quizzes</p>
-                <p class="text-slate-400 text-sm">${error.message}</p>
-                <button onclick="fetchQuizzes()" class="mt-4 px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors">
-                    Retry
-                </button>
+                <i data-lucide="inbox" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
+                <p class="text-slate-400 text-lg">No quizzes yet. Generate one using AI above!</p>
             </div>
         `;
         if(window.lucide) window.lucide.createIcons();
+        return;
     }
+    
+    renderQuizzes(allQuizzes);
 }
 
 function renderQuizzes(quizzes) {
@@ -55,9 +77,13 @@ function renderQuizzes(quizzes) {
         const card = document.createElement('div');
         card.className = "quiz-card p-6 rounded-2xl flex flex-col justify-between h-56 group cursor-pointer";
         
-        // When playing, pass the Supabase ID
+        // When playing, pass either Supabase ID or local quiz filename
         card.onclick = () => {
-            window.location.href = `player.html?id=${item.id}`;
+            if (item.isLocal) {
+                window.location.href = `player.html?quiz=${item.fileName}`;
+            } else {
+                window.location.href = `player.html?id=${item.id}`;
+            }
         };
 
         const questionCount = quiz.questions ? quiz.questions.length : 0;

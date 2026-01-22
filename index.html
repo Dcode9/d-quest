@@ -78,7 +78,10 @@
     <script src="js/ai-generator.js"></script>
     <script src="js/app.js"></script>
     <script>
-        lucide.createIcons();
+        // Initialize Lucide icons if available
+        if (window.lucide) {
+            lucide.createIcons();
+        }
         // Fetch quizzes on load
         if (typeof fetchQuizzes === 'function') {
             fetchQuizzes();
