@@ -25,8 +25,13 @@ export default async function handler(req, res) {
     }
 
     console.log('[API] Parsing request body...');
-    const body = req.body;
+    const body = req.body || {};
     console.log('[API] Request body:', JSON.stringify(body));
+    
+    if (!body || typeof body !== 'object') {
+      console.log('[API] Invalid request body');
+      return res.status(400).json({ error: 'Invalid request body' });
+    }
     
     const { topic, count = 5 } = body;
 
@@ -167,7 +172,7 @@ Return only valid JSON.`;
     if (!quiz.metadata) {
       console.log('[API] Adding default metadata');
       quiz.metadata = {
-        grade: "6-8",
+        grade: 7, // Default to middle school grade as a number
         topic: topic,
         difficulty: "Medium",
         emoji: "🎯"
