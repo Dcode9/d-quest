@@ -10,7 +10,8 @@ const ASSETS = {
     questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
     // Audio - Use local files for better reliability
-    intro: "assets/audio/KBC Question incoming.wav",  // Use question incoming sound as intro fallback
+    // Note: Original KBC Intro file is corrupted, using question incoming as fallback
+    intro: "assets/audio/KBC Question incoming.wav",
     questionIncoming: "assets/audio/KBC Question incoming.wav",
     clock: "assets/audio/30 second tic tic kbc clock.mp3",
     correct: "assets/audio/Correct answer.mp3",
