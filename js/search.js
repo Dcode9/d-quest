@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('main-search');
     const searchBtn = document.getElementById('search-btn');
     const backBtn = document.getElementById('back-btn');
+    const headerSearchInput = document.getElementById('header-search-input');
+    const headerSearchBtn = document.getElementById('header-search-btn');
     
     if (searchInput) {
         // Start placeholder animation
@@ -38,7 +40,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backBtn) {
         backBtn.addEventListener('click', showLanding);
     }
+
+    // Header search handlers
+    if (headerSearchInput) {
+        headerSearchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleHeaderSearch();
+            }
+        });
+    }
+
+    if (headerSearchBtn) {
+        headerSearchBtn.addEventListener('click', handleHeaderSearch);
+    }
 });
+
+// Handle header search
+async function handleHeaderSearch() {
+    const headerInput = document.getElementById('header-search-input');
+    const query = headerInput.value.trim();
+    
+    if (!query) return;
+    
+    // Update main search input and trigger search
+    const mainInput = document.getElementById('main-search');
+    if (mainInput) {
+        mainInput.value = query;
+        await handleSearch();
+    }
+}
 
 // Animated placeholder
 function startPlaceholderAnimation(input) {
@@ -90,7 +120,7 @@ function animateToNextTopic(input) {
 async function handleSearch() {
     console.log('[SEARCH] ========== NEW SEARCH INITIATED ==========');
     const searchInput = document.getElementById('main-search');
-    const statusDiv = document.getElementById('search-status');
+    const skeletonLoader = document.getElementById('skeleton-loader');
     const query = searchInput.value.trim();
     
     console.log('[SEARCH] Query:', query);
@@ -98,12 +128,19 @@ async function handleSearch() {
     
     if (!query) {
         console.log('[SEARCH] Empty query, aborting');
-        showStatus(statusDiv, 'Please enter a topic or search query', 'text-red-400');
         return;
     }
     
+    // Phase 2: Transition search bar to header
+    transitionToHeaderSearch(query);
+    
+    // Phase 2: Show skeleton loader instead of text
+    if (skeletonLoader) {
+        skeletonLoader.classList.remove('hidden');
+        skeletonLoader.classList.add('fade-in');
+    }
+    
     console.log('[SEARCH] Step 1: Searching database...');
-    showStatus(statusDiv, 'Searching database...', 'text-blue-400');
     
     try {
         // Step 1: Search existing quizzes
@@ -118,7 +155,15 @@ async function handleSearch() {
             // Show existing quizzes
             console.log('[SEARCH] Displaying existing quizzes');
             console.log('[SEARCH] Quiz titles:', existingQuizzes.map(q => q.content.title));
-            showStatus(statusDiv, `Found ${existingQuizzes.length} quiz(zes)!`, 'text-green-400');
+            
+            // Hide skeleton loader with fade
+            if (skeletonLoader) {
+                skeletonLoader.classList.add('fade-out');
+                await delay(500);
+                skeletonLoader.classList.add('hidden');
+                skeletonLoader.classList.remove('fade-out', 'fade-in');
+            }
+            
             await delay(500);
             showResults(existingQuizzes);
             console.log('[SEARCH] ========== SEARCH COMPLETED (EXISTING QUIZ) ==========');
@@ -128,7 +173,6 @@ async function handleSearch() {
         // Step 2: No match found, generate with AI
         console.log('[SEARCH] No existing quizzes found');
         console.log('[SEARCH] Step 2: Generating new quiz with AI...');
-        showStatus(statusDiv, `⏳ Creating quiz with AI... (this may take 5-${REQUEST_TIMEOUT_MS/1000} seconds)`, 'text-yellow-400');
         
         const genStartTime = Date.now();
         const newQuiz = await generateQuizInstantly(query);
@@ -140,7 +184,15 @@ async function handleSearch() {
             console.log('[SEARCH] Quiz created successfully!');
             console.log('[SEARCH] Quiz title:', newQuiz.content.title);
             console.log('[SEARCH] Quiz has metadata:', !!newQuiz.content.metadata);
-            showStatus(statusDiv, '✅ Quiz created! Ready to play.', 'text-green-400');
+            
+            // Hide skeleton loader with fade
+            if (skeletonLoader) {
+                skeletonLoader.classList.add('fade-out');
+                await delay(500);
+                skeletonLoader.classList.add('hidden');
+                skeletonLoader.classList.remove('fade-out', 'fade-in');
+            }
+            
             await delay(500);
             showResults([newQuiz]);
             console.log('[SEARCH] ========== SEARCH COMPLETED (NEW QUIZ) ==========');
@@ -153,8 +205,51 @@ async function handleSearch() {
             message: error.message,
             stack: error.stack
         });
-        showStatus(statusDiv, `❌ Error: ${error.message}`, 'text-red-500');
+        
+        // Hide skeleton loader on error
+        if (skeletonLoader) {
+            skeletonLoader.classList.add('hidden');
+            skeletonLoader.classList.remove('fade-out', 'fade-in');
+        }
+        
+        alert(`Error: ${error.message}`);
         console.log('[SEARCH] ========== SEARCH FAILED ==========');
+    }
+}
+
+// Phase 2: Transition search bar to header
+function transitionToHeaderSearch(query) {
+    const landingSection = document.getElementById('landing-section');
+    const landingContent = document.getElementById('landing-content');
+    const branding = document.getElementById('branding');
+    const mainSearchContainer = document.getElementById('main-search-container');
+    const headerSearch = document.getElementById('header-search');
+    const headerSearchInput = document.getElementById('header-search-input');
+    
+    // Fade out branding and shrink search container
+    if (branding) {
+        branding.style.opacity = '0';
+        branding.style.transform = 'translateY(-20px)';
+    }
+    
+    if (mainSearchContainer) {
+        mainSearchContainer.style.transform = 'scale(0.9)';
+        mainSearchContainer.style.opacity = '0.5';
+    }
+    
+    // Show header search bar
+    if (headerSearch) {
+        setTimeout(() => {
+            headerSearch.style.transform = 'translateY(0)';
+            if (headerSearchInput) {
+                headerSearchInput.value = query;
+            }
+        }, 300);
+    }
+    
+    // Adjust landing section
+    if (landingSection) {
+        landingSection.style.paddingTop = '8rem';
     }
 }
 
@@ -345,39 +440,89 @@ async function generateQuizInstantly(topic) {
     }
 }
 
-// Show results section
+// Show results section with 2-second fade
 function showResults(quizzes) {
     const landingSection = document.getElementById('landing-section');
     const resultsSection = document.getElementById('results-section');
+    const landingContent = document.getElementById('landing-content');
     
-    // Hide landing, show results
-    landingSection.classList.add('hidden');
-    resultsSection.classList.remove('hidden');
-    
-    // Render quiz cards
-    if (window.renderQuizzes) {
-        window.renderQuizzes(quizzes);
+    // Phase 2: Fade out landing content
+    if (landingContent) {
+        landingContent.classList.add('fade-transition', 'fade-out');
     }
     
-    // Re-init icons
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
+    // Wait for fade, then hide landing and show results
+    setTimeout(() => {
+        landingSection.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+        resultsSection.classList.add('fade-transition', 'fade-in');
+        
+        // Render quiz cards
+        if (window.renderQuizzes) {
+            window.renderQuizzes(quizzes);
+        }
+        
+        // Re-init icons
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }, 2000); // 2-second fade
 }
 
-// Show landing section
+// Show landing section with reset
 function showLanding() {
     const landingSection = document.getElementById('landing-section');
     const resultsSection = document.getElementById('results-section');
+    const landingContent = document.getElementById('landing-content');
+    const branding = document.getElementById('branding');
+    const mainSearchContainer = document.getElementById('main-search-container');
+    const headerSearch = document.getElementById('header-search');
     const searchInput = document.getElementById('main-search');
+    const skeletonLoader = document.getElementById('skeleton-loader');
     
-    resultsSection.classList.add('hidden');
-    landingSection.classList.remove('hidden');
+    // Phase 2: Fade out results
+    resultsSection.classList.add('fade-transition', 'fade-out');
     
-    // Clear search input
-    if (searchInput) {
-        searchInput.value = '';
-    }
+    setTimeout(() => {
+        resultsSection.classList.add('hidden');
+        resultsSection.classList.remove('fade-out');
+        
+        // Reset landing section
+        landingSection.classList.remove('hidden');
+        landingSection.style.paddingTop = '';
+        
+        // Reset and fade in landing content
+        if (landingContent) {
+            landingContent.classList.remove('fade-out');
+            landingContent.classList.add('fade-in');
+        }
+        
+        if (branding) {
+            branding.style.opacity = '1';
+            branding.style.transform = 'translateY(0)';
+        }
+        
+        if (mainSearchContainer) {
+            mainSearchContainer.style.transform = 'scale(1)';
+            mainSearchContainer.style.opacity = '1';
+        }
+        
+        // Hide header search
+        if (headerSearch) {
+            headerSearch.style.transform = 'translateY(-100%)';
+        }
+        
+        // Clear search input
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // Hide skeleton loader
+        if (skeletonLoader) {
+            skeletonLoader.classList.add('hidden');
+            skeletonLoader.classList.remove('fade-in', 'fade-out');
+        }
+    }, 2000); // 2-second fade
 }
 
 // Utility functions

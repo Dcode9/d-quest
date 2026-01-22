@@ -23,12 +23,38 @@ body {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
 }
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.6; }
+}
 
 .animate-fadeIn { animation: fadeIn 0.8s ease-out forwards; }
 .animate-slideUp { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 /* Removed pulse-glow class - no longer used */
 .animate-shimmer { animation: shimmer 2s infinite linear; }
 .animate-float { animation: float 3s ease-in-out infinite; }
+
+/* --- Phase 2: Skeleton Loader --- */
+.skeleton-pulse {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* --- Phase 2: Fade Transitions (2 seconds) --- */
+.fade-transition {
+    transition: opacity 2s ease-in-out, transform 2s ease-in-out;
+}
+
+.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fade-in {
+    opacity: 1;
+    pointer-events: auto;
+}
 
 /* --- Utility --- */
 .pointer-events-auto { pointer-events: auto; }
