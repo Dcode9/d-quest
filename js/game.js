@@ -18,6 +18,14 @@ const ASSETS = {
     wrong: "assets/audio/Wrong Ans.mp3"
 };
 
+// --- ANIMATION TIMING CONSTANTS ---
+const ANIMATION_TIMINGS = {
+    QUESTION_INTRO_EXIT: 500,    // Exit animation duration for question number screen
+    QUESTION_RENDER_DELAY: 300,  // Delay before rendering game interface
+    QUESTION_FADE_START: 100,    // Delay before starting question fade-in
+    QUESTION_FADE_DURATION: 3000 // Question fade-in duration (synced with audio)
+};
+
 // --- GAME STATE ---
 const state = {
     quizData: null,
@@ -320,7 +328,7 @@ window.handleProceedToQuestion = () => {
     const introContainer = container.querySelector('.animate-fadeIn');
     if (introContainer) {
         introContainer.style.opacity = '0';
-        introContainer.style.transition = 'opacity 0.5s ease-out';
+        introContainer.style.transition = `opacity ${ANIMATION_TIMINGS.QUESTION_INTRO_EXIT}ms ease-out`;
     }
     
     // Simultaneously start audio and render interface with fade-in
@@ -335,17 +343,17 @@ window.handleProceedToQuestion = () => {
             const questionContainer = container.querySelector('.animate-slideUp');
             if (questionContainer) {
                 questionContainer.style.opacity = '0';
-                questionContainer.style.transition = 'opacity 3s ease-in';
+                questionContainer.style.transition = `opacity ${ANIMATION_TIMINGS.QUESTION_FADE_DURATION}ms ease-in`;
                 requestAnimationFrame(() => {
                     questionContainer.style.opacity = '1';
                 });
             }
-        }, 100);
+        }, ANIMATION_TIMINGS.QUESTION_FADE_START);
         
         document.addEventListener('keydown', handleTriggerKey);
         const gameInterface = document.getElementById('game-interface');
         if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
-    }, 300);
+    }, ANIMATION_TIMINGS.QUESTION_RENDER_DELAY);
 };
 
 function renderGameInterface() {
