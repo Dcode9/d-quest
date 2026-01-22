@@ -24,15 +24,21 @@ export default async function handler(req) {
     }
 
     console.log('[API] Checking for Cerebras API key...');
+    console.log('[API] Environment variables available:', Object.keys(process.env).filter(k => k.includes('CEREBRAS') || k.includes('API')));
     const apiKey = process.env.CEREBRAS_API_KEY ? process.env.CEREBRAS_API_KEY.trim() : null;
     if (!apiKey) {
       console.log('[API] Cerebras API Key Missing in environment');
-      return new Response(JSON.stringify({ error: 'Cerebras API Key Missing' }), { 
+      console.log('[API] Please set CEREBRAS_API_KEY environment variable in Vercel');
+      return new Response(JSON.stringify({ 
+        error: 'Cerebras API Key Missing',
+        hint: 'Set CEREBRAS_API_KEY in Vercel environment variables'
+      }), { 
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
     console.log('[API] API key found, length:', apiKey.length);
+    console.log('[API] API key prefix:', apiKey.substring(0, 10) + '...');
 
     const systemPrompt = `You are a Quiz Generator. Output VALID JSON only with the following structure:
 {
@@ -52,7 +58,7 @@ export default async function handler(req) {
   ]
 }
 
-Generate exactly ${count} questions about the topic.
+Generate exactly ${count} questions.
 Make questions challenging but fair.
 Ensure the correctIndex is always a number between 0-3.
 Choose an appropriate grade level (1-12) based on question difficulty.
@@ -61,17 +67,20 @@ Do not include any markdown formatting or code blocks in your response.
 Return only valid JSON.`;
 
     console.log('[API] Preparing Cerebras API request...');
-    console.log('[API] Topic:', topic);
+    console.log('[API] User query:', topic);
     console.log('[API] Question count:', count);
+    
+    // Use the exact user query in the prompt
+    const userPrompt = `Create a quiz based on this request: "${topic}"\n\nGenerate ${count} questions about this topic. Follow the JSON structure exactly.`;
     
     const apiRequestBody = {
       model: "llama3.1-8b", 
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Generate a quiz about: ${topic}` }
+        { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 3000 // Increased for more questions
     };
     
     console.log('[API] Calling Cerebras API...');

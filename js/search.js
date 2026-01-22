@@ -7,7 +7,8 @@ const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 const TOPICS = [
     'Physics', 'Chemistry', 'Biology', 'Mathematics',
     'History', 'Geography', 'Literature', 'Computer Science',
-    'General Knowledge', 'Sports', 'Music', 'Art'
+    'General Knowledge', 'Sports', 'Music', 'Art',
+    '10 questions about Space', '5 questions about Ancient Rome'
 ];
 
 let currentTopicIndex = 0;
@@ -221,10 +222,21 @@ async function generateQuizInstantly(topic) {
     console.log('[SEARCH] Timestamp:', new Date().toISOString());
     
     try {
+        // Parse question count from topic if specified (e.g., "5 questions about physics")
+        let questionCount = 5; // default
+        let cleanTopic = topic;
+        
+        const countMatch = topic.match(/(\d+)\s*questions?/i);
+        if (countMatch) {
+            questionCount = parseInt(countMatch[1]);
+            questionCount = Math.min(Math.max(questionCount, 1), 20); // Limit 1-20
+            console.log('[SEARCH] Detected question count from query:', questionCount);
+        }
+        
         console.log('[SEARCH] Preparing fetch request to /api/generate-quiz');
         const requestBody = { 
-            topic: topic,
-            count: 5
+            topic: topic, // Send the full user query
+            count: questionCount
         };
         console.log('[SEARCH] Request body:', JSON.stringify(requestBody));
         
