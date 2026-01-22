@@ -329,6 +329,11 @@ async function generateQuizInstantly(topic) {
         };
         
         console.log('[SEARCH] Returning formatted quiz:', JSON.stringify(formattedQuiz, null, 2));
+        
+        // Store AI-generated quiz in sessionStorage so it can be loaded by player
+        console.log('[SEARCH] Storing AI quiz in sessionStorage for player access');
+        sessionStorage.setItem(`quiz_${formattedQuiz.id}`, JSON.stringify(data.quiz));
+        
         return formattedQuiz;
         
     } catch (error) {

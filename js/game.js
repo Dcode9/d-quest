@@ -58,26 +58,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Fetch Quiz Data from Supabase if ID is provided
     if (quizId) {
         try {
-            const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-            const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
-            
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
+            // Check if it's an AI-generated quiz (starts with 'ai-')
+            if (quizId.startsWith('ai-')) {
+                console.log('[GAME] Loading AI-generated quiz from sessionStorage');
+                const storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
+                if (!storedQuiz) {
+                    throw new Error("AI-generated quiz not found. Please create a new quiz.");
                 }
-            });
+                state.quizData = JSON.parse(storedQuiz);
+                console.log('[GAME] AI quiz loaded:', state.quizData.title);
+            } else {
+                // Load from Supabase for regular quizzes
+                console.log('[GAME] Loading quiz from Supabase');
+                const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
+                const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
 
-            if (!response.ok) throw new Error("Failed to fetch quiz from database");
+                if (!response.ok) throw new Error("Failed to fetch quiz from database");
+                
+                const data = await response.json();
+                if (data.length === 0) throw new Error("Quiz not found");
+                
+                state.quizData = data[0].content;
+                console.log('[GAME] Database quiz loaded:', state.quizData.title);
+            }
             
-            const data = await response.json();
-            if (data.length === 0) throw new Error("Quiz not found");
-            
-            state.quizData = data[0].content;
             state.status = 'start';
             renderStartScreen();
         } catch (e) {
-            console.error(e);
+            console.error('[GAME] Error loading quiz:', e);
             container.innerHTML = `<div class="text-white text-center p-8">
                 <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
                 <h2 class="text-2xl font-bold mb-2">Failed to load quiz</h2>
