@@ -72,22 +72,31 @@ async function fetchQuizzes() {
 function renderQuizzes(quizzes) {
     const grid = document.getElementById('quiz-grid');
     grid.innerHTML = ''; 
+    
+    console.log('[RENDER] Rendering quizzes:', quizzes.length);
 
-    quizzes.forEach(item => {
+    quizzes.forEach((item, index) => {
         const quiz = item.content; // Your JSON content
+        console.log(`[RENDER] Quiz ${index + 1}:`, {
+            title: quiz.title,
+            hasMetadata: !!quiz.metadata,
+            metadata: quiz.metadata,
+            questionCount: quiz.questions?.length
+        });
+        
         const card = document.createElement('div');
         card.className = "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden";
         
         const questionCount = quiz.questions ? quiz.questions.length : 0;
         
-        // Generate emoji based on topic/title
-        const emoji = getQuizEmoji(quiz.title);
-        
-        // Extract metadata
+        // Extract metadata - use AI-generated emoji if available, otherwise fallback
         const metadata = quiz.metadata || {};
-        const grade = metadata.grade || 'All Grades';
+        const emoji = metadata.emoji || getQuizEmoji(quiz.title);
+        const grade = metadata.grade ? (typeof metadata.grade === 'number' ? `Grade ${metadata.grade}` : metadata.grade) : 'All Grades';
         const difficulty = metadata.difficulty || 'Medium';
         const topic = metadata.topic || extractTopic(quiz.title);
+        
+        console.log(`[RENDER] Card ${index + 1} metadata:`, { emoji, grade, difficulty, topic });
 
         card.innerHTML = `
             <!-- Emoji Thumbnail -->
@@ -128,6 +137,39 @@ function renderQuizzes(quizzes) {
                     <i data-lucide="play" class="w-4 h-4"></i>
                     <span>Start Quiz</span>
                 </button>
+                <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add event listeners
+        const startBtn = card.querySelector('.start-quiz-btn');
+        const previewBtn = card.querySelector('.preview-btn');
+        
+        startBtn.onclick = (e) => {
+            e.stopPropagation();
+            console.log('[RENDER] Starting quiz:', quiz.title);
+            if (item.isLocal) {
+                window.location.href = `player.html?quiz=${item.fileName}`;
+            } else {
+                window.location.href = `player.html?id=${item.id}`;
+            }
+        };
+        
+        previewBtn.onclick = (e) => {
+            e.stopPropagation();
+            console.log('[RENDER] Previewing quiz:', quiz.title);
+            showPreview(quiz);
+        };
+        
+        grid.appendChild(card);
+    });
+    
+    console.log('[RENDER] Re-initializing Lucide icons');
+    // Re-initialize Lucide icons for dynamically created content
+    if(window.lucide) window.lucide.createIcons();
+}
                 <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
                     <i data-lucide="eye" class="w-4 h-4"></i>
                 </button>

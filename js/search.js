@@ -84,42 +84,73 @@ function animateToNextTopic(input) {
 
 // Main search handler
 async function handleSearch() {
+    console.log('[SEARCH] ========== NEW SEARCH INITIATED ==========');
     const searchInput = document.getElementById('main-search');
     const statusDiv = document.getElementById('search-status');
     const query = searchInput.value.trim();
     
+    console.log('[SEARCH] Query:', query);
+    console.log('[SEARCH] Timestamp:', new Date().toISOString());
+    
     if (!query) {
+        console.log('[SEARCH] Empty query, aborting');
         showStatus(statusDiv, 'Please enter a topic or search query', 'text-red-400');
         return;
     }
     
+    console.log('[SEARCH] Step 1: Searching database...');
     showStatus(statusDiv, 'Searching database...', 'text-blue-400');
     
     try {
         // Step 1: Search existing quizzes
+        const searchStartTime = Date.now();
         const existingQuizzes = await searchDatabase(query);
+        const searchDuration = Date.now() - searchStartTime;
+        
+        console.log(`[SEARCH] Database search completed in ${searchDuration}ms`);
+        console.log('[SEARCH] Found quizzes:', existingQuizzes.length);
         
         if (existingQuizzes.length > 0) {
             // Show existing quizzes
+            console.log('[SEARCH] Displaying existing quizzes');
+            console.log('[SEARCH] Quiz titles:', existingQuizzes.map(q => q.content.title));
             showStatus(statusDiv, `Found ${existingQuizzes.length} quiz(zes)!`, 'text-green-400');
             await delay(500);
             showResults(existingQuizzes);
+            console.log('[SEARCH] ========== SEARCH COMPLETED (EXISTING QUIZ) ==========');
             return;
         }
         
         // Step 2: No match found, generate with AI
+        console.log('[SEARCH] No existing quizzes found');
+        console.log('[SEARCH] Step 2: Generating new quiz with AI...');
         showStatus(statusDiv, 'No match found. Creating new quiz with AI...', 'text-yellow-400');
+        
+        const genStartTime = Date.now();
         const newQuiz = await generateQuizInstantly(query);
+        const genDuration = Date.now() - genStartTime;
+        
+        console.log(`[SEARCH] Quiz generation completed in ${genDuration}ms`);
         
         if (newQuiz) {
+            console.log('[SEARCH] Quiz created successfully!');
+            console.log('[SEARCH] Quiz title:', newQuiz.content.title);
+            console.log('[SEARCH] Quiz has metadata:', !!newQuiz.content.metadata);
             showStatus(statusDiv, 'Quiz created! Ready to play.', 'text-green-400');
             await delay(500);
             showResults([newQuiz]);
+            console.log('[SEARCH] ========== SEARCH COMPLETED (NEW QUIZ) ==========');
         }
         
     } catch (error) {
-        console.error('Search error:', error);
+        console.error('[SEARCH] Search error:', error);
+        console.error('[SEARCH] Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
         showStatus(statusDiv, `Error: ${error.message}`, 'text-red-500');
+        console.log('[SEARCH] ========== SEARCH FAILED ==========');
     }
 }
 
@@ -183,32 +214,74 @@ async function searchDatabase(query) {
 
 // Generate quiz instantly with AI
 async function generateQuizInstantly(topic) {
+    console.log('[SEARCH] Starting AI quiz generation for topic:', topic);
+    console.log('[SEARCH] Timestamp:', new Date().toISOString());
+    
     try {
+        console.log('[SEARCH] Preparing fetch request to /api/generate-quiz');
+        const requestBody = { 
+            topic: topic,
+            count: 5
+        };
+        console.log('[SEARCH] Request body:', JSON.stringify(requestBody));
+        
+        const startTime = Date.now();
+        console.log('[SEARCH] Sending request at:', startTime);
+        
         const response = await fetch('/api/generate-quiz', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                topic: topic,
-                count: 5
-            })
+            body: JSON.stringify(requestBody)
         });
         
+        const fetchDuration = Date.now() - startTime;
+        console.log(`[SEARCH] Fetch completed in ${fetchDuration}ms`);
+        console.log('[SEARCH] Response status:', response.status);
+        console.log('[SEARCH] Response ok:', response.ok);
+        console.log('[SEARCH] Response headers:', Object.fromEntries(response.headers.entries()));
+        
         const text = await response.text();
+        console.log('[SEARCH] Response text length:', text.length);
+        console.log('[SEARCH] Response text:', text);
+        
         let data;
         
         try {
+            console.log('[SEARCH] Attempting to parse response as JSON...');
             data = JSON.parse(text);
+            console.log('[SEARCH] Successfully parsed JSON:', JSON.stringify(data, null, 2));
         } catch (err) {
-            console.error("AI Response:", text);
-            throw new Error('AI generation failed. Please try again.');
+            console.error('[SEARCH] JSON parse error:', err.message);
+            console.error('[SEARCH] Raw response that failed to parse:', text);
+            throw new Error('Failed to parse server response. Server may have returned an error.');
         }
         
         if (!response.ok) {
+            console.error('[SEARCH] Server returned error status:', response.status);
+            console.error('[SEARCH] Error data:', data);
             throw new Error(data.error || 'Generation failed');
         }
         
+        console.log('[SEARCH] Checking quiz data structure...');
+        if (!data.quiz) {
+            console.error('[SEARCH] Response missing quiz property');
+            console.error('[SEARCH] Available properties:', Object.keys(data));
+            throw new Error('Invalid response structure from server');
+        }
+        
+        console.log('[SEARCH] Quiz received successfully!');
+        console.log('[SEARCH] Quiz title:', data.quiz.title);
+        console.log('[SEARCH] Question count:', data.quiz.questions?.length);
+        console.log('[SEARCH] Has metadata:', !!data.quiz.metadata);
+        if (data.quiz.metadata) {
+            console.log('[SEARCH] Metadata:', JSON.stringify(data.quiz.metadata));
+        }
+        
+        const totalDuration = Date.now() - startTime;
+        console.log(`[SEARCH] Total time for quiz generation: ${totalDuration}ms`);
+        
         // Return quiz in expected format
-        return {
+        const formattedQuiz = {
             id: `ai-${Date.now()}`,
             content: data.quiz,
             created_at: new Date().toISOString(),
@@ -216,9 +289,15 @@ async function generateQuizInstantly(topic) {
             isTemp: true // Not saved to DB yet
         };
         
+        console.log('[SEARCH] Returning formatted quiz:', JSON.stringify(formattedQuiz, null, 2));
+        return formattedQuiz;
+        
     } catch (error) {
-        console.error('AI Generation error:', error);
-        throw new Error('Failed to generate quiz. Please try a different topic.');
+        console.error('[SEARCH] AI Generation error:', error);
+        console.error('[SEARCH] Error name:', error.name);
+        console.error('[SEARCH] Error message:', error.message);
+        console.error('[SEARCH] Error stack:', error.stack);
+        throw new Error(`Failed to generate quiz: ${error.message}`);
     }
 }
 
