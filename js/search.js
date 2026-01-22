@@ -1,6 +1,9 @@
 // --- SEARCH & INSTANT QUIZ CREATION ---
 // Handles search, AI generation, and displaying results
 
+// Constants
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+
 const TOPICS = [
     'Physics', 'Chemistry', 'Biology', 'Mathematics',
     'History', 'Geography', 'Literature', 'Computer Science',
@@ -124,7 +127,7 @@ async function handleSearch() {
         // Step 2: No match found, generate with AI
         console.log('[SEARCH] No existing quizzes found');
         console.log('[SEARCH] Step 2: Generating new quiz with AI...');
-        showStatus(statusDiv, '⏳ Creating quiz with AI... (this may take 5-30 seconds)', 'text-yellow-400 animate-pulse');
+        showStatus(statusDiv, `⏳ Creating quiz with AI... (this may take 5-${REQUEST_TIMEOUT_MS/1000} seconds)`, 'text-yellow-400');
         
         const genStartTime = Date.now();
         const newQuiz = await generateQuizInstantly(query);
@@ -231,11 +234,11 @@ async function generateQuizInstantly(topic) {
         // Create abort controller for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-            console.error('[SEARCH] Request timeout after 30 seconds, aborting...');
+            console.error(`[SEARCH] Request timeout after ${REQUEST_TIMEOUT_MS/1000} seconds, aborting...`);
             controller.abort();
-        }, 30000); // 30 second timeout
+        }, REQUEST_TIMEOUT_MS);
         
-        console.log('[SEARCH] Timeout set to 30 seconds');
+        console.log(`[SEARCH] Timeout set to ${REQUEST_TIMEOUT_MS/1000} seconds`);
         
         let response;
         try {
@@ -251,7 +254,7 @@ async function generateQuizInstantly(topic) {
             clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
                 console.error('[SEARCH] Fetch aborted due to timeout');
-                throw new Error('Request timed out after 30 seconds. The AI service may be slow or unavailable.');
+                throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS/1000} seconds. The AI service may be slow or unavailable.`);
             }
             console.error('[SEARCH] Fetch error:', fetchError);
             throw new Error(`Network error: ${fetchError.message}`);
