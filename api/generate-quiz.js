@@ -1,15 +1,37 @@
 export default async function handler(req) {
+  // Add timestamp to all logs
+  const timestamp = new Date().toISOString();
+  console.log(`[API ${timestamp}] ========== GENERATE QUIZ REQUEST ==========`);
   console.log('[API] Generate quiz handler called');
+  console.log('[API] Method:', req.method);
+  console.log('[API] URL:', req.url);
+  console.log('[API] Headers:', JSON.stringify(Object.fromEntries(req.headers.entries())));
+  
+  // Handle OPTIONS for CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
+  }
   
   if (req.method !== 'POST') {
     console.log('[API] Invalid method:', req.method);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
   }
 
   try {
+    console.log('[API] Parsing request body...');
     const body = await req.json();
     console.log('[API] Request body:', JSON.stringify(body));
     
@@ -19,7 +41,10 @@ export default async function handler(req) {
       console.log('[API] No topic provided');
       return new Response(JSON.stringify({ error: 'Topic required' }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
 
@@ -34,7 +59,10 @@ export default async function handler(req) {
         hint: 'Set CEREBRAS_API_KEY in Vercel environment variables'
       }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
     console.log('[API] API key found, length:', apiKey.length);
@@ -176,18 +204,29 @@ Return only valid JSON.`;
 
     return new Response(JSON.stringify({ quiz }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
 
   } catch (error) {
+    console.error('[API] ========== ERROR OCCURRED ==========');
     console.error('[API] Generate quiz error:', error);
+    console.error('[API] Error name:', error.name);
+    console.error('[API] Error message:', error.message);
     console.error('[API] Error stack:', error.stack);
+    console.error('[API] =======================================');
     return new Response(JSON.stringify({ 
       error: error.message || 'Failed to generate quiz',
-      details: error.stack
+      details: error.stack,
+      timestamp: new Date().toISOString()
     }), { 
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
   }
 }
