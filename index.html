@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Arcade</title>
+    <title>Quiz Arcade - KBC Style</title>
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Combined CSS -->
@@ -11,56 +11,78 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-900 text-white font-sans">
+<body class="bg-[#0a0e27] text-white font-sans min-h-screen">
     
-    <div class="container mx-auto px-4 py-10 max-w-5xl">
-        <header class="text-center mb-12">
-            <h1 class="text-5xl md:text-7xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 drop-shadow-lg">
+    <!-- Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-950 via-[#0a0e27] to-black opacity-90"></div>
+        <div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px); background-size: 50px 50px;"></div>
+    </div>
+
+    <div class="container mx-auto px-4 py-10 max-w-6xl relative z-10">
+        <header class="text-center mb-12 animate-fadeIn">
+            <h1 class="kbc-title text-5xl md:text-8xl font-extrabold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-500 drop-shadow-2xl tracking-wider animate-float">
                 QUIZ ARCADE
             </h1>
-            <p class="text-blue-200 text-xl">Select a challenge or generate a new one with AI</p>
+            <p class="text-blue-200 text-xl md:text-2xl font-semibold tracking-wide">Select a challenge or generate a new one with AI</p>
+            <div class="mt-4 flex items-center justify-center gap-2 text-yellow-400">
+                <i data-lucide="sparkles" class="w-5 h-5 animate-pulse"></i>
+                <span class="text-sm font-bold">Powered by Cerebras AI</span>
+            </div>
         </header>
 
-        <!-- CREATOR SECTION (Replace old generator section with this) -->
-<section class="mb-16">
-    <div class="bg-gradient-to-br from-blue-900 to-slate-800 p-8 rounded-2xl border border-blue-500/30 shadow-2xl">
-        
-        <!-- Top Bar: Title & AI Controls -->
-        <div class="flex flex-col lg:flex-row gap-6 mb-6">
-            <!-- Left: Quiz Details -->
-            <div class="flex-1">
-                <label class="block text-slate-400 text-sm font-bold mb-2">QUIZ TITLE</label>
-                <input type="text" id="quiz-title" placeholder="e.g. The Ultimate Space Quiz" 
-                       class="w-full bg-slate-950 border border-slate-600 rounded-lg px-4 py-3 text-white text-lg font-bold focus:border-yellow-500 outline-none">
-            </div>
+        <!-- CREATOR SECTION -->
+        <section class="mb-16 animate-slideUp">
+            <div class="bg-gradient-to-br from-blue-950/80 to-slate-900/80 p-8 rounded-3xl border-2 border-blue-500/40 shadow-2xl backdrop-blur-sm">
+                
+                <!-- Top Bar: Title & AI Controls -->
+                <div class="flex flex-col lg:flex-row gap-6 mb-6">
+                    <!-- Left: Quiz Details -->
+                    <div class="flex-1">
+                        <label class="block text-yellow-400 text-sm font-bold mb-3 tracking-wider">📝 QUIZ TITLE</label>
+                        <input type="text" id="quiz-title" placeholder="e.g. The Ultimate Space Quiz" 
+                               class="w-full bg-slate-950/90 border-2 border-slate-600 rounded-xl px-5 py-4 text-white text-lg font-bold focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/50 outline-none transition-all shadow-inner">
+                    </div>
 
-            <!-- Right: AI Generator -->
-            <div class="lg:w-1/2 bg-slate-900/50 p-4 rounded-xl border border-dashed border-slate-600">
-                <div class="flex items-center gap-2 mb-2 text-purple-400 font-bold text-sm">
-                    <i data-lucide="sparkles" class="w-4 h-4"></i> AUTO-FILL WITH AI
+                    <!-- Right: AI Generator -->
+                    <div class="lg:w-1/2 bg-gradient-to-br from-purple-900/30 to-slate-900/50 p-5 rounded-2xl border-2 border-dashed border-purple-500/40 backdrop-blur-sm">
+                        <div class="flex items-center gap-2 mb-3 text-purple-300 font-bold text-sm tracking-wider">
+                            <i data-lucide="sparkles" class="w-5 h-5 animate-pulse"></i> 
+                            <span>AUTO-FILL WITH AI</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="creator-topic" placeholder="Enter topic..." 
+                                   class="flex-1 bg-slate-800/90 border-2 border-slate-600 rounded-lg px-4 py-3 text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 outline-none transition-all">
+                            <input type="number" id="creator-count" value="5" min="1" max="10" 
+                                   class="w-20 bg-slate-800/90 border-2 border-slate-600 rounded-lg px-3 py-3 text-white text-sm text-center focus:border-purple-500 outline-none transition-all">
+                            <button id="creator-generate-btn" 
+                                    class="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white px-6 py-3 rounded-lg text-sm font-bold transition-all transform hover:scale-105 shadow-lg hover:shadow-purple-500/50">
+                                Generate
+                            </button>
+                        </div>
+                        <div id="creator-status" class="mt-3 text-xs h-5 font-semibold"></div>
+                    </div>
                 </div>
-                <div class="flex gap-2">
-                    <input type="text" id="creator-topic" placeholder="Enter topic..." class="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white text-sm">
-                    <input type="number" id="creator-count" value="5" min="1" max="10" class="w-16 bg-slate-800 border border-slate-600 rounded px-2 py-2 text-white text-sm text-center">
-                    <button id="creator-generate-btn" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-bold transition-colors">
-                        Generate
-                    </button>
-                </div>
-                <div id="creator-status" class="mt-2 text-xs h-4"></div>
-            </div>
-        </div>
 
-        <!-- Quiz Grid -->
-        <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Loading State -->
-            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
-            <div class="animate-pulse bg-slate-800 h-48 rounded-xl border border-slate-700"></div>
-        </div>
+                <!-- Quiz Grid -->
+                <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Loading State -->
+                    <div class="animate-pulse bg-slate-800/50 h-56 rounded-2xl border-2 border-slate-700/50"></div>
+                    <div class="animate-pulse bg-slate-800/50 h-56 rounded-2xl border-2 border-slate-700/50"></div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- Scripts -->
     <script src="js/ai-generator.js"></script>
     <script src="js/app.js"></script>
-    <script>lucide.createIcons();</script>
+    <script>
+        lucide.createIcons();
+        // Fetch quizzes on load
+        if (typeof fetchQuizzes === 'function') {
+            fetchQuizzes();
+        }
+    </script>
 </body>
 </html>

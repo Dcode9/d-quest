@@ -36,12 +36,13 @@ const soundIcon = document.getElementById('sound-icon');
 document.addEventListener('DOMContentLoaded', async () => {
     initAudio();
     
-    // 1. Get Quiz Filename from URL
+    // 1. Get Quiz ID or Filename from URL
     const urlParams = new URLSearchParams(window.location.search);
+    const quizId = urlParams.get('id');
     const quizFile = urlParams.get('quiz');
 
     // MOCK DATA Fallback if no URL param (for testing)
-    if (!quizFile) {
+    if (!quizId && !quizFile) {
         state.quizData = {
             title: "Demo Quiz",
             questions: [
@@ -53,18 +54,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // 2. Fetch Quiz Data
-    try {
-        const response = await fetch(`quizzes/${quizFile}`);
-        if (!response.ok) throw new Error("Quiz file not found");
-        
-        const data = await response.json();
-        state.quizData = data;
-        state.status = 'start';
-        renderStartScreen();
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = `<div class="text-white text-center">Failed to load quiz.<br>Check console.</div>`;
+    // 2. Fetch Quiz Data from Supabase if ID is provided
+    if (quizId) {
+        try {
+            const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
+            const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
+            
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch quiz from database");
+            
+            const data = await response.json();
+            if (data.length === 0) throw new Error("Quiz not found");
+            
+            state.quizData = data[0].content;
+            state.status = 'start';
+            renderStartScreen();
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = `<div class="text-white text-center p-8">
+                <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
+                <h2 class="text-2xl font-bold mb-2">Failed to load quiz</h2>
+                <p class="text-gray-400">${e.message}</p>
+                <a href="index.html" class="inline-block mt-4 px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500">Back to Home</a>
+            </div>`;
+            if(window.lucide) window.lucide.createIcons();
+        }
+        return;
+    }
+
+    // 3. Fetch Quiz Data from local file if quiz param is provided
+    if (quizFile) {
+        try {
+            const response = await fetch(`quizzes/${quizFile}`);
+            if (!response.ok) throw new Error("Quiz file not found");
+            
+            const data = await response.json();
+            state.quizData = data;
+            state.status = 'start';
+            renderStartScreen();
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = `<div class="text-white text-center">Failed to load quiz.<br>Check console.</div>`;
+        }
     }
 });
 
@@ -177,8 +214,6 @@ function fadeOutIntro(callback) {
 // --- RENDER FUNCTIONS ---
 
 function renderStartScreen() {
-    playAudio('intro');
-    
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto text-center px-4 w-full">
             <h1 class="text-5xl md:text-7xl text-white font-extrabold mb-8 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600">
@@ -196,10 +231,14 @@ function renderStartScreen() {
         </div>
     `;
 
+    // Try to play intro music, but show overlay if it fails
     setTimeout(() => {
         const wrapper = document.getElementById('play-btn-wrapper');
         if (wrapper) wrapper.classList.remove('opacity-0', 'translate-y-10');
-    }, 4000); 
+        
+        // Attempt to play intro music after button appears
+        playAudio('intro');
+    }, 1000); 
 }
 
 window.handleStartClick = () => {
@@ -216,15 +255,16 @@ function renderQuestionIntro() {
 
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto w-full">
-            <div class="relative w-full max-w-3xl py-12 bg-gradient-to-r from-transparent via-blue-900/50 to-transparent border-y border-blue-500/30 mb-8">
-               <h2 class="text-4xl md:text-6xl text-white font-bold text-center tracking-widest animate-pulse-glow">
+            <div class="relative w-full max-w-4xl py-16 bg-gradient-to-r from-transparent via-blue-900/70 to-transparent border-y-2 border-yellow-400/50 mb-12 shadow-2xl">
+               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest animate-pulse-glow">
                  QUESTION ${state.currentQuestionIndex + 1}
                </h2>
+               <div class="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/20 to-yellow-400/0 animate-shimmer"></div>
             </div>
             
-            <button onclick="handleProceedToQuestion()" class="relative w-36 h-14 group hover:scale-105 transition-transform">
+            <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group hover:scale-110 transition-transform duration-300 shadow-xl hover:shadow-yellow-500/50">
               <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
-              <span class="relative z-10 text-white font-bold text-lg tracking-wider w-full h-full flex items-center justify-center pb-1">
+              <span class="relative z-10 text-white font-bold text-xl tracking-wider w-full h-full flex items-center justify-center pb-1 drop-shadow-lg">
                 NEXT
               </span>
             </button>
@@ -422,15 +462,26 @@ window.handleNextQuestion = () => {
 function renderFinishedScreen() {
     state.status = 'finished';
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center animate-fadeIn p-8 pointer-events-auto bg-black/40 backdrop-blur-sm rounded-3xl border border-white/10">
-            <i data-lucide="trophy" class="w-20 h-20 text-yellow-400 mb-6 drop-shadow-[0_0_15px_rgba(255,215,0,0.6)] animate-bounce"></i>
-            <h2 class="text-3xl md:text-5xl text-white font-bold mb-4">GAME OVER</h2>
-            <p class="text-xl text-blue-200 mb-8">You won: <span class="text-yellow-400 font-bold text-2xl">$${state.score.toLocaleString()}</span></p>
+        <div class="flex flex-col items-center justify-center animate-fadeIn p-10 pointer-events-auto bg-gradient-to-br from-slate-900/80 to-blue-900/80 backdrop-blur-md rounded-3xl border-2 border-yellow-400/50 shadow-2xl max-w-2xl">
+            <i data-lucide="trophy" class="w-24 h-24 text-yellow-400 mb-8 drop-shadow-[0_0_30px_rgba(234,179,8,0.8)] animate-bounce"></i>
+            <h2 class="text-4xl md:text-6xl text-white font-extrabold mb-6 text-center kbc-title">CONGRATULATIONS!</h2>
+            <div class="text-center mb-8">
+                <p class="text-xl text-blue-200 mb-3">Final Score:</p>
+                <p class="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 animate-pulse-glow">
+                    ₹${state.score.toLocaleString()}
+                </p>
+            </div>
             
-            <a href="index.html" class="flex items-center space-x-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all hover:scale-105 shadow-lg shadow-blue-900/50">
-                <i data-lucide="rotate-ccw"></i>
-                <span>PLAY AGAIN</span>
-            </a>
+            <div class="flex gap-4">
+                <a href="index.html" class="flex items-center space-x-2 px-8 py-4 kbc-button text-black rounded-xl font-bold transition-all transform hover:scale-105 shadow-xl">
+                    <i data-lucide="home"></i>
+                    <span class="text-lg">HOME</span>
+                </a>
+                <a href="player.html" class="flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-xl shadow-blue-900/50">
+                    <i data-lucide="rotate-ccw"></i>
+                    <span class="text-lg">PLAY AGAIN</span>
+                </a>
+            </div>
         </div>
     `;
     if(window.lucide) window.lucide.createIcons();
