@@ -9,12 +9,12 @@ const ASSETS = {
     boxOrange: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20orange.svg",
     questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
-    // Audio
-    intro: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/audio/Kaun%20Banega%20Crorepati%20Intro%202019.wav",
-    questionIncoming: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/KBC%20Question%20incoming.wav",
-    clock: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/30%20second%20tic%20tic%20kbc%20clock.mp3",
-    correct: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Correct%20answer.mp3",
-    wrong: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Wrong%20Ans.mp3"
+    // Audio - Use local files for better reliability
+    intro: "assets/audio/KBC Question incoming.wav",  // Use question incoming sound as intro fallback
+    questionIncoming: "assets/audio/KBC Question incoming.wav",
+    clock: "assets/audio/30 second tic tic kbc clock.mp3",
+    correct: "assets/audio/Correct answer.mp3",
+    wrong: "assets/audio/Wrong Ans.mp3"
 };
 
 // --- GAME STATE ---
@@ -107,22 +107,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- AUDIO HANDLING ---
 function initAudio() {
-    // We explicitly encode URI components to handle spaces in filenames
-    state.audioRefs.intro = new Audio(encodeURI(ASSETS.intro));
-    state.audioRefs.incoming = new Audio(encodeURI(ASSETS.questionIncoming));
-    state.audioRefs.clock = new Audio(encodeURI(ASSETS.clock));
-    state.audioRefs.correct = new Audio(encodeURI(ASSETS.correct));
-    state.audioRefs.wrong = new Audio(encodeURI(ASSETS.wrong));
+    // Use local audio files with proper paths
+    state.audioRefs.intro = new Audio(ASSETS.intro);
+    state.audioRefs.incoming = new Audio(ASSETS.questionIncoming);
+    state.audioRefs.clock = new Audio(ASSETS.clock);
+    state.audioRefs.correct = new Audio(ASSETS.correct);
+    state.audioRefs.wrong = new Audio(ASSETS.wrong);
 
     state.audioRefs.clock.loop = true;
 
-    // Robust Loading
-    Object.values(state.audioRefs).forEach(audio => {
-        audio.crossOrigin = "anonymous"; // Helps with some CDN/CORS issues
+    // Improved audio loading with better error handling
+    Object.entries(state.audioRefs).forEach(([key, audio]) => {
         audio.preload = "auto";
-        audio.addEventListener('error', (e) => {
-            console.warn("Audio load error:", audio.src, e);
+        audio.volume = 0.7; // Set reasonable volume
+        
+        audio.addEventListener('canplaythrough', () => {
+            console.log(`Audio '${key}' loaded successfully`);
         });
+        
+        audio.addEventListener('error', (e) => {
+            console.warn(`Audio '${key}' load error:`, audio.src, e);
+            // Show visual indicator that sound is unavailable
+            if (soundBtn) {
+                soundBtn.classList.add('opacity-50');
+                soundBtn.title = 'Sound files not available';
+            }
+        });
+        
         audio.load();
     });
 
@@ -147,7 +158,19 @@ function playAudio(key, loop = false) {
     if (!state.soundEnabled) return;
     const audio = state.audioRefs[key];
     
-    if (!audio) return;
+    if (!audio) {
+        console.warn(`Audio '${key}' not found`);
+        return;
+    }
+
+    // Check if audio is loaded
+    if (audio.readyState < 2) {
+        console.warn(`Audio '${key}' not loaded yet`);
+        if (key === 'intro') {
+            showStartOverlay();
+        }
+        return;
+    }
 
     audio.loop = loop;
     audio.currentTime = 0;
@@ -155,14 +178,18 @@ function playAudio(key, loop = false) {
     const playPromise = audio.play();
     
     if (playPromise !== undefined) {
-        playPromise.catch(e => {
-            console.warn(`Audio '${key}' error:`, e.name);
-            // If it's the Intro, we ALWAYS show the overlay on failure
-            // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
-            if (key === 'intro') {
-                showStartOverlay();
-            }
-        });
+        playPromise
+            .then(() => {
+                console.log(`Audio '${key}' playing`);
+            })
+            .catch(e => {
+                console.warn(`Audio '${key}' playback error:`, e.name, e.message);
+                // If it's the Intro, we ALWAYS show the overlay on failure
+                // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
+                if (key === 'intro') {
+                    showStartOverlay();
+                }
+            });
     }
 }
 
