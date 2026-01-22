@@ -187,31 +187,17 @@ Return only valid JSON.`;
 
     return res.status(200).json({ quiz });
 
-  } catch (innerError) {
-    console.error('[API] ========== INNER ERROR OCCURRED ==========');
-    console.error('[API] Generate quiz error:', innerError);
-    console.error('[API] Error name:', innerError.name);
-    console.error('[API] Error message:', innerError.message);
-    console.error('[API] Error stack:', innerError.stack);
+  } catch (error) {
+    // Catch all errors
+    console.error('[API] ========== ERROR OCCURRED ==========');
+    console.error('[API] Generate quiz error:', error);
+    console.error('[API] Error name:', error.name);
+    console.error('[API] Error message:', error.message);
+    console.error('[API] Error stack:', error.stack);
     console.error('[API] =======================================');
     return res.status(500).json({ 
-      error: innerError.message || 'Failed to generate quiz',
-      details: innerError.stack,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  } catch (outerError) {
-    // Top-level catch for any unhandled errors
-    console.error('[API] ========== FATAL ERROR - FUNCTION CRASH PREVENTED ==========');
-    console.error('[API] Fatal error:', outerError);
-    console.error('[API] Error name:', outerError.name);
-    console.error('[API] Error message:', outerError.message);
-    console.error('[API] Error stack:', outerError.stack);
-    console.error('[API] ================================================================');
-    return res.status(500).json({ 
-      error: 'Function error: ' + (outerError.message || 'Unknown error'),
-      details: outerError.stack,
+      error: error.message || 'Failed to generate quiz',
+      details: error.stack,
       timestamp: new Date().toISOString()
     });
   }
