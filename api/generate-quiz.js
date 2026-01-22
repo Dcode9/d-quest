@@ -19,17 +19,16 @@ export default async function handler(req) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'User-Agent': 'QuizApp/1.0'
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-oss-120b", 
+        model: "llama3.1-8b", 
         messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Generate a quiz about: ${topic}` }
         ],
         temperature: 0.7,
-        max_tokens: 1500
+        max_tokens: 2000
       })
     });
 
