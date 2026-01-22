@@ -217,7 +217,7 @@ function showStartOverlay() {
     overlay.className = "absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer animate-fadeIn";
     overlay.innerHTML = `
         <div class="text-center group">
-            <div class="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(234,179,8,0.5)]">
+            <div class="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-4 transition-all duration-200 group-hover:opacity-90 group-hover:-translate-y-1 shadow-lg">
                 <i data-lucide="play" class="w-10 h-10 text-black fill-current ml-1"></i>
             </div>
             <h3 class="text-white text-2xl font-bold tracking-widest">TAP TO START</h3>
@@ -264,7 +264,7 @@ function renderStartScreen() {
             </h1>
             
             <div id="play-btn-wrapper" class="opacity-0 translate-y-10 transition-all duration-1000">
-                <button onclick="handleStartClick()" class="relative w-48 h-20 group hover:scale-105 transition-transform duration-300">
+                <button onclick="handleStartClick()" class="relative w-48 h-20 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
                     <img src="${ASSETS.next}" alt="Play" class="absolute inset-0 w-full h-full object-contain">
                     <div class="relative z-10 w-full h-full flex items-center justify-center pb-2 pl-1">
                         <span class="text-white font-bold text-2xl tracking-widest drop-shadow-md">PLAY</span>
@@ -299,13 +299,13 @@ function renderQuestionIntro() {
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto w-full">
             <div class="relative w-full max-w-4xl py-16 bg-gradient-to-r from-transparent via-blue-900/70 to-transparent border-y-2 border-yellow-400/50 mb-12 shadow-2xl">
-               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest animate-pulse-glow">
+               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest">
                  QUESTION ${state.currentQuestionIndex + 1}
                </h2>
                <div class="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/20 to-yellow-400/0 animate-shimmer"></div>
             </div>
             
-            <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group hover:scale-110 transition-transform duration-300 shadow-xl hover:shadow-yellow-500/50">
+            <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
               <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
               <span class="relative z-10 text-white font-bold text-xl tracking-wider w-full h-full flex items-center justify-center pb-1 drop-shadow-lg">
                 NEXT
@@ -316,13 +316,36 @@ function renderQuestionIntro() {
 }
 
 window.handleProceedToQuestion = () => {
-    renderGameInterface();
-    playAudio('incoming');
-    state.status = 'question-incoming';
+    // Start exit animation for question number screen
+    const introContainer = container.querySelector('.animate-fadeIn');
+    if (introContainer) {
+        introContainer.style.opacity = '0';
+        introContainer.style.transition = 'opacity 0.5s ease-out';
+    }
     
-    document.addEventListener('keydown', handleTriggerKey);
-    const gameInterface = document.getElementById('game-interface');
-    if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
+    // Simultaneously start audio and render interface with fade-in
+    playAudio('incoming');
+    
+    setTimeout(() => {
+        renderGameInterface();
+        state.status = 'question-incoming';
+        
+        // Slowly fade in the question as audio plays (audio is ~3-4 seconds)
+        setTimeout(() => {
+            const questionContainer = container.querySelector('.animate-slideUp');
+            if (questionContainer) {
+                questionContainer.style.opacity = '0';
+                questionContainer.style.transition = 'opacity 3s ease-in';
+                requestAnimationFrame(() => {
+                    questionContainer.style.opacity = '1';
+                });
+            }
+        }, 100);
+        
+        document.addEventListener('keydown', handleTriggerKey);
+        const gameInterface = document.getElementById('game-interface');
+        if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
+    }, 300);
 };
 
 function renderGameInterface() {
@@ -366,8 +389,8 @@ function renderGameInterface() {
                 </div>
             </div>
 
-            <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300 scale-95">
-                <button onclick="handleNextQuestion()" class="relative w-36 h-14 group hover:scale-105 transition-transform">
+            <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300">
+                <button onclick="handleNextQuestion()" class="relative w-36 h-14 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
                   <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
                   <span class="relative z-10 text-white font-bold text-lg tracking-wider w-full h-full flex items-center justify-center pb-1">NEXT</span>
                 </button>
@@ -378,7 +401,7 @@ function renderGameInterface() {
 
 function renderOptionHTML(index, label, text) {
     return `
-        <div id="option-${index}" onclick="handleOptionClick(${index})" class="relative w-full h-14 md:h-16 flex items-center justify-center cursor-pointer transition-transform duration-100 hover:scale-[1.02] active:scale-95">
+        <div id="option-${index}" onclick="handleOptionClick(${index})" class="relative w-full h-14 md:h-16 flex items-center justify-center cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5">
             <img id="bg-option-${index}" src="${ASSETS.boxNormal}" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none">
             <div id="text-option-${index}" class="relative z-10 flex w-full px-10 md:px-14 items-center text-white pb-1">
                 <span class="font-bold text-yellow-400 text-lg md:text-xl mr-3 drop-shadow-sm">${label}:</span>
@@ -460,8 +483,8 @@ function revealAnswer() {
 
     const btn = document.getElementById('next-btn-container');
     if(btn) {
-        btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-        btn.classList.add('opacity-100', 'scale-100');
+        btn.classList.remove('opacity-0', 'pointer-events-none');
+        btn.classList.add('opacity-100', 'pointer-events-auto');
     }
 }
 
