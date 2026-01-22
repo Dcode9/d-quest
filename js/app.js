@@ -76,47 +76,168 @@ function renderQuizzes(quizzes) {
     quizzes.forEach(item => {
         const quiz = item.content; // Your JSON content
         const card = document.createElement('div');
-        card.className = "quiz-card p-6 rounded-2xl flex flex-col justify-between h-56 group cursor-pointer";
+        card.className = "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden";
         
-        // When playing, pass either Supabase ID or local quiz filename
-        card.onclick = () => {
+        const questionCount = quiz.questions ? quiz.questions.length : 0;
+        
+        // Generate emoji based on topic/title
+        const emoji = getQuizEmoji(quiz.title);
+        
+        // Extract metadata
+        const metadata = quiz.metadata || {};
+        const grade = metadata.grade || 'All Grades';
+        const difficulty = metadata.difficulty || 'Medium';
+        const topic = metadata.topic || extractTopic(quiz.title);
+
+        card.innerHTML = `
+            <!-- Emoji Thumbnail -->
+            <div class="flex items-center gap-4 mb-4">
+                <div class="text-6xl flex-shrink-0 w-20 h-20 flex items-center justify-center bg-gradient-to-br from-yellow-400/20 to-orange-500/20 rounded-xl">
+                    ${emoji}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-2xl font-bold text-white mb-1 line-clamp-2 group-hover:text-yellow-300 transition-colors">${quiz.title}</h3>
+                    <div class="flex items-center gap-2 text-slate-400 text-xs">
+                        <span class="flex items-center gap-1">
+                            <i data-lucide="book-open" class="w-3 h-3"></i>
+                            ${topic}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Metadata -->
+            <div class="grid grid-cols-3 gap-2 mb-4 text-xs">
+                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
+                    <div class="text-slate-400 mb-1">Grade</div>
+                    <div class="text-white font-bold">${grade}</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
+                    <div class="text-slate-400 mb-1">Difficulty</div>
+                    <div class="text-white font-bold">${difficulty}</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
+                    <div class="text-slate-400 mb-1">Questions</div>
+                    <div class="text-white font-bold">${questionCount}</div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-2 mt-auto">
+                <button class="start-quiz-btn flex-1 kbc-button text-black font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>Start Quiz</span>
+                </button>
+                <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add event listeners
+        const startBtn = card.querySelector('.start-quiz-btn');
+        const previewBtn = card.querySelector('.preview-btn');
+        
+        startBtn.onclick = (e) => {
+            e.stopPropagation();
             if (item.isLocal) {
                 window.location.href = `player.html?quiz=${item.fileName}`;
             } else {
                 window.location.href = `player.html?id=${item.id}`;
             }
         };
-
-        const questionCount = quiz.questions ? quiz.questions.length : 0;
-
-        card.innerHTML = `
-            <div>
-                <div class="flex items-center gap-2 mb-3">
-                    <i data-lucide="trophy" class="w-5 h-5 text-yellow-400"></i>
-                    <span class="text-yellow-400 text-xs font-bold uppercase tracking-wider">Quiz Challenge</span>
-                </div>
-                <h3 class="text-2xl font-bold text-white mb-3 line-clamp-2 group-hover:text-yellow-300 transition-colors">${quiz.title}</h3>
-                <div class="flex items-center gap-4 text-slate-400 text-sm">
-                    <span class="flex items-center gap-1">
-                        <i data-lucide="list" class="w-4 h-4"></i>
-                        ${questionCount} Questions
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <i data-lucide="calendar" class="w-4 h-4"></i>
-                        ${new Date(item.created_at).toLocaleDateString()}
-                    </span>
-                </div>
-            </div>
-            <button class="w-full mt-4 kbc-button text-black font-bold py-3 rounded-xl transition-all transform group-hover:scale-105 shadow-lg flex items-center justify-center gap-2">
-                <i data-lucide="play" class="w-5 h-5"></i>
-                <span class="text-lg tracking-wider">PLAY NOW</span>
-            </button>
-        `;
+        
+        previewBtn.onclick = (e) => {
+            e.stopPropagation();
+            showPreview(quiz);
+        };
+        
         grid.appendChild(card);
     });
     
     // Re-initialize Lucide icons for dynamically created content
     if(window.lucide) window.lucide.createIcons();
+}
+
+// Get emoji based on quiz topic
+function getQuizEmoji(title) {
+    const titleLower = title.toLowerCase();
+    if (titleLower.includes('space') || titleLower.includes('planet')) return '🚀';
+    if (titleLower.includes('science') || titleLower.includes('chemistry')) return '🔬';
+    if (titleLower.includes('history')) return '📜';
+    if (titleLower.includes('geography') || titleLower.includes('world')) return '🌍';
+    if (titleLower.includes('technology') || titleLower.includes('computer')) return '💻';
+    if (titleLower.includes('math')) return '🔢';
+    if (titleLower.includes('biology')) return '🧬';
+    if (titleLower.includes('physics')) return '⚛️';
+    if (titleLower.includes('literature') || titleLower.includes('book')) return '📚';
+    if (titleLower.includes('art')) return '🎨';
+    if (titleLower.includes('music')) return '🎵';
+    if (titleLower.includes('sports')) return '⚽';
+    return '🎯'; // Default emoji
+}
+
+// Extract topic from title
+function extractTopic(title) {
+    const topics = ['Science', 'History', 'Geography', 'Technology', 'Mathematics', 
+                    'Biology', 'Physics', 'Chemistry', 'Literature', 'General Knowledge'];
+    for (const topic of topics) {
+        if (title.toLowerCase().includes(topic.toLowerCase())) {
+            return topic;
+        }
+    }
+    return 'General';
+}
+
+// Show preview modal
+function showPreview(quiz) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn';
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
+    
+    const content = document.createElement('div');
+    content.className = 'bg-slate-900 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto';
+    
+    let questionsHTML = '';
+    if (quiz.questions && quiz.questions.length > 0) {
+        questionsHTML = quiz.questions.map((q, i) => `
+            <div class="mb-4 p-4 bg-slate-800 rounded-lg">
+                <div class="font-bold text-yellow-400 mb-2">Q${i + 1}. ${q.question}</div>
+                <div class="space-y-2">
+                    ${q.options.map((opt, idx) => `
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="${idx === q.correctIndex ? 'text-green-400' : 'text-slate-400'}">${String.fromCharCode(65 + idx)})</span>
+                            <span class="${idx === q.correctIndex ? 'text-green-400 font-bold' : 'text-slate-300'}">${opt}</span>
+                            ${idx === q.correctIndex ? '<span class="text-green-400 ml-auto">✓</span>' : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    content.innerHTML = `
+        <div class="flex justify-between items-start mb-4">
+            <h2 class="text-2xl font-bold text-yellow-400">${quiz.title}</h2>
+            <button class="close-btn text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="text-slate-300 text-sm mb-4">
+            ${quiz.questions ? quiz.questions.length : 0} Questions • Preview mode shows correct answers
+        </div>
+        ${questionsHTML}
+    `;
+    
+    const closeBtn = content.querySelector('.close-btn');
+    closeBtn.onclick = () => modal.remove();
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    if (window.lucide) window.lucide.createIcons();
 }
 
 // Make fetchQuizzes available globally

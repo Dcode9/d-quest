@@ -41,8 +41,63 @@ body {
 }
 
 /* --- HOMEPAGE SPECIFIC STYLES --- */
-/* KBC-themed card styling */
+/* New Search-focused card styling */
 
+.quiz-card-new {
+    background: linear-gradient(145deg, #1a1f3a, #0a0e27);
+    border: 2px solid #2d3a5f;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.quiz-card-new::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; 
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.quiz-card-new:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: #eab308;
+    box-shadow: 
+        0 20px 40px -10px rgba(234, 179, 8, 0.5),
+        0 0 30px rgba(234, 179, 8, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.quiz-card-new:hover::after {
+    left: 100%;
+}
+
+.quiz-card-new::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, rgba(234, 179, 8, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+
+.quiz-card-new:hover::before {
+    opacity: 1;
+}
+
+/* Search Container Styles */
+.search-container input::placeholder {
+    color: #64748b;
+    transition: opacity 0.3s;
+    opacity: var(--placeholder-opacity, 1);
+}
+
+.search-container input:focus::placeholder {
+    opacity: 0.5;
+}
+
+/* Old card styles (kept for compatibility) */
 .quiz-card {
     background: linear-gradient(145deg, #1a1f3a, #0a0e27);
     border: 2px solid #2d3a5f;
