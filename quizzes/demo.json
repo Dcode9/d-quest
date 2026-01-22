@@ -1,6 +1,11 @@
 {
   "id": "space-001",
   "title": "Space Explorer",
+  "metadata": {
+    "grade": "6-8",
+    "topic": "Space Science",
+    "difficulty": "Easy"
+  },
   "questions": [
     {
       "question": "Which planet is red?",

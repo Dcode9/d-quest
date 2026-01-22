@@ -1,0 +1,36 @@
+{
+  "id": "science-001",
+  "title": "Science Fundamentals",
+  "metadata": {
+    "grade": "6-8",
+    "topic": "Science",
+    "difficulty": "Medium"
+  },
+  "questions": [
+    {
+      "question": "What is the chemical symbol for gold?",
+      "options": ["Go", "Gd", "Au", "Ag"],
+      "correctIndex": 2
+    },
+    {
+      "question": "How many bones are in the human body?",
+      "options": ["186", "206", "226", "246"],
+      "correctIndex": 1
+    },
+    {
+      "question": "What is the speed of light in a vacuum?",
+      "options": ["299,792,458 m/s", "199,792,458 m/s", "399,792,458 m/s", "99,792,458 m/s"],
+      "correctIndex": 0
+    },
+    {
+      "question": "What is the smallest unit of life?",
+      "options": ["Atom", "Molecule", "Cell", "Tissue"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Which gas do plants absorb from the atmosphere?",
+      "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
+      "correctIndex": 2
+    }
+  ]
+}
