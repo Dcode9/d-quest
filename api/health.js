@@ -1,4 +1,4 @@
-export default async function handler(req) {
+module.exports = async function handler(req, res) {
   console.log('[HEALTH] Health check endpoint called');
   console.log('[HEALTH] Method:', req.method);
   console.log('[HEALTH] URL:', req.url);
@@ -24,11 +24,7 @@ export default async function handler(req) {
   
   console.log('[HEALTH] Response:', JSON.stringify(response, null, 2));
   
-  return new Response(JSON.stringify(response, null, 2), {
-    status: 200,
-    headers: { 
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate'
-    }
-  });
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  return res.status(200).json(response);
 }
