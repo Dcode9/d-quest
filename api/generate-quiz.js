@@ -1,52 +1,38 @@
-export default async function handler(req) {
+export default async function handler(req, res) {
+  // Add CORS headers to all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   // Add timestamp to all logs
   const timestamp = new Date().toISOString();
   console.log(`[API ${timestamp}] ========== GENERATE QUIZ REQUEST ==========`);
   console.log('[API] Generate quiz handler called');
   console.log('[API] Method:', req.method);
   console.log('[API] URL:', req.url);
-  console.log('[API] Headers:', JSON.stringify(Object.fromEntries(req.headers.entries())));
+  console.log('[API] Headers:', JSON.stringify(req.headers));
   
   // Wrap entire handler in try-catch to prevent function crashes
   try {
     // Handle OPTIONS for CORS preflight
     if (req.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        }
-      });
+      return res.status(200).end();
     }
     
     if (req.method !== 'POST') {
       console.log('[API] Invalid method:', req.method);
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
-        status: 405,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
     console.log('[API] Parsing request body...');
-    const body = await req.json();
+    const body = req.body;
     console.log('[API] Request body:', JSON.stringify(body));
     
     const { topic, count = 5 } = body;
 
     if (!topic) {
       console.log('[API] No topic provided');
-      return new Response(JSON.stringify({ error: 'Topic required' }), { 
-        status: 400,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      return res.status(400).json({ error: 'Topic required' });
     }
 
     console.log('[API] Checking for Cerebras API key...');
@@ -55,15 +41,9 @@ export default async function handler(req) {
     if (!apiKey) {
       console.log('[API] Cerebras API Key Missing in environment');
       console.log('[API] Please set CEREBRAS_API_KEY environment variable in Vercel');
-      return new Response(JSON.stringify({ 
+      return res.status(500).json({ 
         error: 'Cerebras API Key Missing',
         hint: 'Set CEREBRAS_API_KEY in Vercel environment variables'
-      }), { 
-        status: 500,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
       });
     }
     console.log('[API] API key found, length:', apiKey.length);
@@ -130,12 +110,9 @@ Return only valid JSON.`;
     if (!response.ok) {
       const err = await response.text();
       console.error('[API] Cerebras API error response:', err);
-      return new Response(JSON.stringify({ 
+      return res.status(response.status).json({ 
         error: `Cerebras API Error: ${response.status}`, 
         details: err.substring(0, 200) 
-      }), { 
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' }
       });
     }
 
@@ -203,13 +180,7 @@ Return only valid JSON.`;
     const totalDuration = Date.now() - startTime;
     console.log(`[API] Total generation time: ${totalDuration}ms`);
 
-    return new Response(JSON.stringify({ quiz }), {
-      status: 200,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+    return res.status(200).json({ quiz });
 
   } catch (innerError) {
     console.error('[API] ========== INNER ERROR OCCURRED ==========');
@@ -218,16 +189,10 @@ Return only valid JSON.`;
     console.error('[API] Error message:', innerError.message);
     console.error('[API] Error stack:', innerError.stack);
     console.error('[API] =======================================');
-    return new Response(JSON.stringify({ 
+    return res.status(500).json({ 
       error: innerError.message || 'Failed to generate quiz',
       details: innerError.stack,
       timestamp: new Date().toISOString()
-    }), { 
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
     });
   }
   
@@ -239,16 +204,10 @@ Return only valid JSON.`;
     console.error('[API] Error message:', outerError.message);
     console.error('[API] Error stack:', outerError.stack);
     console.error('[API] ================================================================');
-    return new Response(JSON.stringify({ 
+    return res.status(500).json({ 
       error: 'Function error: ' + (outerError.message || 'Unknown error'),
       details: outerError.stack,
       timestamp: new Date().toISOString()
-    }), { 
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
     });
   }
 }
