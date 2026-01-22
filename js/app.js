@@ -170,36 +170,6 @@ function renderQuizzes(quizzes) {
     // Re-initialize Lucide icons for dynamically created content
     if(window.lucide) window.lucide.createIcons();
 }
-                <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                </button>
-            </div>
-        `;
-        
-        // Add event listeners
-        const startBtn = card.querySelector('.start-quiz-btn');
-        const previewBtn = card.querySelector('.preview-btn');
-        
-        startBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (item.isLocal) {
-                window.location.href = `player.html?quiz=${item.fileName}`;
-            } else {
-                window.location.href = `player.html?id=${item.id}`;
-            }
-        };
-        
-        previewBtn.onclick = (e) => {
-            e.stopPropagation();
-            showPreview(quiz);
-        };
-        
-        grid.appendChild(card);
-    });
-    
-    // Re-initialize Lucide icons for dynamically created content
-    if(window.lucide) window.lucide.createIcons();
-}
 
 // Get emoji based on quiz topic
 function getQuizEmoji(title) {
