@@ -124,7 +124,7 @@ async function handleSearch() {
         // Step 2: No match found, generate with AI
         console.log('[SEARCH] No existing quizzes found');
         console.log('[SEARCH] Step 2: Generating new quiz with AI...');
-        showStatus(statusDiv, 'No match found. Creating new quiz with AI...', 'text-yellow-400');
+        showStatus(statusDiv, '⏳ Creating quiz with AI... (this may take 5-30 seconds)', 'text-yellow-400 animate-pulse');
         
         const genStartTime = Date.now();
         const newQuiz = await generateQuizInstantly(query);
@@ -136,7 +136,7 @@ async function handleSearch() {
             console.log('[SEARCH] Quiz created successfully!');
             console.log('[SEARCH] Quiz title:', newQuiz.content.title);
             console.log('[SEARCH] Quiz has metadata:', !!newQuiz.content.metadata);
-            showStatus(statusDiv, 'Quiz created! Ready to play.', 'text-green-400');
+            showStatus(statusDiv, '✅ Quiz created! Ready to play.', 'text-green-400');
             await delay(500);
             showResults([newQuiz]);
             console.log('[SEARCH] ========== SEARCH COMPLETED (NEW QUIZ) ==========');
@@ -149,7 +149,7 @@ async function handleSearch() {
             message: error.message,
             stack: error.stack
         });
-        showStatus(statusDiv, `Error: ${error.message}`, 'text-red-500');
+        showStatus(statusDiv, `❌ Error: ${error.message}`, 'text-red-500');
         console.log('[SEARCH] ========== SEARCH FAILED ==========');
     }
 }
@@ -228,11 +228,34 @@ async function generateQuizInstantly(topic) {
         const startTime = Date.now();
         console.log('[SEARCH] Sending request at:', startTime);
         
-        const response = await fetch('/api/generate-quiz', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            console.error('[SEARCH] Request timeout after 30 seconds, aborting...');
+            controller.abort();
+        }, 30000); // 30 second timeout
+        
+        console.log('[SEARCH] Timeout set to 30 seconds');
+        
+        let response;
+        try {
+            response = await fetch('/api/generate-quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            console.log('[SEARCH] Request completed, timeout cleared');
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                console.error('[SEARCH] Fetch aborted due to timeout');
+                throw new Error('Request timed out after 30 seconds. The AI service may be slow or unavailable.');
+            }
+            console.error('[SEARCH] Fetch error:', fetchError);
+            throw new Error(`Network error: ${fetchError.message}`);
+        }
         
         const fetchDuration = Date.now() - startTime;
         console.log(`[SEARCH] Fetch completed in ${fetchDuration}ms`);
@@ -242,14 +265,15 @@ async function generateQuizInstantly(topic) {
         
         const text = await response.text();
         console.log('[SEARCH] Response text length:', text.length);
-        console.log('[SEARCH] Response text:', text);
+        console.log('[SEARCH] Response text preview:', text.substring(0, 200));
         
         let data;
         
         try {
             console.log('[SEARCH] Attempting to parse response as JSON...');
             data = JSON.parse(text);
-            console.log('[SEARCH] Successfully parsed JSON:', JSON.stringify(data, null, 2));
+            console.log('[SEARCH] Successfully parsed JSON');
+            console.log('[SEARCH] Response structure:', Object.keys(data));
         } catch (err) {
             console.error('[SEARCH] JSON parse error:', err.message);
             console.error('[SEARCH] Raw response that failed to parse:', text);
