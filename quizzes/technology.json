@@ -1,6 +1,11 @@
 {
   "id": "technology-001",
   "title": "Technology & Computing",
+  "metadata": {
+    "grade": "9-12",
+    "topic": "Technology",
+    "difficulty": "Medium"
+  },
   "questions": [
     {
       "question": "Who is known as the father of computers?",

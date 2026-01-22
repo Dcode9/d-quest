@@ -1,6 +1,11 @@
 {
   "id": "science-001",
   "title": "Science Fundamentals",
+  "metadata": {
+    "grade": "6-8",
+    "topic": "Science",
+    "difficulty": "Medium"
+  },
   "questions": [
     {
       "question": "What is the chemical symbol for gold?",

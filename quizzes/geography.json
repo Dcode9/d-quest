@@ -1,6 +1,11 @@
 {
   "id": "geography-001",
   "title": "Geography Explorer",
+  "metadata": {
+    "grade": "6-8",
+    "topic": "Geography",
+    "difficulty": "Medium"
+  },
   "questions": [
     {
       "question": "What is the longest river in the world?",

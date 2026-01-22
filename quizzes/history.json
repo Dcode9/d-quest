@@ -1,6 +1,11 @@
 {
   "id": "history-001",
   "title": "World History Quiz",
+  "metadata": {
+    "grade": "9-12",
+    "topic": "History",
+    "difficulty": "Medium"
+  },
   "questions": [
     {
       "question": "Who was the first President of the United States?",

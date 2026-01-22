@@ -1,6 +1,11 @@
 {
   "id": "general-001",
   "title": "General Knowledge Challenge",
+  "metadata": {
+    "grade": "9-12",
+    "topic": "General Knowledge",
+    "difficulty": "Easy"
+  },
   "questions": [
     {
       "question": "What is the capital of France?",
