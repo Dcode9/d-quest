@@ -216,9 +216,15 @@ function showStartOverlay() {
     if(window.lucide) window.lucide.createIcons();
 }
 
-// Generic fade out for any audio element
+// Generic fade out for any audio element (tracks active fades to prevent overlap)
+const activeFades = new WeakMap();
 function fadeOutAudio(audio, durationMs, callback) {
     if (!audio || audio.paused) { if(callback) callback(); return; }
+
+    // Clear any existing fade on this audio element
+    if (activeFades.has(audio)) {
+        clearInterval(activeFades.get(audio));
+    }
 
     const steps = 10;
     const interval = durationMs / steps;
@@ -229,12 +235,15 @@ function fadeOutAudio(audio, durationMs, callback) {
             audio.volume = Math.max(0, audio.volume - volumeStep);
         } else {
             clearInterval(fade);
+            activeFades.delete(audio);
             audio.pause();
             audio.currentTime = 0;
             audio.volume = 1.0;
             if (callback) callback();
         }
     }, interval);
+
+    activeFades.set(audio, fade);
 }
 
 function fadeOutIntro(callback) {

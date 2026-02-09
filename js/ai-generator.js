@@ -144,7 +144,8 @@ function scrapeQuestionsFromDOM() {
         const options = Array.from(optInputs).map(i => i.value);
         const correctIndex = correctRadio ? parseInt(correctRadio.value) : 0;
 
-        if (qText && qText.trim()) {
+        // Only add if question has text and all options are filled
+        if (qText && qText.trim() && options.every(o => o && o.trim())) {
             questions.push({ question: qText, options, correctIndex });
         }
     });
