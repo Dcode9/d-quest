@@ -10,11 +10,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const genBtn = document.getElementById('creator-generate-btn');
     const saveBtn = document.getElementById('creator-save-btn');
     const addBtn = document.getElementById('add-question-btn');
+    const previewBtn = document.getElementById('creator-preview-btn');
     
     if (genBtn) genBtn.addEventListener('click', handleAIGeneration);
     if (saveBtn) saveBtn.addEventListener('click', handleDatabaseSave);
     if (addBtn) addBtn.addEventListener('click', () => renderQuestionBlock());
+    if (previewBtn) previewBtn.addEventListener('click', handlePreviewQuiz);
 });
+
+// --- SEARCH BAR ANIMATION ---
+function animateSearchToHeader() {
+    const searchSection = document.getElementById('search-section');
+    const searchWrapper = document.getElementById('search-wrapper');
+    if (!searchSection || !searchWrapper) return;
+
+    searchSection.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-50', 'bg-[#0a0e27]/95', 'backdrop-blur-md', 'py-3', 'px-4', 'mb-0', 'border-b', 'border-yellow-500/20');
+    searchSection.classList.remove('mb-10');
+    searchWrapper.classList.remove('max-w-2xl');
+    searchWrapper.classList.add('max-w-6xl');
+
+    // Add spacer to prevent content jump
+    if (!document.getElementById('search-spacer')) {
+        const spacer = document.createElement('div');
+        spacer.id = 'search-spacer';
+        spacer.className = 'h-24';
+        searchSection.parentNode.insertBefore(spacer, searchSection.nextSibling);
+    }
+}
+
+function resetSearchPosition() {
+    const searchSection = document.getElementById('search-section');
+    const searchWrapper = document.getElementById('search-wrapper');
+    if (!searchSection || !searchWrapper) return;
+
+    searchSection.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-50', 'bg-[#0a0e27]/95', 'backdrop-blur-md', 'py-3', 'px-4', 'border-b', 'border-yellow-500/20');
+    searchSection.classList.add('mb-10');
+    searchWrapper.classList.add('max-w-2xl');
+    searchWrapper.classList.remove('max-w-6xl');
+
+    const spacer = document.getElementById('search-spacer');
+    if (spacer) spacer.remove();
+}
 
 // --- 1. AI GENERATION (Populates UI) ---
 async function handleAIGeneration(e) {
@@ -22,13 +58,22 @@ async function handleAIGeneration(e) {
     const topicInput = document.getElementById('creator-topic');
     const countInput = document.getElementById('creator-count');
     const statusDiv = document.getElementById('creator-status');
+    const generatingMsg = document.getElementById('generating-message');
+    const creatorSection = document.getElementById('creator-section');
 
     if (!topicInput || !topicInput.value) {
         showStatus(statusDiv, "Please enter a topic first.", "text-red-400");
         return;
     }
 
-    showStatus(statusDiv, "AI is drafting your quiz...", "text-blue-400");
+    // Animate search bar to header
+    animateSearchToHeader();
+
+    // Show generating message, hide creator section
+    if (generatingMsg) generatingMsg.classList.remove('hidden');
+    if (creatorSection) creatorSection.classList.add('hidden');
+
+    showStatus(statusDiv, "Generating with D'Ai...", "text-yellow-400");
     setLoading(true);
 
     try {
@@ -53,16 +98,59 @@ async function handleAIGeneration(e) {
 
         if (!res.ok) throw new Error(data.error || "Generation failed");
 
-        // Success - Populate the form
+        // Success - Populate the form and show creator section
         populateQuizForm(data.quiz);
-        showStatus(statusDiv, "Draft generated! You can edit below.", "text-green-400");
+        if (generatingMsg) generatingMsg.classList.add('hidden');
+        if (creatorSection) creatorSection.classList.remove('hidden');
+        showStatus(statusDiv, "Quiz generated! Edit below or preview.", "text-green-400");
 
     } catch (err) {
         console.error(err);
+        if (generatingMsg) generatingMsg.classList.add('hidden');
         showStatus(statusDiv, `Error: ${err.message}`, "text-red-500");
+        resetSearchPosition();
     } finally {
         setLoading(false);
     }
+}
+
+// --- PREVIEW QUIZ ---
+function handlePreviewQuiz() {
+    const title = document.getElementById('quiz-title')?.value || 'Preview Quiz';
+    const questions = scrapeQuestionsFromDOM();
+
+    if (questions.length === 0) {
+        const statusDiv = document.getElementById('creator-status');
+        showStatus(statusDiv, "No questions to preview.", "text-red-400");
+        return;
+    }
+
+    const quizData = { title, questions };
+
+    // Store in sessionStorage and open player
+    sessionStorage.setItem('previewQuiz', JSON.stringify(quizData));
+    window.location.href = 'player.html?preview=true';
+}
+
+function scrapeQuestionsFromDOM() {
+    const questions = [];
+    const blocks = document.querySelectorAll('#questions-container > div');
+    
+    blocks.forEach(block => {
+        const qText = block.querySelector('.q-input')?.value;
+        const optInputs = block.querySelectorAll('.opt-input');
+        const correctRadio = block.querySelector('input[type="radio"]:checked');
+        
+        const options = Array.from(optInputs).map(i => i.value);
+        const correctIndex = correctRadio ? parseInt(correctRadio.value) : 0;
+
+        // Only add if question has text and all options are filled
+        if (qText && qText.trim() && options.every(o => o && o.trim())) {
+            questions.push({ question: qText, options, correctIndex });
+        }
+    });
+
+    return questions;
 }
 
 // --- 2. UI MANIPULATION ---
