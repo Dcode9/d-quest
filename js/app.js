@@ -214,20 +214,22 @@ function showPreview(quiz) {
     
     let questionsHTML = '';
     if (quiz.questions && quiz.questions.length > 0) {
-        questionsHTML = quiz.questions.map((q, i) => `
+        questionsHTML = quiz.questions.map((q, i) => {
+            const correctIdx = parseInt(q.correctIndex, 10);
+            return `
             <div class="mb-4 p-4 bg-slate-800 rounded-lg">
                 <div class="font-bold text-yellow-400 mb-2">Q${i + 1}. ${q.question}</div>
                 <div class="space-y-2">
                     ${q.options.map((opt, idx) => `
                         <div class="flex items-center gap-2 text-sm">
-                            <span class="${idx === q.correctIndex ? 'text-green-400' : 'text-slate-400'}">${String.fromCharCode(65 + idx)})</span>
-                            <span class="${idx === q.correctIndex ? 'text-green-400 font-bold' : 'text-slate-300'}">${opt}</span>
-                            ${idx === q.correctIndex ? '<span class="text-green-400 ml-auto">✓</span>' : ''}
+                            <span class="${idx === correctIdx ? 'text-green-400' : 'text-slate-400'}">${String.fromCharCode(65 + idx)})</span>
+                            <span class="${idx === correctIdx ? 'text-green-400 font-bold' : 'text-slate-300'}">${opt}</span>
+                            ${idx === correctIdx ? '<span class="text-green-400 ml-auto">✓</span>' : ''}
                         </div>
                     `).join('')}
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
     
     content.innerHTML = `
@@ -252,5 +254,7 @@ function showPreview(quiz) {
     if (window.lucide) window.lucide.createIcons();
 }
 
-// Make fetchQuizzes available globally
+// Make fetchQuizzes, renderQuizzes, and showPreview available globally
 window.fetchQuizzes = fetchQuizzes;
+window.renderQuizzes = renderQuizzes;
+window.showPreview = showPreview;
