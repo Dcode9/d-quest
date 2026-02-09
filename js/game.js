@@ -25,6 +25,9 @@ const ANIMATION_TIMINGS = {
     QUESTION_FADE_DURATION: 3000 // Question fade-in duration (synced with audio)
 };
 
+const DEFAULT_AUDIO_VOLUME = 0.7;
+const INTRO_PLAY_DURATION = 2000; // How long to let intro play before transitioning
+
 // --- GAME STATE ---
 const state = {
     quizData: null,
@@ -142,7 +145,7 @@ function initAudio() {
     // Improved audio loading with better error handling
     Object.entries(state.audioRefs).forEach(([key, audio]) => {
         audio.preload = "auto";
-        audio.volume = 0.7; // Set reasonable volume
+        audio.volume = DEFAULT_AUDIO_VOLUME;
         
         audio.addEventListener('canplaythrough', () => {
             console.log(`Audio '${key}' loaded successfully`);
@@ -193,7 +196,7 @@ function fadeOutAudio(audio, durationMs, callback) {
             clearInterval(fade);
             audio.pause();
             audio.currentTime = 0;
-            audio.volume = 0.7; // Reset to default volume
+            audio.volume = DEFAULT_AUDIO_VOLUME; // Reset to default volume
             if (callback) callback();
         }
     }, stepTime);
@@ -217,7 +220,7 @@ function playAudio(key, loop = false) {
 
     audio.loop = loop;
     audio.currentTime = 0;
-    audio.volume = 0.7;
+    audio.volume = DEFAULT_AUDIO_VOLUME;
     
     const playPromise = audio.play();
     
@@ -275,7 +278,7 @@ window.handleStartClick = () => {
             state.score = 0;
             renderQuestionIntro();
         });
-    }, 2000); // Let intro play for 2 seconds
+    }, INTRO_PLAY_DURATION);
 };
 
 function renderQuestionIntro() {
@@ -389,7 +392,7 @@ function renderOptionHTML(index, label, text) {
     return `
         <div id="option-${index}" onclick="handleOptionClick(${index})" class="relative w-full h-12 md:h-16 flex items-center justify-center cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5">
             <img id="bg-option-${index}" src="${ASSETS.boxNormal}" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none hidden md:block">
-            <div class="md:hidden absolute inset-0 bg-slate-800/90 rounded-lg border border-slate-600"></div>
+            <div class="md:hidden absolute inset-0 bg-slate-800/90 rounded-lg border border-slate-600" aria-hidden="true"></div>
             <div id="text-option-${index}" class="relative z-10 flex w-full px-4 md:px-14 items-center text-white pb-0 md:pb-1">
                 <span class="font-bold text-yellow-400 text-base md:text-xl mr-2 md:mr-3 drop-shadow-sm">${label}:</span>
                 <span class="font-semibold text-xs md:text-lg leading-none drop-shadow-sm truncate">${text}</span>
