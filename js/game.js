@@ -40,6 +40,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const quizId = urlParams.get('id');
     const quizFile = urlParams.get('quiz');
+    const isPreview = urlParams.get('preview');
+
+    // Preview mode: load from sessionStorage
+    if (isPreview) {
+        try {
+            const previewData = sessionStorage.getItem('previewQuiz');
+            if (!previewData) throw new Error("No preview data found");
+            state.quizData = JSON.parse(previewData);
+            state.status = 'start';
+            renderStartScreen();
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = `<div class="text-white text-center p-8">
+                <h2 class="text-2xl font-bold mb-2">No preview data</h2>
+                <p class="text-gray-400">Go back and generate a quiz first.</p>
+                <a href="index.html" class="inline-block mt-4 px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500">Back to Home</a>
+            </div>`;
+        }
+        return;
+    }
 
     // MOCK DATA Fallback if no URL param (for testing)
     if (!quizId && !quizFile) {
@@ -138,8 +158,7 @@ function toggleSound() {
 
 function stopAllAudio() {
     Object.values(state.audioRefs).forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
+        fadeOutAudio(audio, 500);
     });
 }
 
@@ -151,6 +170,7 @@ function playAudio(key, loop = false) {
 
     audio.loop = loop;
     audio.currentTime = 0;
+    audio.volume = 1.0;
     
     const playPromise = audio.play();
     
@@ -158,7 +178,6 @@ function playAudio(key, loop = false) {
         playPromise.catch(e => {
             console.warn(`Audio '${key}' error:`, e.name);
             // If it's the Intro, we ALWAYS show the overlay on failure
-            // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
             if (key === 'intro') {
                 showStartOverlay();
             }
@@ -186,6 +205,7 @@ function showStartOverlay() {
         // Re-trigger intro on user click
         const audio = state.audioRefs.intro;
         if(audio) {
+            audio.volume = 1.0;
             audio.load(); // Force reload in case of previous error
             audio.play().catch(e => console.error("Manual play failed:", e));
         }
@@ -196,19 +216,29 @@ function showStartOverlay() {
     if(window.lucide) window.lucide.createIcons();
 }
 
-function fadeOutIntro(callback) {
-    const audio = state.audioRefs.intro;
+// Generic fade out for any audio element
+function fadeOutAudio(audio, durationMs, callback) {
     if (!audio || audio.paused) { if(callback) callback(); return; }
 
+    const steps = 10;
+    const interval = durationMs / steps;
+    const volumeStep = audio.volume / steps;
+
     const fade = setInterval(() => {
-        if (audio.volume > 0.1) audio.volume -= 0.1;
-        else {
+        if (audio.volume > volumeStep + 0.01) {
+            audio.volume = Math.max(0, audio.volume - volumeStep);
+        } else {
             clearInterval(fade);
             audio.pause();
+            audio.currentTime = 0;
             audio.volume = 1.0;
             if (callback) callback();
         }
-    }, 100);
+    }, interval);
+}
+
+function fadeOutIntro(callback) {
+    fadeOutAudio(state.audioRefs.intro, 1000, callback);
 }
 
 // --- RENDER FUNCTIONS ---
@@ -256,10 +286,9 @@ function renderQuestionIntro() {
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto w-full">
             <div class="relative w-full max-w-4xl py-16 bg-gradient-to-r from-transparent via-blue-900/70 to-transparent border-y-2 border-yellow-400/50 mb-12 shadow-2xl">
-               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest animate-pulse-glow">
+               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest" style="text-shadow: 0 0 20px rgba(234,179,8,0.8), 0 0 40px rgba(234,179,8,0.4);">
                  QUESTION ${state.currentQuestionIndex + 1}
                </h2>
-               <div class="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/20 to-yellow-400/0 animate-shimmer"></div>
             </div>
             
             <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group hover:scale-110 transition-transform duration-300 shadow-xl hover:shadow-yellow-500/50">
@@ -277,6 +306,11 @@ window.handleProceedToQuestion = () => {
     playAudio('incoming');
     state.status = 'question-incoming';
     
+    // Fade out question incoming sound after 1 second
+    setTimeout(() => {
+        fadeOutAudio(state.audioRefs.incoming, 1000);
+    }, 1000);
+    
     document.addEventListener('keydown', handleTriggerKey);
     const gameInterface = document.getElementById('game-interface');
     if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
@@ -288,42 +322,37 @@ function renderGameInterface() {
     container.innerHTML = `
         <div id="game-interface" class="w-full h-full flex flex-col items-center justify-center relative pointer-events-auto">
             
-            <div class="h-32 flex items-end justify-center pb-4 w-full shrink-0">
-                <div id="timer-box" class="relative w-24 h-24 md:w-28 md:h-28 flex items-center justify-center opacity-0 transition-opacity duration-300">
+            <div class="h-24 md:h-32 flex items-end justify-center pb-4 w-full shrink-0">
+                <div id="timer-box" class="relative w-20 h-20 md:w-28 md:h-28 flex items-center justify-center opacity-0 transition-opacity duration-300">
                     <img src="${ASSETS.timer}" class="absolute inset-0 w-full h-full object-contain animate-pulse">
-                    <span id="timer-text" class="relative z-10 text-xl md:text-2xl font-bold text-white">30</span>
+                    <span id="timer-text" class="relative z-10 text-lg md:text-2xl font-bold text-white">30</span>
                 </div>
             </div>
 
             <div class="w-full flex flex-col items-center gap-1">
-                <div class="relative w-full h-24 md:h-28 flex items-center justify-center animate-slideUp z-20">
-                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
+                <div class="relative w-full h-20 md:h-28 flex items-center justify-center z-20">
+                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
                      <div class="relative w-full max-w-4xl h-full flex items-center justify-center">
                         <img src="${ASSETS.questionBox}" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none">
-                        <div class="relative z-10 px-12 md:px-20 text-center flex items-center justify-center h-full pb-1">
-                            <h2 class="question-text text-white text-sm md:text-xl font-bold leading-tight line-clamp-3">${q.question}</h2>
+                        <div class="relative z-10 px-8 md:px-20 text-center flex items-center justify-center h-full pb-1">
+                            <h2 class="question-text text-white text-xs md:text-xl font-bold leading-tight line-clamp-3">${q.question}</h2>
                         </div>
                      </div>
                 </div>
 
-                <div id="options-row-1" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
-                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
-                    <div class="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-8 px-2 md:px-12">
+                <div id="options-container" class="relative w-full flex flex-col items-center gap-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
+                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 25%; transform: translateY(-50%)">
+                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 75%; transform: translateY(-50%)">
+                    <div class="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 px-2 md:px-12">
                         ${renderOptionHTML(0, 'A', q.options[0])}
                         ${renderOptionHTML(1, 'B', q.options[1])}
-                    </div>
-                </div>
-
-                <div id="options-row-2" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
-                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
-                    <div class="relative z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-8 px-2 md:px-12">
                         ${renderOptionHTML(2, 'C', q.options[2])}
                         ${renderOptionHTML(3, 'D', q.options[3])}
                     </div>
                 </div>
             </div>
 
-            <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300 scale-95">
+            <div id="next-btn-container" class="h-16 md:h-20 w-full flex items-center justify-center mt-2 md:mt-4 opacity-0 pointer-events-none transition-all duration-300 scale-95">
                 <button onclick="handleNextQuestion()" class="relative w-36 h-14 group hover:scale-105 transition-transform">
                   <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
                   <span class="relative z-10 text-white font-bold text-lg tracking-wider w-full h-full flex items-center justify-center pb-1">NEXT</span>
@@ -349,11 +378,10 @@ const handleTrigger = (e) => {
     if (state.status !== 'question-incoming') return;
     
     state.status = 'options';
-    state.audioRefs.incoming.pause();
+    fadeOutAudio(state.audioRefs.incoming, 500);
     playAudio('clock', true);
 
-    document.getElementById('options-row-1').classList.remove('opacity-0', 'translate-y-10');
-    document.getElementById('options-row-2').classList.remove('opacity-0', 'translate-y-10');
+    document.getElementById('options-container').classList.remove('opacity-0', 'translate-y-10');
     document.getElementById('timer-box').classList.remove('opacity-0');
 
     startTimer();
@@ -393,7 +421,7 @@ window.handleOptionClick = (index) => {
 
     clearInterval(timerInterval);
     state.status = 'locked';
-    state.audioRefs.clock.pause();
+    fadeOutAudio(state.audioRefs.clock, 300);
     state.selectedOption = index;
 
     updateOptionVisual(index, 'selected');
@@ -424,7 +452,7 @@ function revealAnswer() {
 
 function handleTimeUp() {
     state.status = 'revealed';
-    state.audioRefs.clock.pause();
+    fadeOutAudio(state.audioRefs.clock, 300);
     playAudio('wrong');
     
     const correctIndex = state.quizData.questions[state.currentQuestionIndex].correctIndex;
