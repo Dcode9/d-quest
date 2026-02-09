@@ -26,7 +26,7 @@ const ANIMATION_TIMINGS = {
 };
 
 const DEFAULT_AUDIO_VOLUME = 0.7;
-const INTRO_PLAY_DURATION = 2000; // How long to let intro play before transitioning
+const INTRO_PLAY_DURATION = 10000; // Let intro play 10 seconds before showing PLAY button
 
 // --- GAME STATE ---
 const state = {
@@ -249,7 +249,7 @@ function renderStartScreen() {
                 ${state.quizData.title ? state.quizData.title.toUpperCase() : 'QUIZ'}
             </h1>
             
-            <div id="play-btn-wrapper" class="opacity-0 translate-y-10 transition-all duration-1000">
+            <div id="play-btn-wrapper" class="opacity-0 translate-y-10 transition-all duration-1000 pointer-events-none">
                 <button onclick="handleStartClick()" class="relative w-48 h-20 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
                     <img src="${ASSETS.next}" alt="Play" class="absolute inset-0 w-full h-full object-contain">
                     <div class="relative z-10 w-full h-full flex items-center justify-center pb-2 pl-1">
@@ -257,28 +257,44 @@ function renderStartScreen() {
                     </div>
                 </button>
             </div>
+            <p id="intro-hint" class="text-slate-500 text-sm mt-4 animate-pulse">🎵 Click anywhere to start...</p>
         </div>
     `;
 
-    // Show play button after brief delay
-    setTimeout(() => {
-        const wrapper = document.getElementById('play-btn-wrapper');
-        if (wrapper) wrapper.classList.remove('opacity-0', 'translate-y-10');
-    }, 500); 
+    // On first click anywhere, play intro music. PLAY button appears after INTRO_PLAY_DURATION.
+    let introStarted = false;
+    const startIntro = () => {
+        if (introStarted) return;
+        introStarted = true;
+        
+        // Remove the hint
+        const hint = document.getElementById('intro-hint');
+        if (hint) hint.style.display = 'none';
+        
+        // Play intro
+        playAudio('intro');
+        
+        // Show PLAY button after 10 seconds
+        setTimeout(() => {
+            const wrapper = document.getElementById('play-btn-wrapper');
+            if (wrapper) {
+                wrapper.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+            }
+        }, INTRO_PLAY_DURATION);
+        
+        document.removeEventListener('click', startIntro);
+    };
+    
+    document.addEventListener('click', startIntro);
 }
 
 window.handleStartClick = () => {
-    // Play intro on user click (avoids autoplay restrictions)
-    playAudio('intro');
-    
-    // Fade out intro after a moment, then proceed to first question
-    setTimeout(() => {
-        fadeOutIntro(() => {
-            state.currentQuestionIndex = 0;
-            state.score = 0;
-            renderQuestionIntro();
-        });
-    }, INTRO_PLAY_DURATION);
+    // Fade out intro in the last 1 second, then go to first question
+    fadeOutIntro(() => {
+        state.currentQuestionIndex = 0;
+        state.score = 0;
+        renderQuestionIntro();
+    });
 };
 
 function renderQuestionIntro() {
@@ -350,8 +366,8 @@ function renderGameInterface() {
             </div>
 
             <div class="w-full flex flex-col items-center gap-1">
-                <div class="relative w-full h-20 md:h-28 flex items-center justify-center animate-slideUp z-20">
-                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
+                <div class="relative w-screen h-20 md:h-28 flex items-center justify-center animate-slideUp z-20" style="left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
+                     <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="height: 30px; top: 50%; transform: translateY(-50%)">
                      <div class="relative w-full max-w-4xl h-full flex items-center justify-center px-4 md:px-0">
                         <img src="${ASSETS.questionBox}" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none hidden md:block">
                         <div class="relative z-10 px-4 md:px-20 text-center flex items-center justify-center h-full pb-1 bg-slate-800/80 md:bg-transparent rounded-xl md:rounded-none border border-slate-600 md:border-0">
@@ -360,17 +376,17 @@ function renderGameInterface() {
                      </div>
                 </div>
 
-                <!-- Mobile: single column with all 4 options; Desktop: 2 rows of 2 -->
-                <div id="options-row-1" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
-                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
+                <!-- Options rows - lines span full viewport width -->
+                <div id="options-row-1" class="relative w-screen flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10" style="left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
+                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="height: 30px; top: 50%; transform: translateY(-50%)">
                     <div class="relative z-10 w-full max-w-5xl flex flex-col md:grid md:grid-cols-2 gap-2 md:gap-4 md:gap-x-8 px-3 md:px-12">
                         ${renderOptionHTML(0, 'A', q.options[0])}
                         ${renderOptionHTML(1, 'B', q.options[1])}
                     </div>
                 </div>
 
-                <div id="options-row-2" class="relative w-full flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10">
-                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0 hidden md:block" style="max-height: 20px; top: 50%; transform: translateY(-50%)">
+                <div id="options-row-2" class="relative w-screen flex justify-center items-center py-1 opacity-0 translate-y-10 transition-all duration-700 z-10" style="left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
+                    <img src="${ASSETS.line}" class="absolute left-0 w-full h-auto object-cover opacity-60 pointer-events-none z-0" style="height: 30px; top: 50%; transform: translateY(-50%)">
                     <div class="relative z-10 w-full max-w-5xl flex flex-col md:grid md:grid-cols-2 gap-2 md:gap-4 md:gap-x-8 px-3 md:px-12">
                         ${renderOptionHTML(2, 'C', q.options[2])}
                         ${renderOptionHTML(3, 'D', q.options[3])}

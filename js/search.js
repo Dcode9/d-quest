@@ -18,25 +18,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('main-search');
     const searchBtn = document.getElementById('search-btn');
     const backBtn = document.getElementById('back-btn');
+    const headerSearchBtn = document.getElementById('header-search-btn');
+    const headerSearchInput = document.getElementById('header-search-input');
     
     if (searchInput) {
-        // Start placeholder animation
         startPlaceholderAnimation(searchInput);
-        
-        // Handle enter key
         searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter') handleSearch();
+        });
+    }
+    
+    if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+    if (backBtn) backBtn.addEventListener('click', showLanding);
+
+    // Header search bar events
+    if (headerSearchBtn) {
+        headerSearchBtn.addEventListener('click', () => {
+            const q = headerSearchInput.value.trim();
+            if (q) {
+                document.getElementById('main-search').value = q;
                 handleSearch();
             }
         });
     }
-    
-    if (searchBtn) {
-        searchBtn.addEventListener('click', handleSearch);
-    }
-    
-    if (backBtn) {
-        backBtn.addEventListener('click', showLanding);
+    if (headerSearchInput) {
+        headerSearchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const q = headerSearchInput.value.trim();
+                if (q) {
+                    document.getElementById('main-search').value = q;
+                    handleSearch();
+                }
+            }
+        });
     }
 });
 
@@ -52,20 +66,16 @@ function startPlaceholderAnimation(input) {
 
 function animateToNextTopic(input) {
     const nextIndex = (currentTopicIndex + 1) % TOPICS.length;
-    const currentText = input.placeholder;
     const targetText = `Search for ${TOPICS[nextIndex]}`;
     
-    // Fade out current text
     let opacity = 1;
     const fadeOut = setInterval(() => {
         opacity -= 0.1;
         input.style.setProperty('--placeholder-opacity', opacity);
         if (opacity <= 0) {
             clearInterval(fadeOut);
-            // Change text
             input.placeholder = targetText;
             currentTopicIndex = nextIndex;
-            // Fade in new text
             let opacityIn = 0;
             const fadeIn = setInterval(() => {
                 opacityIn += 0.1;
@@ -78,184 +88,242 @@ function animateToNextTopic(input) {
         }
     }, 50);
     
-    // Occasionally show "Create with AI instantly"
     if (Math.random() > 0.7) {
-        setTimeout(() => {
-            input.placeholder = "Create with AI instantly";
-        }, 1500);
+        setTimeout(() => { input.placeholder = "Create with AI instantly"; }, 1500);
     }
 }
 
-// Main search handler
-async function handleSearch() {
-    console.log('[SEARCH] ========== NEW SEARCH INITIATED ==========');
-    const searchInput = document.getElementById('main-search');
-    const skeletonLoader = document.getElementById('skeleton-loader');
-    const query = searchInput.value.trim();
-    
-    console.log('[SEARCH] Query:', query);
-    console.log('[SEARCH] Timestamp:', new Date().toISOString());
-    
-    if (!query) {
-        console.log('[SEARCH] Empty query, aborting');
-        return;
+// =============================================
+// SEARCH TRANSITION: D'Quest → top-left, D'Ai fades, search → top-center
+// =============================================
+function transitionToHeaderSearch(query) {
+    const landingSection = document.getElementById('landing-section');
+    const branding = document.getElementById('branding');
+    const subtitle = document.getElementById('landing-subtitle');
+    const headerBrand = document.getElementById('header-brand');
+    const headerSearchBar = document.getElementById('header-search-bar');
+    const headerSearchInput = document.getElementById('header-search-input');
+    const mainSearchContainer = document.getElementById('main-search-container');
+
+    // 1. Fade out the "Powered by D'Ai" subtitle immediately
+    if (subtitle) {
+        subtitle.style.opacity = '0';
+        subtitle.style.transition = 'opacity 0.3s ease';
     }
-    
-    // Transition center search bar up to become header
-    transitionToHeaderSearch(query);
-    
-    // Show "Generating with D'Ai" text
-    if (skeletonLoader) {
-        skeletonLoader.classList.remove('hidden');
-        skeletonLoader.classList.add('fade-in');
+
+    // 2. Animate the center D'Quest title to shrink and move up-left, then disappear
+    if (branding) {
+        branding.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        branding.style.opacity = '0';
+        branding.style.transform = 'translateY(-40px) scale(0.5)';
+    }
+
+    // 3. Show the fixed top-left D'Quest branding
+    if (headerBrand) {
+        setTimeout(() => {
+            headerBrand.style.opacity = '1';
+            headerBrand.style.transform = 'translateX(0)';
+            headerBrand.style.pointerEvents = 'auto';
+        }, 300);
+    }
+
+    // 4. Fade out the center search bar and show the header search bar
+    if (mainSearchContainer) {
+        mainSearchContainer.style.transition = 'all 0.5s ease';
+        mainSearchContainer.style.opacity = '0';
+        mainSearchContainer.style.transform = 'translateY(-30px) scale(0.9)';
+    }
+
+    if (headerSearchBar) {
+        setTimeout(() => {
+            headerSearchBar.style.opacity = '1';
+            headerSearchBar.style.transform = 'translateY(0)';
+            headerSearchBar.style.pointerEvents = 'auto';
+            if (headerSearchInput) headerSearchInput.value = query;
+        }, 400);
+    }
+
+    // 5. Shrink the landing section
+    if (landingSection) {
+        landingSection.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        landingSection.style.opacity = '0';
+        landingSection.style.pointerEvents = 'none';
+        setTimeout(() => {
+            landingSection.style.display = 'none';
+        }, 700);
+    }
+}
+
+// =============================================
+// SKELETON CARD: Show card-shaped skeleton during AI generation
+// =============================================
+function showSkeletonCard() {
+    const section = document.getElementById('skeleton-card-section');
+    if (section) {
+        section.classList.remove('hidden');
+        section.style.opacity = '0';
+        requestAnimationFrame(() => {
+            section.style.transition = 'opacity 0.5s ease';
+            section.style.opacity = '1';
+        });
         if (window.lucide) window.lucide.createIcons();
     }
+}
+
+function hideSkeletonCard() {
+    const section = document.getElementById('skeleton-card-section');
+    if (section) {
+        section.style.transition = 'opacity 0.3s ease';
+        section.style.opacity = '0';
+        setTimeout(() => section.classList.add('hidden'), 300);
+    }
+}
+
+// =============================================
+// REVEAL: Fill skeleton card with real data, animate text left-to-right, morph button
+// =============================================
+function revealQuizInSkeleton(quizItem) {
+    const quiz = quizItem.content;
+    const metadata = quiz.metadata || {};
+    const emoji = metadata.emoji || getQuizEmoji(quiz.title);
+    const grade = metadata.grade ? (typeof metadata.grade === 'number' ? `Grade ${metadata.grade}` : metadata.grade) : 'All Grades';
+    const difficulty = metadata.difficulty || 'Medium';
+    const topic = metadata.topic || extractTopic(quiz.title);
+    const questionCount = quiz.questions ? quiz.questions.length : 0;
+
+    // Helper: replace skeleton-text with typed-in content
+    function typeReveal(el, text) {
+        if (!el) return;
+        el.classList.remove('skeleton-text');
+        el.textContent = text;
+        el.style.color = '';
+        el.classList.add('animate-typeIn');
+    }
+
+    // Fill the emoji area
+    const emojiBox = document.querySelector('#skeleton-card .flex.items-center.gap-4 > div:first-child');
+    if (emojiBox) {
+        emojiBox.classList.remove('skeleton-text');
+        emojiBox.textContent = emoji;
+        emojiBox.classList.add('animate-typeIn');
+        emojiBox.style.fontSize = '3.75rem';
+    }
+
+    // Stagger the reveals
+    setTimeout(() => typeReveal(document.getElementById('skel-title'), quiz.title), 100);
+    setTimeout(() => typeReveal(document.getElementById('skel-topic'), topic), 250);
+    setTimeout(() => typeReveal(document.getElementById('skel-grade'), grade), 400);
+    setTimeout(() => typeReveal(document.getElementById('skel-diff'), difficulty), 500);
+    setTimeout(() => typeReveal(document.getElementById('skel-count'), String(questionCount)), 600);
+
+    // Morph the button from loading → play
+    setTimeout(() => {
+        const btn = document.getElementById('skel-play-btn');
+        if (btn) {
+            btn.style.transition = 'all 0.4s ease';
+            btn.classList.remove('opacity-80', 'cursor-default');
+            btn.classList.add('hover:scale-105', 'cursor-pointer');
+            btn.innerHTML = `
+                <i data-lucide="play" class="w-4 h-4"></i>
+                <span>Start Quiz</span>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+
+            // Wire up click
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (quizItem.isLocal) {
+                    window.location.href = `player.html?quiz=${quizItem.fileName}`;
+                } else {
+                    window.location.href = `player.html?id=${quizItem.id}`;
+                }
+            };
+        }
+    }, 800);
+}
+
+// =============================================
+// MAIN SEARCH HANDLER
+// =============================================
+async function handleSearch() {
+    const searchInput = document.getElementById('main-search');
+    const query = searchInput.value.trim();
     
-    console.log('[SEARCH] Step 1: Searching database...');
+    if (!query) return;
+    
+    // Transition to header layout immediately (D'Quest → top-left, search → top)
+    transitionToHeaderSearch(query);
+    
+    // Do NOT show skeleton/generating during database search — keep it fast
     
     try {
-        // Step 1: Search existing quizzes
-        const searchStartTime = Date.now();
+        // Step 1: Search existing quizzes (fast)
         const existingQuizzes = await searchDatabase(query);
-        const searchDuration = Date.now() - searchStartTime;
-        
-        console.log(`[SEARCH] Database search completed in ${searchDuration}ms`);
-        console.log('[SEARCH] Found quizzes:', existingQuizzes.length);
         
         if (existingQuizzes.length > 0) {
-            console.log('[SEARCH] Displaying existing quizzes');
-            console.log('[SEARCH] Quiz titles:', existingQuizzes.map(q => q.content.title));
+            // Found results → show them directly, no skeleton
             showResults(existingQuizzes);
-            console.log('[SEARCH] ========== SEARCH COMPLETED (EXISTING QUIZ) ==========');
             return;
         }
         
-        // Step 2: No match found, generate with AI
-        console.log('[SEARCH] No existing quizzes found');
-        console.log('[SEARCH] Step 2: Generating new quiz with AI...');
+        // Step 2: No match → generate with AI. NOW show the skeleton card
+        showSkeletonCard();
         
-        const genStartTime = Date.now();
         const newQuiz = await generateQuizInstantly(query);
-        const genDuration = Date.now() - genStartTime;
-        
-        console.log(`[SEARCH] Quiz generation completed in ${genDuration}ms`);
         
         if (newQuiz) {
-            console.log('[SEARCH] Quiz created successfully!');
-            console.log('[SEARCH] Quiz title:', newQuiz.content.title);
-            console.log('[SEARCH] Quiz has metadata:', !!newQuiz.content.metadata);
-            showResults([newQuiz]);
-            console.log('[SEARCH] ========== SEARCH COMPLETED (NEW QUIZ) ==========');
+            // Reveal data inside skeleton with streaming animation
+            revealQuizInSkeleton(newQuiz);
+            
+            // After a brief pause for user to see the reveal, also populate results section
+            // (but keep skeleton visible — user clicks Play on the skeleton card)
         }
         
     } catch (error) {
         console.error('[SEARCH] Search error:', error);
-        console.error('[SEARCH] Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        });
-        
-        // Hide generating text on error
-        if (skeletonLoader) {
-            skeletonLoader.classList.add('hidden');
-            skeletonLoader.classList.remove('fade-out', 'fade-in');
-        }
-        
+        hideSkeletonCard();
         alert(`Error: ${error.message}`);
-        console.log('[SEARCH] ========== SEARCH FAILED ==========');
     }
-}
-
-// Phase 2: Transition search bar to header by animating the center bar upward
-function transitionToHeaderSearch(query) {
-    const landingSection = document.getElementById('landing-section');
-    const branding = document.getElementById('branding');
-    const mainSearchContainer = document.getElementById('main-search-container');
-    const skeletonLoader = document.getElementById('skeleton-loader');
-    
-    // Fade out branding
-    if (branding) {
-        branding.style.opacity = '0';
-        branding.style.transform = 'translateY(-20px)';
-        branding.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-    }
-    
-    // Animate landing section from centered to top
-    if (landingSection) {
-        landingSection.style.transition = 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
-        landingSection.style.alignItems = 'flex-start';
-        landingSection.style.justifyContent = 'flex-start';
-        landingSection.style.paddingTop = '1rem';
-        landingSection.style.paddingBottom = '0';
-        landingSection.style.position = 'fixed';
-        landingSection.style.top = '0';
-        landingSection.style.left = '0';
-        landingSection.style.right = '0';
-        landingSection.style.zIndex = '40';
-        landingSection.style.flex = 'none';
-        landingSection.style.minHeight = 'auto';
-        landingSection.style.background = 'rgba(15, 23, 42, 0.95)';
-        landingSection.style.backdropFilter = 'blur(12px)';
-        landingSection.style.borderBottom = '1px solid rgba(51, 65, 85, 0.7)';
-    }
-    
-    // Shrink search bar for header mode
-    if (mainSearchContainer) {
-        mainSearchContainer.style.transition = 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
-        const innerPill = mainSearchContainer.querySelector('.flex.items-center');
-        if (innerPill) {
-            innerPill.style.transition = 'all 0.5s ease';
-            innerPill.style.padding = '0.5rem 1.5rem';
-        }
-        // Hide the glow effect behind search bar in header mode
-        const glow = mainSearchContainer.querySelector('.blur-xl');
-        if (glow) glow.style.display = 'none';
-    }
-
-    // Hide the skeleton in the animated header area (it'll show only during generation)
-    // The skeleton/generating text is managed separately in handleSearch
 }
 
 // Search database for existing quizzes
 async function searchDatabase(query) {
     const allQuizzes = [];
     
-    // 1. Search local quizzes
     const localQuizFiles = [
-        'demo.json',
-        'general-knowledge.json',
-        'science.json',
-        'history.json',
-        'geography.json',
-        'technology.json'
+        'demo.json', 'general-knowledge.json', 'science.json',
+        'history.json', 'geography.json', 'technology.json'
     ];
     
-    for (const file of localQuizFiles) {
+    // Fire all local fetches in parallel for speed
+    const localPromises = localQuizFiles.map(async (file) => {
         try {
             const response = await fetch(`quizzes/${file}`);
             if (response.ok) {
                 const quizData = await response.json();
-                // Check if title matches query
                 if (quizData.title.toLowerCase().includes(query.toLowerCase())) {
-                    allQuizzes.push({
+                    return {
                         id: quizData.id || file.replace('.json', ''),
                         content: quizData,
                         created_at: '2024-01-01T00:00:00.000Z',
                         isLocal: true,
                         fileName: file
-                    });
+                    };
                 }
             }
         } catch (error) {
             console.warn(`Could not load ${file}:`, error);
         }
-    }
+        return null;
+    });
+
+    const localResults = await Promise.all(localPromises);
+    localResults.forEach(r => { if (r) allQuizzes.push(r); });
     
-    // 2. Search Supabase (if available)
+    // Search Supabase in parallel
     try {
         const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY5ODYwMDgsImV4cCI6MjA1MjU2MjAwOH0.N1zVpGKQK7w0z6C8RW8rQZGpL7z-OIc7v3v8E5J8s8U";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
         
         const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?select=*&topic=ilike.*${query}*&order=created_at.desc`, {
             headers: {
@@ -277,248 +345,134 @@ async function searchDatabase(query) {
 
 // Generate quiz instantly with AI
 async function generateQuizInstantly(topic) {
-    console.log('[SEARCH] Starting AI quiz generation for topic:', topic);
-    console.log('[SEARCH] Timestamp:', new Date().toISOString());
-    
     try {
-        // Parse question count from topic if specified (e.g., "5 questions about physics")
-        let questionCount = 5; // default
-        let cleanTopic = topic;
-        
+        let questionCount = 5;
         const countMatch = topic.match(/(\d+)\s*questions?/i);
         if (countMatch) {
-            questionCount = parseInt(countMatch[1]);
-            questionCount = Math.min(Math.max(questionCount, 1), 20); // Limit 1-20
-            console.log('[SEARCH] Detected question count from query:', questionCount);
+            questionCount = Math.min(Math.max(parseInt(countMatch[1]), 1), 20);
         }
         
-        console.log('[SEARCH] Preparing fetch request to /api/generate-quiz');
-        const requestBody = { 
-            topic: topic, // Send the full user query
-            count: questionCount
-        };
-        console.log('[SEARCH] Request body:', JSON.stringify(requestBody));
-        
-        const startTime = Date.now();
-        console.log('[SEARCH] Sending request at:', startTime);
-        
-        // Create abort controller for timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            console.error(`[SEARCH] Request timeout after ${REQUEST_TIMEOUT_MS/1000} seconds, aborting...`);
-            controller.abort();
-        }, REQUEST_TIMEOUT_MS);
-        
-        console.log(`[SEARCH] Timeout set to ${REQUEST_TIMEOUT_MS/1000} seconds`);
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
         
         let response;
         try {
             response = await fetch('/api/generate-quiz', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
+                body: JSON.stringify({ topic, count: questionCount }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            console.log('[SEARCH] Request completed, timeout cleared');
         } catch (fetchError) {
             clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
-                console.error('[SEARCH] Fetch aborted due to timeout');
-                throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS/1000} seconds. The AI service may be slow or unavailable.`);
+                throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS/1000} seconds.`);
             }
-            console.error('[SEARCH] Fetch error:', fetchError);
             throw new Error(`Network error: ${fetchError.message}`);
         }
         
-        const fetchDuration = Date.now() - startTime;
-        console.log(`[SEARCH] Fetch completed in ${fetchDuration}ms`);
-        console.log('[SEARCH] Response status:', response.status);
-        console.log('[SEARCH] Response ok:', response.ok);
-        console.log('[SEARCH] Response headers:', Object.fromEntries(response.headers.entries()));
-        
         const text = await response.text();
-        console.log('[SEARCH] Response text length:', text.length);
-        console.log('[SEARCH] Response text preview:', text.substring(0, 200));
-        
         let data;
-        
         try {
-            console.log('[SEARCH] Attempting to parse response as JSON...');
             data = JSON.parse(text);
-            console.log('[SEARCH] Successfully parsed JSON');
-            console.log('[SEARCH] Response structure:', Object.keys(data));
         } catch (err) {
-            console.error('[SEARCH] JSON parse error:', err.message);
-            console.error('[SEARCH] Raw response that failed to parse:', text);
-            throw new Error('Failed to parse server response. Server may have returned an error.');
+            throw new Error('Failed to parse server response.');
         }
         
-        if (!response.ok) {
-            console.error('[SEARCH] Server returned error status:', response.status);
-            console.error('[SEARCH] Error data:', data);
-            throw new Error(data.error || 'Generation failed');
-        }
+        if (!response.ok) throw new Error(data.error || 'Generation failed');
+        if (!data.quiz) throw new Error('Invalid response structure from server');
         
-        console.log('[SEARCH] Checking quiz data structure...');
-        if (!data.quiz) {
-            console.error('[SEARCH] Response missing quiz property');
-            console.error('[SEARCH] Available properties:', Object.keys(data));
-            throw new Error('Invalid response structure from server');
-        }
-        
-        console.log('[SEARCH] Quiz received successfully!');
-        console.log('[SEARCH] Quiz title:', data.quiz.title);
-        console.log('[SEARCH] Question count:', data.quiz.questions?.length);
-        console.log('[SEARCH] Has metadata:', !!data.quiz.metadata);
-        if (data.quiz.metadata) {
-            console.log('[SEARCH] Metadata:', JSON.stringify(data.quiz.metadata));
-        }
-        
-        const totalDuration = Date.now() - startTime;
-        console.log(`[SEARCH] Total time for quiz generation: ${totalDuration}ms`);
-        
-        // Return quiz in expected format
         const formattedQuiz = {
             id: `ai-${Date.now()}`,
             content: data.quiz,
             created_at: new Date().toISOString(),
             isAI: true,
-            isTemp: true // Not saved to DB yet
+            isTemp: true
         };
         
-        console.log('[SEARCH] Returning formatted quiz:', JSON.stringify(formattedQuiz, null, 2));
-        
-        // Store AI-generated quiz in sessionStorage so it can be loaded by player
-        console.log('[SEARCH] Storing AI quiz in sessionStorage for player access');
         sessionStorage.setItem(`quiz_${formattedQuiz.id}`, JSON.stringify(data.quiz));
-        
         return formattedQuiz;
         
     } catch (error) {
-        console.error('[SEARCH] AI Generation error:', error);
-        console.error('[SEARCH] Error name:', error.name);
-        console.error('[SEARCH] Error message:', error.message);
-        console.error('[SEARCH] Error stack:', error.stack);
         throw new Error(`Failed to generate quiz: ${error.message}`);
     }
 }
 
-// Show results section with 2-second fade
+// =============================================
+// SHOW RESULTS (for database matches)
+// =============================================
 function showResults(quizzes) {
-    const landingSection = document.getElementById('landing-section');
     const resultsSection = document.getElementById('results-section');
-    const landingContent = document.getElementById('landing-content');
-    const skeletonLoader = document.getElementById('skeleton-loader');
     
-    // Hide skeleton/generating text
-    if (skeletonLoader) {
-        skeletonLoader.classList.add('hidden');
-        skeletonLoader.classList.remove('fade-in', 'fade-out');
-    }
+    hideSkeletonCard();
     
-    // Hide the branding completely now
-    const branding = document.getElementById('branding');
-    if (branding) {
-        branding.style.display = 'none';
-    }
-    
-    // Show results with padding to avoid header overlap
     resultsSection.classList.remove('hidden');
-    resultsSection.style.paddingTop = '6rem'; // space below the fixed search header
+    resultsSection.style.paddingTop = '5rem';
     resultsSection.classList.add('fade-transition', 'fade-in');
     
-    // Render quiz cards
-    if (window.renderQuizzes) {
-        window.renderQuizzes(quizzes);
-    }
-    
-    // Re-init icons
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
+    if (window.renderQuizzes) window.renderQuizzes(quizzes);
+    if (window.lucide) window.lucide.createIcons();
 }
 
-// Show landing section with reset
+// =============================================
+// SHOW LANDING (reset everything)
+// =============================================
 function showLanding() {
     const landingSection = document.getElementById('landing-section');
     const resultsSection = document.getElementById('results-section');
-    const landingContent = document.getElementById('landing-content');
     const branding = document.getElementById('branding');
+    const subtitle = document.getElementById('landing-subtitle');
     const mainSearchContainer = document.getElementById('main-search-container');
     const searchInput = document.getElementById('main-search');
-    const skeletonLoader = document.getElementById('skeleton-loader');
+    const headerBrand = document.getElementById('header-brand');
+    const headerSearchBar = document.getElementById('header-search-bar');
     
     // Fade out results
     resultsSection.classList.add('fade-transition', 'fade-out');
+    hideSkeletonCard();
     
     setTimeout(() => {
         resultsSection.classList.add('hidden');
         resultsSection.classList.remove('fade-out');
         resultsSection.style.paddingTop = '';
         
-        // Reset landing section back to centered layout
+        // Hide header elements
+        if (headerBrand) {
+            headerBrand.style.opacity = '0';
+            headerBrand.style.transform = 'translateX(-30px)';
+            headerBrand.style.pointerEvents = 'none';
+        }
+        if (headerSearchBar) {
+            headerSearchBar.style.opacity = '0';
+            headerSearchBar.style.transform = 'translateY(-20px)';
+            headerSearchBar.style.pointerEvents = 'none';
+        }
+        
+        // Restore landing section
         if (landingSection) {
-            landingSection.style.transition = 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
-            landingSection.style.alignItems = '';
-            landingSection.style.justifyContent = '';
-            landingSection.style.paddingTop = '';
-            landingSection.style.paddingBottom = '';
-            landingSection.style.position = '';
-            landingSection.style.top = '';
-            landingSection.style.left = '';
-            landingSection.style.right = '';
-            landingSection.style.zIndex = '';
-            landingSection.style.flex = '';
-            landingSection.style.minHeight = '';
-            landingSection.style.background = '';
-            landingSection.style.backdropFilter = '';
-            landingSection.style.borderBottom = '';
+            landingSection.style.display = '';
+            landingSection.style.opacity = '1';
+            landingSection.style.pointerEvents = '';
         }
         
         // Reset branding
         if (branding) {
-            branding.style.display = '';
             branding.style.opacity = '1';
-            branding.style.transform = 'translateY(0)';
+            branding.style.transform = '';
+        }
+        if (subtitle) {
+            subtitle.style.opacity = '1';
         }
         
         // Reset search container
         if (mainSearchContainer) {
+            mainSearchContainer.style.opacity = '1';
             mainSearchContainer.style.transform = '';
-            mainSearchContainer.style.opacity = '';
-            const innerPill = mainSearchContainer.querySelector('.flex.items-center');
-            if (innerPill) {
-                innerPill.style.padding = '';
-            }
-            const glow = mainSearchContainer.querySelector('.blur-xl');
-            if (glow) glow.style.display = '';
         }
         
-        // Reset and show landing content
-        if (landingContent) {
-            landingContent.classList.remove('fade-out');
-            landingContent.classList.add('fade-in');
-        }
-        
-        // Clear search input
-        if (searchInput) {
-            searchInput.value = '';
-        }
-        
-        // Hide skeleton loader
-        if (skeletonLoader) {
-            skeletonLoader.classList.add('hidden');
-            skeletonLoader.classList.remove('fade-in', 'fade-out');
-        }
+        if (searchInput) searchInput.value = '';
     }, 500);
-}
-
-// Utility functions
-function showStatus(el, msg, colorClass) {
-    if (!el) return;
-    el.textContent = msg;
-    el.className = `mt-6 text-center text-sm min-h-6 ${colorClass} animate-pulse`;
 }
 
 function delay(ms) {
