@@ -11,7 +11,7 @@ const ASSETS = {
     
     // Audio - Use local files for better reliability
     // Note: Original KBC Intro file is corrupted, using question incoming as fallback
-    intro: "assets/audio/KBC Question incoming.wav",
+    intro: "assets/audio/Kaun Banega Crorepati Intro 2019.wav",
     questionIncoming: "assets/audio/KBC Question incoming.wav",
     clock: "assets/audio/30 second tic tic kbc clock.mp3",
     correct: "assets/audio/Correct answer.mp3",
