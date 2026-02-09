@@ -14,10 +14,7 @@ body {
 /* --- KBC Style Animations --- */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes pulse-glow {
-    0%, 100% { text-shadow: 0 0 20px rgba(234, 179, 8, 0.8), 0 0 40px rgba(234, 179, 8, 0.4); transform: scale(1); }
-    50% { text-shadow: 0 0 30px rgba(234, 179, 8, 1), 0 0 60px rgba(234, 179, 8, 0.6); transform: scale(1.02); }
-}
+/* Removed pulse-glow animation - replaced with professional styles */
 @keyframes shimmer {
     0% { background-position: -1000px 0; }
     100% { background-position: 1000px 0; }
@@ -26,23 +23,104 @@ body {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
 }
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.6; }
+}
 
 .animate-fadeIn { animation: fadeIn 0.8s ease-out forwards; }
 .animate-slideUp { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-pulse-glow { animation: pulse-glow 2s infinite; }
+/* Removed pulse-glow class - no longer used */
 .animate-shimmer { animation: shimmer 2s infinite linear; }
 .animate-float { animation: float 3s ease-in-out infinite; }
+
+/* --- Phase 2: Skeleton Loader --- */
+.skeleton-pulse {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* --- Phase 2: Fade Transitions (2 seconds) --- */
+.fade-transition {
+    transition: opacity 2s ease-in-out, transform 2s ease-in-out;
+}
+
+.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fade-in {
+    opacity: 1;
+    pointer-events: auto;
+}
 
 /* --- Utility --- */
 .pointer-events-auto { pointer-events: auto; }
 .pointer-events-none { pointer-events: none; }
 .question-text { 
-    text-shadow: 0 2px 6px rgba(0,0,0,0.8), 0 0 10px rgba(234, 179, 8, 0.3);
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
 }
 
 /* --- HOMEPAGE SPECIFIC STYLES --- */
-/* KBC-themed card styling */
+/* New Search-focused card styling */
 
+.quiz-card-new {
+    background: linear-gradient(145deg, #1a1f3a, #0a0e27);
+    border: 2px solid #2d3a5f;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.quiz-card-new::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; 
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.quiz-card-new:hover {
+    transform: translateY(-4px);
+    border-color: #eab308;
+    box-shadow: 
+        0 8px 20px -5px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    opacity: 0.95;
+}
+
+.quiz-card-new:hover::after {
+    left: 100%;
+}
+
+.quiz-card-new::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, rgba(234, 179, 8, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+
+.quiz-card-new:hover::before {
+    opacity: 1;
+}
+
+/* Search Container Styles */
+.search-container input::placeholder {
+    color: #64748b;
+    transition: opacity 0.3s;
+    opacity: var(--placeholder-opacity, 1);
+}
+
+.search-container input:focus::placeholder {
+    opacity: 0.5;
+}
+
+/* Old card styles (kept for compatibility) */
 .quiz-card {
     background: linear-gradient(145deg, #1a1f3a, #0a0e27);
     border: 2px solid #2d3a5f;
@@ -61,12 +139,12 @@ body {
 }
 
 .quiz-card:hover {
-    transform: translateY(-8px) scale(1.02);
+    transform: translateY(-4px);
     border-color: #eab308;
     box-shadow: 
-        0 20px 40px -10px rgba(234, 179, 8, 0.5),
-        0 0 30px rgba(234, 179, 8, 0.3),
+        0 8px 20px -5px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    opacity: 0.95;
 }
 
 .quiz-card:hover::after {
@@ -86,30 +164,27 @@ body {
     opacity: 1;
 }
 
-/* KBC Title Glow */
+/* KBC Title - Professional style without glow */
 .kbc-title {
-    text-shadow: 
-        0 0 10px rgba(234, 179, 8, 0.8),
-        0 0 20px rgba(234, 179, 8, 0.6),
-        0 0 30px rgba(234, 179, 8, 0.4),
-        0 4px 10px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
 }
 
-/* Button Enhancements */
+/* Button Enhancements - Professional style */
 .kbc-button {
     background: linear-gradient(145deg, #eab308, #ca8a04);
     box-shadow: 
-        0 4px 15px rgba(234, 179, 8, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    transition: all 0.3s;
+    transition: all 0.2s ease;
 }
 
 .kbc-button:hover {
     background: linear-gradient(145deg, #fbbf24, #eab308);
     box-shadow: 
-        0 6px 20px rgba(234, 179, 8, 0.6),
+        0 4px 12px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    opacity: 0.95;
 }
 
 #topic-input::placeholder {

@@ -1,0 +1,36 @@
+{
+  "id": "geography-001",
+  "title": "Geography Explorer",
+  "metadata": {
+    "grade": "6-8",
+    "topic": "Geography",
+    "difficulty": "Medium"
+  },
+  "questions": [
+    {
+      "question": "What is the longest river in the world?",
+      "options": ["Amazon River", "Nile River", "Yangtze River", "Mississippi River"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which country has the largest population as of 2024?",
+      "options": ["India", "United States", "China", "Indonesia"],
+      "correctIndex": 0
+    },
+    {
+      "question": "What is the smallest country in the world?",
+      "options": ["Monaco", "Vatican City", "San Marino", "Liechtenstein"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which desert is the largest in the world?",
+      "options": ["Gobi Desert", "Sahara Desert", "Arabian Desert", "Antarctic Desert"],
+      "correctIndex": 3
+    },
+    {
+      "question": "Mount Everest is located in which mountain range?",
+      "options": ["Alps", "Andes", "Himalayas", "Rockies"],
+      "correctIndex": 2
+    }
+  ]
+}

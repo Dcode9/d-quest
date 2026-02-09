@@ -9,12 +9,21 @@ const ASSETS = {
     boxOrange: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/option%20box%20orange.svg",
     questionBox: "https://raw.githubusercontent.com/Dcode9/d-quest/8e1a563a58d1d2a4488ba570b2a264dd03cff577/wide%20title%20and%20question.svg",
     
-    // Audio
-    intro: "https://raw.githubusercontent.com/Dcode9/d-quest/d14f1e1d938d4223b36f005a0522fb5a7437a16e/assets/audio/Kaun%20Banega%20Crorepati%20Intro%202019.wav",
-    questionIncoming: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/KBC%20Question%20incoming.wav",
-    clock: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/30%20second%20tic%20tic%20kbc%20clock.mp3",
-    correct: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Correct%20answer.mp3",
-    wrong: "https://raw.githubusercontent.com/Dcode9/d-quest/96b84aa6a0681c3b34cf9ac7ce5a918164a94530/Wrong%20Ans.mp3"
+    // Audio - Use local files for better reliability
+    // Note: Original KBC Intro file is corrupted, using question incoming as fallback
+    intro: "assets/audio/KBC Question incoming.wav",
+    questionIncoming: "assets/audio/KBC Question incoming.wav",
+    clock: "assets/audio/30 second tic tic kbc clock.mp3",
+    correct: "assets/audio/Correct answer.mp3",
+    wrong: "assets/audio/Wrong Ans.mp3"
+};
+
+// --- ANIMATION TIMING CONSTANTS ---
+const ANIMATION_TIMINGS = {
+    QUESTION_INTRO_EXIT: 500,    // Exit animation duration for question number screen
+    QUESTION_RENDER_DELAY: 300,  // Delay before rendering game interface
+    QUESTION_FADE_START: 100,    // Delay before starting question fade-in
+    QUESTION_FADE_DURATION: 3000 // Question fade-in duration (synced with audio)
 };
 
 // --- GAME STATE ---
@@ -57,26 +66,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Fetch Quiz Data from Supabase if ID is provided
     if (quizId) {
         try {
-            const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-            const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
-            
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
+            // Check if it's an AI-generated quiz (starts with 'ai-')
+            if (quizId.startsWith('ai-')) {
+                console.log('[GAME] Loading AI-generated quiz from sessionStorage');
+                const storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
+                if (!storedQuiz) {
+                    throw new Error("AI-generated quiz not found. Please create a new quiz.");
                 }
-            });
+                state.quizData = JSON.parse(storedQuiz);
+                console.log('[GAME] AI quiz loaded:', state.quizData.title);
+            } else {
+                // Load from Supabase for regular quizzes
+                console.log('[GAME] Loading quiz from Supabase');
+                const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
+                const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
 
-            if (!response.ok) throw new Error("Failed to fetch quiz from database");
+                if (!response.ok) throw new Error("Failed to fetch quiz from database");
+                
+                const data = await response.json();
+                if (data.length === 0) throw new Error("Quiz not found");
+                
+                state.quizData = data[0].content;
+                console.log('[GAME] Database quiz loaded:', state.quizData.title);
+            }
             
-            const data = await response.json();
-            if (data.length === 0) throw new Error("Quiz not found");
-            
-            state.quizData = data[0].content;
             state.status = 'start';
             renderStartScreen();
         } catch (e) {
-            console.error(e);
+            console.error('[GAME] Error loading quiz:', e);
             container.innerHTML = `<div class="text-white text-center p-8">
                 <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
                 <h2 class="text-2xl font-bold mb-2">Failed to load quiz</h2>
@@ -107,22 +131,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- AUDIO HANDLING ---
 function initAudio() {
-    // We explicitly encode URI components to handle spaces in filenames
-    state.audioRefs.intro = new Audio(encodeURI(ASSETS.intro));
-    state.audioRefs.incoming = new Audio(encodeURI(ASSETS.questionIncoming));
-    state.audioRefs.clock = new Audio(encodeURI(ASSETS.clock));
-    state.audioRefs.correct = new Audio(encodeURI(ASSETS.correct));
-    state.audioRefs.wrong = new Audio(encodeURI(ASSETS.wrong));
+    // Use local audio files with proper paths
+    state.audioRefs.intro = new Audio(ASSETS.intro);
+    state.audioRefs.incoming = new Audio(ASSETS.questionIncoming);
+    state.audioRefs.clock = new Audio(ASSETS.clock);
+    state.audioRefs.correct = new Audio(ASSETS.correct);
+    state.audioRefs.wrong = new Audio(ASSETS.wrong);
 
     state.audioRefs.clock.loop = true;
 
-    // Robust Loading
-    Object.values(state.audioRefs).forEach(audio => {
-        audio.crossOrigin = "anonymous"; // Helps with some CDN/CORS issues
+    // Improved audio loading with better error handling
+    Object.entries(state.audioRefs).forEach(([key, audio]) => {
         audio.preload = "auto";
-        audio.addEventListener('error', (e) => {
-            console.warn("Audio load error:", audio.src, e);
+        audio.volume = 0.7; // Set reasonable volume
+        
+        audio.addEventListener('canplaythrough', () => {
+            console.log(`Audio '${key}' loaded successfully`);
         });
+        
+        audio.addEventListener('error', (e) => {
+            console.warn(`Audio '${key}' load error:`, audio.src, e);
+            // Show visual indicator that sound is unavailable
+            if (soundBtn) {
+                soundBtn.classList.add('opacity-50');
+                soundBtn.title = 'Sound files not available';
+            }
+        });
+        
         audio.load();
     });
 
@@ -147,7 +182,19 @@ function playAudio(key, loop = false) {
     if (!state.soundEnabled) return;
     const audio = state.audioRefs[key];
     
-    if (!audio) return;
+    if (!audio) {
+        console.warn(`Audio '${key}' not found`);
+        return;
+    }
+
+    // Check if audio is loaded
+    if (audio.readyState < 2) {
+        console.warn(`Audio '${key}' not loaded yet`);
+        if (key === 'intro') {
+            showStartOverlay();
+        }
+        return;
+    }
 
     audio.loop = loop;
     audio.currentTime = 0;
@@ -155,14 +202,18 @@ function playAudio(key, loop = false) {
     const playPromise = audio.play();
     
     if (playPromise !== undefined) {
-        playPromise.catch(e => {
-            console.warn(`Audio '${key}' error:`, e.name);
-            // If it's the Intro, we ALWAYS show the overlay on failure
-            // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
-            if (key === 'intro') {
-                showStartOverlay();
-            }
-        });
+        playPromise
+            .then(() => {
+                console.log(`Audio '${key}' playing`);
+            })
+            .catch(e => {
+                console.warn(`Audio '${key}' playback error:`, e.name, e.message);
+                // If it's the Intro, we ALWAYS show the overlay on failure
+                // This handles both "NotAllowed" (Autoplay) and "NotSupported" (Loading glitch)
+                if (key === 'intro') {
+                    showStartOverlay();
+                }
+            });
     }
 }
 
@@ -174,7 +225,7 @@ function showStartOverlay() {
     overlay.className = "absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md pointer-events-auto cursor-pointer animate-fadeIn";
     overlay.innerHTML = `
         <div class="text-center group">
-            <div class="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(234,179,8,0.5)]">
+            <div class="w-20 h-20 rounded-full bg-yellow-500 flex items-center justify-center mx-auto mb-4 transition-all duration-200 group-hover:opacity-90 group-hover:-translate-y-1 shadow-lg">
                 <i data-lucide="play" class="w-10 h-10 text-black fill-current ml-1"></i>
             </div>
             <h3 class="text-white text-2xl font-bold tracking-widest">TAP TO START</h3>
@@ -221,7 +272,7 @@ function renderStartScreen() {
             </h1>
             
             <div id="play-btn-wrapper" class="opacity-0 translate-y-10 transition-all duration-1000">
-                <button onclick="handleStartClick()" class="relative w-48 h-20 group hover:scale-105 transition-transform duration-300">
+                <button onclick="handleStartClick()" class="relative w-48 h-20 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
                     <img src="${ASSETS.next}" alt="Play" class="absolute inset-0 w-full h-full object-contain">
                     <div class="relative z-10 w-full h-full flex items-center justify-center pb-2 pl-1">
                         <span class="text-white font-bold text-2xl tracking-widest drop-shadow-md">PLAY</span>
@@ -256,13 +307,13 @@ function renderQuestionIntro() {
     container.innerHTML = `
         <div class="flex flex-col items-center justify-center animate-fadeIn pointer-events-auto w-full">
             <div class="relative w-full max-w-4xl py-16 bg-gradient-to-r from-transparent via-blue-900/70 to-transparent border-y-2 border-yellow-400/50 mb-12 shadow-2xl">
-               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest animate-pulse-glow">
+               <h2 class="text-5xl md:text-7xl text-white font-extrabold text-center tracking-widest">
                  QUESTION ${state.currentQuestionIndex + 1}
                </h2>
                <div class="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/20 to-yellow-400/0 animate-shimmer"></div>
             </div>
             
-            <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group hover:scale-110 transition-transform duration-300 shadow-xl hover:shadow-yellow-500/50">
+            <button onclick="handleProceedToQuestion()" class="relative w-48 h-16 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
               <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
               <span class="relative z-10 text-white font-bold text-xl tracking-wider w-full h-full flex items-center justify-center pb-1 drop-shadow-lg">
                 NEXT
@@ -273,13 +324,36 @@ function renderQuestionIntro() {
 }
 
 window.handleProceedToQuestion = () => {
-    renderGameInterface();
-    playAudio('incoming');
-    state.status = 'question-incoming';
+    // Start exit animation for question number screen
+    const introContainer = container.querySelector('.animate-fadeIn');
+    if (introContainer) {
+        introContainer.style.opacity = '0';
+        introContainer.style.transition = `opacity ${ANIMATION_TIMINGS.QUESTION_INTRO_EXIT}ms ease-out`;
+    }
     
-    document.addEventListener('keydown', handleTriggerKey);
-    const gameInterface = document.getElementById('game-interface');
-    if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
+    // Simultaneously start audio and render interface with fade-in
+    playAudio('incoming');
+    
+    setTimeout(() => {
+        renderGameInterface();
+        state.status = 'question-incoming';
+        
+        // Slowly fade in the question as audio plays (audio is ~3-4 seconds)
+        setTimeout(() => {
+            const questionContainer = container.querySelector('.animate-slideUp');
+            if (questionContainer) {
+                questionContainer.style.opacity = '0';
+                questionContainer.style.transition = `opacity ${ANIMATION_TIMINGS.QUESTION_FADE_DURATION}ms ease-in`;
+                requestAnimationFrame(() => {
+                    questionContainer.style.opacity = '1';
+                });
+            }
+        }, ANIMATION_TIMINGS.QUESTION_FADE_START);
+        
+        document.addEventListener('keydown', handleTriggerKey);
+        const gameInterface = document.getElementById('game-interface');
+        if(gameInterface) gameInterface.addEventListener('click', handleTrigger);
+    }, ANIMATION_TIMINGS.QUESTION_RENDER_DELAY);
 };
 
 function renderGameInterface() {
@@ -323,8 +397,8 @@ function renderGameInterface() {
                 </div>
             </div>
 
-            <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300 scale-95">
-                <button onclick="handleNextQuestion()" class="relative w-36 h-14 group hover:scale-105 transition-transform">
+            <div id="next-btn-container" class="h-20 w-full flex items-center justify-center mt-4 opacity-0 pointer-events-none transition-all duration-300">
+                <button onclick="handleNextQuestion()" class="relative w-36 h-14 group transition-all duration-200 hover:opacity-90 hover:-translate-y-1">
                   <img src="${ASSETS.next}" alt="Next" class="absolute inset-0 w-full h-full object-contain">
                   <span class="relative z-10 text-white font-bold text-lg tracking-wider w-full h-full flex items-center justify-center pb-1">NEXT</span>
                 </button>
@@ -335,7 +409,7 @@ function renderGameInterface() {
 
 function renderOptionHTML(index, label, text) {
     return `
-        <div id="option-${index}" onclick="handleOptionClick(${index})" class="relative w-full h-14 md:h-16 flex items-center justify-center cursor-pointer transition-transform duration-100 hover:scale-[1.02] active:scale-95">
+        <div id="option-${index}" onclick="handleOptionClick(${index})" class="relative w-full h-14 md:h-16 flex items-center justify-center cursor-pointer transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5">
             <img id="bg-option-${index}" src="${ASSETS.boxNormal}" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none">
             <div id="text-option-${index}" class="relative z-10 flex w-full px-10 md:px-14 items-center text-white pb-1">
                 <span class="font-bold text-yellow-400 text-lg md:text-xl mr-3 drop-shadow-sm">${label}:</span>
@@ -417,8 +491,8 @@ function revealAnswer() {
 
     const btn = document.getElementById('next-btn-container');
     if(btn) {
-        btn.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
-        btn.classList.add('opacity-100', 'scale-100');
+        btn.classList.remove('opacity-0', 'pointer-events-none');
+        btn.classList.add('opacity-100', 'pointer-events-auto');
     }
 }
 
