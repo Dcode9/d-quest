@@ -18,8 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('main-search');
     const searchBtn = document.getElementById('search-btn');
     const backBtn = document.getElementById('back-btn');
-    const headerSearchInput = document.getElementById('header-search-input');
-    const headerSearchBtn = document.getElementById('header-search-btn');
     
     if (searchInput) {
         // Start placeholder animation
@@ -40,35 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backBtn) {
         backBtn.addEventListener('click', showLanding);
     }
-
-    // Header search handlers
-    if (headerSearchInput) {
-        headerSearchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleHeaderSearch();
-            }
-        });
-    }
-
-    if (headerSearchBtn) {
-        headerSearchBtn.addEventListener('click', handleHeaderSearch);
-    }
 });
-
-// Handle header search
-async function handleHeaderSearch() {
-    const headerInput = document.getElementById('header-search-input');
-    const query = headerInput.value.trim();
-    
-    if (!query) return;
-    
-    // Update main search input and trigger search
-    const mainInput = document.getElementById('main-search');
-    if (mainInput) {
-        mainInput.value = query;
-        await handleSearch();
-    }
-}
 
 // Animated placeholder
 function startPlaceholderAnimation(input) {
