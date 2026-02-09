@@ -261,10 +261,10 @@ function renderStartScreen() {
         </div>
     `;
 
-    // On first click anywhere, play intro music. PLAY button appears after INTRO_PLAY_DURATION.
+    // On first click on the game container, play intro music. PLAY button appears after INTRO_PLAY_DURATION.
     let introStarted = false;
     const startIntro = () => {
-        if (introStarted) return;
+        if (introStarted || state.status !== 'start') return;
         introStarted = true;
         
         // Remove the hint
@@ -282,10 +282,10 @@ function renderStartScreen() {
             }
         }, INTRO_PLAY_DURATION);
         
-        document.removeEventListener('click', startIntro);
+        container.removeEventListener('click', startIntro);
     };
     
-    document.addEventListener('click', startIntro);
+    container.addEventListener('click', startIntro);
 }
 
 window.handleStartClick = () => {
