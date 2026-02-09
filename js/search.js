@@ -157,9 +157,65 @@ function transitionToHeaderSearch(query) {
 // =============================================
 // SKELETON CARD: Show card-shaped skeleton during AI generation
 // =============================================
+
+// Reset skeleton card back to shimmer/loading state (clears stale data from previous search)
+function resetSkeletonCard() {
+    // Reset emoji area
+    const emojiBox = document.getElementById('skel-emoji');
+    if (emojiBox) {
+        emojiBox.textContent = '\u00A0'; // &nbsp;
+        emojiBox.style.fontSize = '';
+        emojiBox.classList.remove('animate-typeIn');
+        emojiBox.classList.add('skeleton-text');
+    }
+
+    // Reset text fields
+    const fields = [
+        { id: 'skel-title', placeholder: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' },
+        { id: 'skel-topic', placeholder: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' },
+        { id: 'skel-grade', placeholder: '\u00A0\u00A0\u00A0' },
+        { id: 'skel-diff', placeholder: '\u00A0\u00A0\u00A0' },
+        { id: 'skel-count', placeholder: '\u00A0\u00A0\u00A0' }
+    ];
+    fields.forEach(({ id, placeholder }) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = placeholder;
+            el.style.color = '';
+            el.classList.remove('animate-typeIn');
+            el.classList.add('skeleton-text');
+        }
+    });
+
+    // Reset play button to loading state
+    const btn = document.getElementById('skel-play-btn');
+    if (btn) {
+        btn.onclick = null;
+        btn.classList.add('opacity-80', 'cursor-default');
+        btn.classList.remove('hover:scale-105', 'cursor-pointer');
+        btn.innerHTML = `
+            <div class="spin-loader"></div>
+            <span class="text-sm">Generating with D'Ai</span>
+        `;
+    }
+
+    // Reset preview button
+    const skelPreviewBtn = document.getElementById('skel-preview-btn');
+    if (skelPreviewBtn) {
+        skelPreviewBtn.onclick = null;
+        skelPreviewBtn.classList.add('opacity-50', 'cursor-default');
+        skelPreviewBtn.classList.remove('hover:bg-slate-600', 'cursor-pointer');
+    }
+}
+
 function showSkeletonCard() {
     const section = document.getElementById('skeleton-card-section');
+    // Ensure landing section is out of the way
+    const landingSection = document.getElementById('landing-section');
+    if (landingSection) landingSection.style.display = 'none';
+
     if (section) {
+        resetSkeletonCard();
         section.classList.remove('hidden');
         section.style.opacity = '0';
         requestAnimationFrame(() => {
@@ -201,7 +257,7 @@ function revealQuizInSkeleton(quizItem) {
     }
 
     // Fill the emoji area
-    const emojiBox = document.querySelector('#skeleton-card .flex.items-center.gap-4 > div:first-child');
+    const emojiBox = document.getElementById('skel-emoji');
     if (emojiBox) {
         emojiBox.classList.remove('skeleton-text');
         emojiBox.textContent = emoji;
@@ -239,6 +295,17 @@ function revealQuizInSkeleton(quizItem) {
                 }
             };
         }
+
+        // Wire up preview button on skeleton card
+        const skelPreviewBtn = document.getElementById('skel-preview-btn');
+        if (skelPreviewBtn) {
+            skelPreviewBtn.classList.remove('opacity-50', 'cursor-default');
+            skelPreviewBtn.classList.add('hover:bg-slate-600', 'cursor-pointer');
+            skelPreviewBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.showPreview) window.showPreview(quiz);
+            };
+        }
     }, 800);
 }
 
@@ -254,7 +321,13 @@ async function handleSearch() {
     // Transition to header layout immediately (D'Quest → top-left, search → top)
     transitionToHeaderSearch(query);
     
-    // Do NOT show skeleton/generating during database search — keep it fast
+    // Hide any previously visible results or skeleton from a prior search
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        resultsSection.classList.add('hidden');
+        resultsSection.classList.remove('fade-in', 'fade-out', 'fade-transition');
+    }
+    hideSkeletonCard();
     
     try {
         // Step 1: Search existing quizzes (fast)
@@ -274,9 +347,6 @@ async function handleSearch() {
         if (newQuiz) {
             // Reveal data inside skeleton with streaming animation
             revealQuizInSkeleton(newQuiz);
-            
-            // After a brief pause for user to see the reveal, also populate results section
-            // (but keep skeleton visible — user clicks Play on the skeleton card)
         }
         
     } catch (error) {
@@ -404,6 +474,10 @@ async function generateQuizInstantly(topic) {
 // =============================================
 function showResults(quizzes) {
     const resultsSection = document.getElementById('results-section');
+    const landingSection = document.getElementById('landing-section');
+    
+    // Ensure landing section is out of the way immediately
+    if (landingSection) landingSection.style.display = 'none';
     
     hideSkeletonCard();
     

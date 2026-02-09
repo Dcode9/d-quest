@@ -85,7 +85,7 @@
                     <div id="skeleton-card" class="quiz-card-new p-6 rounded-2xl flex flex-col h-auto relative overflow-hidden">
                         <!-- Emoji Thumbnail skeleton -->
                         <div class="flex items-center gap-4 mb-4">
-                            <div class="w-20 h-20 flex-shrink-0 rounded-xl skeleton-text bg-slate-800">&nbsp;</div>
+                            <div id="skel-emoji" class="w-20 h-20 flex-shrink-0 rounded-xl skeleton-text bg-slate-800">&nbsp;</div>
                             <div class="flex-1 min-w-0">
                                 <div id="skel-title" class="skeleton-text text-2xl font-bold mb-1 h-7 rounded">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
                                 <div id="skel-topic" class="skeleton-text text-xs h-4 w-24 rounded mt-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
@@ -112,7 +112,7 @@
                                 <div class="spin-loader"></div>
                                 <span class="text-sm">Generating with D'Ai</span>
                             </button>
-                            <button class="bg-slate-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center opacity-50 cursor-default">
+                            <button id="skel-preview-btn" class="bg-slate-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center opacity-50 cursor-default">
                                 <i data-lucide="eye" class="w-4 h-4"></i>
                             </button>
                         </div>
