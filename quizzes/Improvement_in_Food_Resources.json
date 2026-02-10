@@ -1,0 +1,61 @@
+{
+  "id": "bio-ch9-food-res-001",
+  "title": "Improvement in Food Resources",
+  "metadata": {
+    "grade": "9",
+    "topic": "Biology",
+    "difficulty": "Medium"
+  },
+  "questions": [
+    {
+      "question": "Which of the following crops is grown during the rainy season (June to October)?",
+      "options": ["Wheat", "Soyabean", "Gram", "Pea"],
+      "correctIndex": 1
+    },
+    {
+      "question": "The process of cross-breeding between two different varieties of plants is called:",
+      "options": ["Interspecific hybridization", "Intervarietal hybridization", "Intergeneric hybridization", "Intravarietal hybridization"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which nutrient is categorized as a 'micronutrient' for plants?",
+      "options": ["Nitrogen", "Phosphorus", "Zinc", "Potassium"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Green manure is prepared by decomposing which of the following?",
+      "options": ["Animal excreta", "Domestic waste", "Green plants like Guar", "Industrial chemicals"],
+      "correctIndex": 2
+    },
+    {
+      "question": "The irrigation system where water is lifted from water bodies using various pumps is called:",
+      "options": ["Canal system", "River lift system", "Tank system", "Dug well system"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Growing two or more crops simultaneously in the same field in a definite row pattern is:",
+      "options": ["Mixed cropping", "Inter-cropping", "Crop rotation", "Monocropping"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which of these is an exotic breed of cattle used for its long lactation period?",
+      "options": ["Sahiwal", "Red Sindhi", "Jersey", "Gir"],
+      "correctIndex": 2
+    },
+    {
+      "question": "In poultry farming, 'broilers' are raised primarily for which of the following?",
+      "options": ["Egg production", "Feather production", "Meat production", "Milk production"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Capture fishing refers to obtaining fish from:",
+      "options": ["Fish farms", "Natural resources", "Aquariums", "Laboratories"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which honeybee variety is an Italian breed commonly used for high honey collection?",
+      "options": ["Apis cerana indica", "Apis dorsata", "Apis mellifera", "Apis florae"],
+      "correctIndex": 2
+    }
+  ]
+}
