@@ -1,24 +1,23 @@
 async function fetchQuizzes() {
     const grid = document.getElementById('quiz-grid');
     
-    // Use your Supabase URL from your env/config
-    const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
-
     let allQuizzes = [];
 
     // 1. Fetch from Supabase
     try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?select=*&order=created_at.desc`, {
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-            }
-        });
+        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
+            console.warn('Supabase is not configured. Using local quizzes only.');
+        } else {
+            const { url } = window.getSupabaseConfig();
+            const headers = window.getSupabaseHeaders();
+            const response = await fetch(`${url}/rest/v1/quizzes?select=*&order=created_at.desc`, { headers });
 
-        if (response.ok) {
-            const supabaseQuizzes = await response.json();
-            allQuizzes = allQuizzes.concat(supabaseQuizzes);
+            if (response.ok) {
+                const supabaseQuizzes = await response.json();
+                allQuizzes = allQuizzes.concat(supabaseQuizzes);
+            } else {
+                console.warn('Supabase fetch failed:', await response.text());
+            }
         }
     } catch (error) {
         console.warn("Could not fetch from Supabase:", error);

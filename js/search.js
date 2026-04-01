@@ -415,19 +415,22 @@ async function searchDatabase(query) {
     
     // Search Supabase in parallel
     try {
-        const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
+        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
+            console.warn('Supabase is not configured. Set DQUEST_SUPABASE_URL and DQUEST_SUPABASE_KEY to enable cloud search.');
+            return allQuizzes;
+        }
+        const { url } = window.getSupabaseConfig();
+        const headers = window.getSupabaseHeaders();
         
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?select=*&topic=ilike.*${query}*&order=created_at.desc`, {
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-            }
+        const response = await fetch(`${url}/rest/v1/quizzes?select=*&topic=ilike.*${query}*&order=created_at.desc`, {
+            headers
         });
         
         if (response.ok) {
             const supabaseQuizzes = await response.json();
             allQuizzes.push(...supabaseQuizzes);
+        } else {
+            console.warn('Supabase search failed:', await response.text());
         }
     } catch (error) {
         console.warn('Supabase search failed:', error);

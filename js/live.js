@@ -2,8 +2,6 @@
 // Provides host and participant flows without requiring a bespoke backend.
 
 (() => {
-    const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
     const DEFAULT_EMOJIS = ['🧠', '🚀', '🦉', '🪐', '🎯', '🎸', '🐉', '🦾', '🧩', '🔥', '🌟', '🎮'];
     const LIVE_AUDIO = {
         intro: "assets/audio/Kaun Banega Crorepati Intro 2019.wav",
@@ -37,8 +35,13 @@
             alert("Supabase could not be loaded. Live quiz is unavailable.");
             return null;
         }
+        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
+            alert("Supabase credentials are not configured. Set DQUEST_SUPABASE_URL and DQUEST_SUPABASE_KEY to enable live quizzes.");
+            return null;
+        }
         if (!state.client) {
-            state.client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            const { url, anonKey } = window.getSupabaseConfig();
+            state.client = supabase.createClient(url, anonKey);
         }
         return state.client;
     }

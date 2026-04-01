@@ -78,15 +78,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Load from Supabase for regular quizzes
                 console.log('[GAME] Loading quiz from Supabase');
-                const SUPABASE_URL = "https://nlajpvlxckbgrfjfphzd.supabase.co";
-                const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sYWpwdmx4Y2tiZ3JmamZwaHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MDgyNDQsImV4cCI6MjA4NDM4NDI0NH0.LKPu7hfb7iNwPuIn-WqR37XDwnSnwdWAPfV_IgXKF6c";
+                if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
+                    throw new Error("Supabase is not configured. Set DQUEST_SUPABASE_URL and DQUEST_SUPABASE_KEY.");
+                }
+                const { url } = window.getSupabaseConfig();
+                const headers = window.getSupabaseHeaders();
                 
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/quizzes?id=eq.${quizId}&select=*`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
-                });
+                const response = await fetch(`${url}/rest/v1/quizzes?id=eq.${quizId}&select=*`, { headers });
 
                 if (!response.ok) throw new Error("Failed to fetch quiz from database");
                 
