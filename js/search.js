@@ -423,9 +423,8 @@ async function searchDatabase(query) {
         const { url } = window.getSupabaseConfig();
         const headers = window.getSupabaseHeaders();
         
-        const response = await fetch(`${url}/rest/v1/quizzes?select=*&topic=ilike.*${query}*&order=created_at.desc`, {
-            headers
-        });
+        const orFilter = encodeURIComponent(`topic.ilike.*${query}*,content->>title.ilike.*${query}*,content->metadata->>topic.ilike.*${query}*`);
+        const response = await fetch(`${url}/rest/v1/quizzes?select=*&or=${orFilter}&order=created_at.desc`, { headers });
         
         if (response.ok) {
             const supabaseQuizzes = await response.json();
