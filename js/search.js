@@ -368,6 +368,7 @@ async function handleSearch() {
         const newQuiz = await generateQuizInstantly(query);
         
         if (newQuiz) {
+            await persistAiQuiz(newQuiz);
             // Reveal data inside skeleton with streaming animation
             revealQuizInSkeleton(newQuiz);
         }
@@ -577,4 +578,31 @@ function showLanding() {
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function persistAiQuiz(quizItem) {
+    try {
+        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
+            console.warn('Supabase not configured; skipping AI quiz save.');
+            return;
+        }
+        const { url } = window.getSupabaseConfig();
+        const headers = window.getSupabaseHeaders();
+        const topic = quizItem.content?.metadata?.topic || quizItem.content?.title || 'Untitled';
+        const payload = {
+            topic,
+            content: quizItem.content,
+            created_at: quizItem.created_at || new Date().toISOString()
+        };
+        const res = await fetch(`${url}/rest/v1/quizzes`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            console.warn('Failed to persist AI quiz:', await res.text());
+        }
+    } catch (err) {
+        console.warn('AI quiz save error:', err);
+    }
 }

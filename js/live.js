@@ -420,7 +420,16 @@
         state.channel.on('presence', { event: 'join' }, handlePresenceSync);
         state.channel.on('broadcast', { event: 'live' }, ({ payload }) => handleBroadcast(payload));
 
-        await state.channel.subscribe();
+        const { error } = await state.channel.subscribe((status) => {
+            if (status === 'CHANNEL_ERROR') {
+                alert('Live connection failed. Please check your network and try again.');
+            }
+        });
+        if (error) {
+            alert('Could not join live channel. Please retry.');
+            return;
+        }
+
         await state.channel.track({
             id: state.me.id,
             name: state.me.name,
