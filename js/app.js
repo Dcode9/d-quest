@@ -132,10 +132,14 @@ function renderQuizzes(quizzes) {
             </div>
             
             <!-- Action Buttons -->
-            <div class="flex gap-2 mt-auto">
+            <div class="flex flex-wrap gap-2 mt-auto">
                 <button class="start-quiz-btn flex-1 kbc-button text-black font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
                     <i data-lucide="play" class="w-4 h-4"></i>
                     <span>Start Quiz</span>
+                </button>
+                <button class="live-quiz-btn flex-1 bg-slate-800 hover:bg-slate-700 text-yellow-400 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-yellow-500/30 shadow-lg">
+                    <i data-lucide="broadcast" class="w-4 h-4"></i>
+                    <span>Live Quiz</span>
                 </button>
                 <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
                     <i data-lucide="eye" class="w-4 h-4"></i>
@@ -146,6 +150,7 @@ function renderQuizzes(quizzes) {
         // Add event listeners
         const startBtn = card.querySelector('.start-quiz-btn');
         const previewBtn = card.querySelector('.preview-btn');
+        const liveBtn = card.querySelector('.live-quiz-btn');
         
         startBtn.onclick = (e) => {
             e.stopPropagation();
@@ -162,6 +167,17 @@ function renderQuizzes(quizzes) {
             console.log('[RENDER] Previewing quiz:', quiz.title);
             showPreview(quiz);
         };
+        
+        if (liveBtn) {
+            liveBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.startLiveHost) {
+                    window.startLiveHost(item);
+                } else {
+                    alert('Live hosting is not available right now.');
+                }
+            };
+        }
         
         grid.appendChild(card);
     });

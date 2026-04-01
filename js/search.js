@@ -206,6 +206,14 @@ function resetSkeletonCard() {
         skelPreviewBtn.classList.add('opacity-50', 'cursor-default');
         skelPreviewBtn.classList.remove('hover:bg-slate-600', 'cursor-pointer');
     }
+
+    // Reset live button
+    const skelLiveBtn = document.getElementById('skel-live-btn');
+    if (skelLiveBtn) {
+        skelLiveBtn.onclick = null;
+        skelLiveBtn.classList.add('opacity-50', 'cursor-default');
+        skelLiveBtn.classList.remove('hover:bg-slate-700', 'cursor-pointer', 'border-yellow-400');
+    }
 }
 
 function showSkeletonCard() {
@@ -292,6 +300,21 @@ function revealQuizInSkeleton(quizItem) {
                     window.location.href = `player.html?quiz=${quizItem.fileName}`;
                 } else {
                     window.location.href = `player.html?id=${quizItem.id}`;
+                }
+            };
+        }
+
+        // Wire up live button
+        const skelLiveBtn = document.getElementById('skel-live-btn');
+        if (skelLiveBtn) {
+            skelLiveBtn.classList.remove('opacity-50', 'cursor-default');
+            skelLiveBtn.classList.add('cursor-pointer', 'hover:bg-slate-700', 'border-yellow-400');
+            skelLiveBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.startLiveHost) {
+                    window.startLiveHost(quizItem);
+                } else {
+                    alert('Live hosting is not available right now.');
                 }
             };
         }
