@@ -116,66 +116,62 @@
         const participants = Object.values(state.presence).filter(p => p.role === 'player');
         const totalQuestions = state.quizItem?.content?.questions?.length || 0;
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 30% 20%, rgba(234, 179, 8, 0.1), transparent 40%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.15), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <div class="text-slate-400 text-sm uppercase tracking-wide">Live Room</div>
-                            <div class="flex items-center gap-3 mt-1">
-                                <span class="text-4xl font-black text-yellow-400 tracking-[0.2em]">${state.roomCode}</span>
-                                <button id="copy-room" class="px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-200 hover:bg-slate-700 transition-colors border border-slate-700 flex items-center gap-1">
-                                    <i data-lucide="copy" class="w-4 h-4"></i> Copy
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="live-chip flex items-center gap-2">
-                                <i data-lucide="radio" class="w-4 h-4"></i>
+            <div class="live-panel" style="max-height: 90vh; overflow-y: auto;">
+                <!-- Title bar -->
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">📡</span>
+                        <span>Live Quiz Room &mdash; ${state.quizItem?.content?.title || 'Quiz'}</span>
+                    </div>
+                    <div class="win-ctrl-btns">
+                        <button id="close-live" class="win-ctrl-btn">✕</button>
+                    </div>
+                </div>
+                <!-- Body -->
+                <div style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Room code + host info -->
+                    <div class="win-groupbox" style="margin-top: 16px;">
+                        <div class="win-groupbox-label">Room Code</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0;">
+                            <span class="kbc-title" style="font-size: 28px; color: #000080; letter-spacing: 6px;">${state.roomCode}</span>
+                            <button id="copy-room" class="win-btn" style="gap: 4px; font-size: 10px; padding: 2px 8px;">
+                                <i data-lucide="copy" class="w-3 h-3"></i> Copy
+                            </button>
+                            <span class="live-chip" style="font-size: 10px; gap: 4px; display: inline-flex; align-items: center;">
+                                <i data-lucide="radio" class="w-3 h-3"></i>
                                 Hosting ${totalQuestions} Qs
                             </span>
-                            <button id="close-live" class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors">
-                                <i data-lucide="x" class="w-5 h-5"></i>
-                            </button>
+                        </div>
+                        <div style="font-size: 10px; color: #555; margin-top: 2px;">
+                            Host: ${state.me.emoji} &bull; Share code with players
                         </div>
                     </div>
 
-                    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500/30 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
-                        <div class="flex-1">
-                            <div class="text-slate-300 text-sm">Hosting</div>
-                            <div class="text-2xl font-bold">${state.quizItem?.content?.title || 'Quiz'}</div>
-                            <div class="text-slate-400 text-sm mt-1">Share the code above. Players pick a name and emoji when joining.</div>
-                        </div>
-                        <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform disabled:opacity-50" ${participants.length === 0 ? 'disabled' : ''}>
-                            <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>${participants.length === 0 ? 'Waiting for players' : 'Start Live Quiz'}</span>
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="text-slate-300 font-semibold flex items-center gap-2">
-                                    <i data-lucide="users" class="w-4 h-4"></i> Participants (${participants.length})
-                                </div>
-                                <div class="text-xs text-slate-500">Live presence</div>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="live-participant-list">
-                                ${participants.map(p => renderParticipantChip(p)).join('') || '<div class="text-slate-500 text-sm">Waiting for players to join...</div>'}
+                    <!-- Participants + How it works -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="win-groupbox" style="margin-top: 16px; min-height: 80px;">
+                            <div class="win-groupbox-label">Participants (${participants.length})</div>
+                            <div id="live-participant-list" style="display: flex; flex-direction: column; gap: 4px; padding: 4px 0;">
+                                ${participants.map(p => renderParticipantChip(p)).join('') || '<div style="font-size: 10px; color: #808080;">Waiting for players...</div>'}
                             </div>
                         </div>
-                        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                            <div class="text-slate-300 font-semibold flex items-center gap-2 mb-3">
-                                <i data-lucide="info" class="w-4 h-4"></i> How it works
-                            </div>
-                            <ul class="text-slate-400 text-sm space-y-2 list-disc list-inside">
-                                <li>Share the 6-digit room code with players.</li>
-                                <li>Players join from the home screen, choose a name + emoji.</li>
-                                <li>Start when ready. We'll sync questions, timers and leaderboard.</li>
-                                <li>Intro sound plays for you; players hear correct / wrong cues.</li>
+                        <div class="win-groupbox" style="margin-top: 16px;">
+                            <div class="win-groupbox-label">How it works</div>
+                            <ul style="font-size: 10px; color: #333; padding-left: 14px; margin: 4px 0; line-height: 1.6;">
+                                <li>Share the 6-digit room code.</li>
+                                <li>Players choose a name + emoji.</li>
+                                <li>Start when ready. Questions sync automatically.</li>
+                                <li>Intro sound plays for you.</li>
                             </ul>
                         </div>
+                    </div>
+
+                    <!-- Start button area -->
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px;">
+                        <button id="start-live-quiz" class="kbc-button win-btn-primary" style="gap: 4px; font-size: 11px; padding: 4px 16px;" ${participants.length === 0 ? 'disabled style="opacity:0.5; cursor:default;"' : ''}>
+                            <i data-lucide="play" class="w-3 h-3"></i>
+                            <span>${participants.length === 0 ? 'Waiting for players...' : 'Start Live Quiz'}</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -210,11 +206,11 @@
     function renderParticipantChip(p) {
         const score = state.scores[p.id] || 0;
         return `
-            <div class="live-participant rounded-xl p-3 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${p.emoji || '🎯'}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="text-white font-semibold truncate">${p.name || 'Player'}</div>
-                    <div class="text-xs text-slate-500">Score: ${score}</div>
+            <div class="live-participant" style="padding: 4px 6px; display: flex; align-items: center; gap: 6px; font-size: 10px;">
+                <span style="font-size: 16px; line-height: 1;">${p.emoji || '🎯'}</span>
+                <div>
+                    <div style="font-weight: bold; color: #000; font-size: 10px;">${p.name || 'Player'}</div>
+                    <div style="color: #555; font-size: 9px;">Score: ${score}</div>
                 </div>
             </div>
         `;
@@ -225,31 +221,33 @@
         state.status = 'answering';
         cleanupTimers();
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.12), transparent 40%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.12), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${payload.questionIndex + 1}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${payload.question}</div>
-                        </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="clock-3" class="w-4 h-4"></i>
-                            <span id="live-countdown">30s</span>
-                        </div>
+            <div class="live-panel" style="max-height: 90vh; overflow-y: auto;">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">❓</span>
+                        <span>Question ${payload.questionIndex + 1}</span>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="live-options">
+                    <span class="live-chip" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px; margin-left: auto;">
+                        <i data-lucide="clock-3" class="w-3 h-3"></i>
+                        <span id="live-countdown">30s</span>
+                    </span>
+                </div>
+                <div style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Question text -->
+                    <div class="win-sunken" style="padding: 8px; background: #fff; font-size: 12px; font-weight: bold; color: #000; min-height: 48px;">
+                        ${payload.question}
+                    </div>
+                    <!-- Options -->
+                    <div id="live-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                         ${payload.options.map((opt, idx) => `
-                            <button data-idx="${idx}" class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
+                            <button data-idx="${idx}" class="live-option-btn" style="display: flex; gap: 8px; align-items: flex-start; font-size: 11px; padding: 6px 10px;">
+                                <span style="font-weight: bold; color: #000080; min-width: 14px;">${String.fromCharCode(65 + idx)}.</span>
+                                <span>${opt}</span>
                             </button>
                         `).join('')}
                     </div>
-
-                    <div class="text-slate-400 text-sm flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    <div style="font-size: 10px; color: #555; display: flex; align-items: center; gap: 4px;">
+                        <i data-lucide="activity" class="w-3 h-3"></i>
                         Answers are ranked by correctness and speed.
                     </div>
                 </div>
@@ -274,37 +272,37 @@
     function renderHostQuestionView(question) {
         const shell = ensureOverlay();
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-40" style="background: radial-gradient(circle at 25% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 75% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${question.question}</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="live-chip flex items-center gap-2">
-                                <i data-lucide="timer" class="w-4 h-4"></i>
-                                <span id="host-countdown">30s</span>
-                            </div>
-                            <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
-                                Reveal Now
-                            </button>
-                        </div>
+            <div class="live-panel" style="max-height: 90vh; overflow-y: auto;">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">📡</span>
+                        <span>Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}</span>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+                        <span class="live-chip" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">
+                            <i data-lucide="timer" class="w-3 h-3"></i>
+                            <span id="host-countdown">30s</span>
+                        </span>
+                        <button id="end-question-btn" class="win-btn" style="font-size: 10px; padding: 2px 8px;">Reveal Now</button>
+                    </div>
+                </div>
+                <div style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Question text -->
+                    <div class="win-sunken" style="padding: 8px; background: #fff; font-size: 12px; font-weight: bold; color: #000; min-height: 48px;">
+                        ${question.question}
+                    </div>
+                    <!-- Options -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                         ${question.options.map((opt, idx) => `
-                            <div class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
+                            <div class="live-option-btn" style="display: flex; gap: 8px; align-items: flex-start; font-size: 11px; padding: 6px 10px; cursor: default;">
+                                <span style="font-weight: bold; color: #000080; min-width: 14px;">${String.fromCharCode(65 + idx)}.</span>
+                                <span>${opt}</span>
                             </div>
                         `).join('')}
                     </div>
-
-                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        Live answers will appear automatically. Leaderboard pops after reveal.
+                    <div class="win-statusbar" style="font-size: 10px; display: flex; align-items: center; gap: 4px;">
+                        <i data-lucide="activity" class="w-3 h-3"></i>
+                        Live answers appear automatically. Leaderboard pops after reveal.
                     </div>
                 </div>
             </div>
@@ -319,39 +317,37 @@
         const shell = ensureOverlay();
         const topThree = [...results].sort((a, b) => b.total - a.total).slice(0, 3);
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">${isFinal ? 'Grand Finale' : 'Leaderboard'}</div>
-                            <div class="text-2xl font-bold text-white">${isFinal ? 'Final Standings' : 'After Question ' + (state.questionIndex + 1)}</div>
-                        </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                            ${typeof correctIndex === 'number' ? `Correct: ${String.fromCharCode(65 + correctIndex)}` : 'Scores'}
-                        </div>
+            <div class="live-panel" style="max-height: 90vh; overflow-y: auto;">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">${isFinal ? '🏆' : '📊'}</span>
+                        <span>${isFinal ? 'Final Standings' : 'Leaderboard — After Q' + (state.questionIndex + 1)}</span>
                     </div>
+                    <span class="live-chip" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px; margin-left: auto;">
+                        <i data-lucide="check-circle-2" class="w-3 h-3"></i>
+                        ${typeof correctIndex === 'number' ? `Correct: ${String.fromCharCode(65 + correctIndex)}` : 'Scores'}
+                    </span>
+                </div>
+                <div style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    ${topThree.length ? renderPodium(topThree) : '<div style="font-size: 11px; color: #555;">No answers yet.</div>'}
 
-                    ${topThree.length ? renderPodium(topThree) : '<div class="text-slate-400">No answers yet.</div>'}
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto" id="leaderboard-list">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 200px; overflow-y: auto;" id="leaderboard-list">
                         ${results.map((res, idx) => `
-                            <div class="leaderboard-card rounded-xl p-3 flex items-center gap-3 ${res.id === state.me.id ? 'border-yellow-400/60' : 'border-transparent'}">
-                                <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${res.emoji || '🎯'}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-white font-semibold truncate">${idx + 1}. ${res.name}</div>
-                                    <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total}</div>
+                            <div class="leaderboard-card" style="padding: 4px 8px; display: flex; align-items: center; gap: 6px; ${res.id === state.me.id ? 'outline: 1px solid #000080;' : ''}">
+                                <span style="font-size: 16px; line-height: 1;">${res.emoji || '🎯'}</span>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 10px; font-weight: bold; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${idx + 1}. ${res.name}</div>
+                                    <div style="font-size: 9px; color: #555;">+${res.delta} &bull; ${res.total} pts</div>
                                 </div>
-                                ${typeof res.choice === 'number' ? `<div class="text-xs ${res.isCorrect ? 'text-green-400' : 'text-rose-400'}">${String.fromCharCode(65 + res.choice)}</div>` : ''}
+                                ${typeof res.choice === 'number' ? `<div style="font-size: 10px; font-weight: bold; color: ${res.isCorrect ? '#006400' : '#cc0000'};">${String.fromCharCode(65 + res.choice)}</div>` : ''}
                             </div>
                         `).join('')}
                     </div>
 
                     ${state.role === 'host' && !isFinal ? `
-                        <div class="flex justify-end gap-3">
-                            <button id="next-question-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-4 h-4"></i>
+                        <div style="display: flex; justify-content: flex-end; padding-top: 4px;">
+                            <button id="next-question-btn" class="kbc-button win-btn-primary" style="gap: 4px; font-size: 11px; padding: 4px 14px;">
+                                <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-3 h-3"></i>
                                 <span>${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'Finish Quiz' : 'Next Question'}</span>
                             </button>
                         </div>
@@ -378,15 +374,18 @@
     function renderPodium(entries) {
         const places = ['🥉', '🥈', '🥇'];
         return `
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                ${entries.map((res, idx) => `
-                    <div class="podium-card rounded-2xl p-4 text-center ${idx === 2 ? 'podium-winner' : ''}" style="animation-delay:${idx * 0.1}s">
-                        <div class="text-3xl">${places[idx] || ''}</div>
-                        <div class="text-2xl font-bold text-white mt-1">${res.name}</div>
-                        <div class="text-xl">${res.emoji || '🎯'}</div>
-                        <div class="text-sm text-slate-300 mt-2">Score ${res.total}</div>
-                    </div>
-                `).reverse().join('')}
+            <div class="win-groupbox" style="margin-top: 14px;">
+                <div class="win-groupbox-label">Top Scores</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px 0;">
+                    ${entries.map((res, idx) => `
+                        <div class="podium-card text-center" style="padding: 8px 4px;">
+                            <div style="font-size: 20px;">${places[idx] || ''}</div>
+                            <div style="font-size: 16px; margin-top: 2px;">${res.emoji || '🎯'}</div>
+                            <div style="font-size: 11px; font-weight: bold; color: #000080; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${res.name}</div>
+                            <div style="font-size: 10px; color: #555;">${res.total} pts</div>
+                        </div>
+                    `).reverse().join('')}
+                </div>
             </div>
         `;
     }
@@ -638,50 +637,54 @@
         state.role = 'player';
         state.status = 'join';
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-25" style="background: radial-gradient(circle at 10% 15%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.2), transparent 35%);"></div>
-                <div class="relative grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div class="text-slate-300 text-sm uppercase tracking-wide">Join Live Room</div>
-                        <div class="text-3xl font-extrabold text-white">Enter the 6-digit code</div>
-                        <div class="text-slate-400 text-sm">Pick a fun name and emoji—your avatar on the leaderboard.</div>
-                        <div class="space-y-2">
-                            <label class="text-slate-400 text-sm">Room Code</label>
-                            <input id="join-code" maxlength="6" value="${prefill || ''}" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="123456" />
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-slate-400 text-sm">Display Name</label>
-                            <input id="join-name" value="${state.me.name || ''}" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="Player One" />
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-slate-400 text-sm">Pick an emoji</label>
-                            <div class="grid grid-cols-6 gap-2 emoji-picker">
-                                ${DEFAULT_EMOJIS.map(em => `
-                                    <button data-emoji="${em}" class="rounded-xl bg-slate-900 px-2 py-2 ${state.me.emoji === em ? 'border-yellow-400' : ''}">
-                                        <span class="text-2xl">${em}</span>
-                                    </button>
-                                `).join('')}
-                            </div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button id="submit-join" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <i data-lucide="log-in" class="w-4 h-4"></i>
-                                Join Room
-                            </button>
-                            <button id="cancel-join" class="px-4 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
+            <div class="live-panel" style="max-height: 90vh; overflow-y: auto; max-width: 460px; margin: 0 auto;">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">🎮</span>
+                        <span>Join Live Quiz Room</span>
+                    </div>
+                    <div class="win-ctrl-btns">
+                        <button id="cancel-join" class="win-ctrl-btn">✕</button>
+                    </div>
+                </div>
+                <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Room code -->
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 11px; font-weight: bold;">Room Code:</label>
+                        <input id="join-code" maxlength="6" value="${prefill || ''}" class="win-input" placeholder="123456" style="font-size: 16px; letter-spacing: 4px; font-weight: bold; width: 100%; padding: 4px 8px;" />
+                    </div>
+                    <!-- Name -->
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label style="font-size: 11px; font-weight: bold;">Display Name:</label>
+                        <input id="join-name" value="${state.me.name || ''}" class="win-input" placeholder="Player One" style="width: 100%; padding: 4px 8px;" />
+                    </div>
+                    <!-- Emoji picker -->
+                    <div class="win-groupbox" style="margin-top: 12px;">
+                        <div class="win-groupbox-label">Pick an Emoji</div>
+                        <div class="emoji-picker" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 6px 0;">
+                            ${DEFAULT_EMOJIS.map(em => `
+                                <button data-emoji="${em}" style="padding: 4px; text-align: center; font-size: 18px; ${state.me.emoji === em ? 'background: #000080; color: #fff;' : ''}">
+                                    ${em}
+                                </button>
+                            `).join('')}
                         </div>
                     </div>
-                    <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 space-y-3">
-                        <div class="flex items-center gap-3">
-                            <div id="live-preview-emoji" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
-                            <div>
-                                <div class="text-slate-300 text-sm">You</div>
-                                <div class="text-xl font-bold text-white" id="live-preview-name">${state.me.name}</div>
-                            </div>
+                    <!-- Preview -->
+                    <div class="win-sunken" style="padding: 6px; background: #fff; display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                        <span id="live-preview-emoji" style="font-size: 24px;">${state.me.emoji}</span>
+                        <div>
+                            <div style="font-size: 9px; color: #555;">You</div>
+                            <div id="live-preview-name" style="font-weight: bold; color: #000;">${state.me.name}</div>
                         </div>
-                        <div class="text-slate-400 text-sm leading-relaxed">
-                            Wait on the lobby screen until the host starts. You'll hear sounds for correct and wrong answers, and see the leaderboard after each round.
-                        </div>
+                        <div style="font-size: 9px; color: #555; margin-left: auto;">Room: ${prefill || '------'}</div>
+                    </div>
+                    <!-- Buttons -->
+                    <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px;">
+                        <button id="cancel-join-btn" class="win-btn">Cancel</button>
+                        <button id="submit-join" class="win-btn win-btn-primary kbc-button" style="gap: 4px; font-size: 11px; padding: 3px 14px;">
+                            <i data-lucide="log-in" class="w-3 h-3"></i>
+                            Join Room
+                        </button>
                     </div>
                 </div>
             </div>
@@ -691,15 +694,21 @@
             btn.onclick = () => {
                 const em = btn.getAttribute('data-emoji');
                 updateIdentity({ emoji: em });
-                document.querySelectorAll('.emoji-picker button').forEach(b => b.classList.remove('border-yellow-400'));
-                btn.classList.add('border-yellow-400');
+                document.querySelectorAll('.emoji-picker button').forEach(b => {
+                    b.style.background = '';
+                    b.style.color = '';
+                });
+                btn.style.background = '#000080';
+                btn.style.color = '#fff';
                 const avatar = document.getElementById('live-preview-emoji');
                 if (avatar) avatar.textContent = em;
             };
         });
 
         const cancel = document.getElementById('cancel-join');
+        const cancelBtn = document.getElementById('cancel-join-btn');
         if (cancel) cancel.onclick = closeOverlay;
+        if (cancelBtn) cancelBtn.onclick = closeOverlay;
 
         const nameInput = document.getElementById('join-name');
         if (nameInput) {
@@ -739,23 +748,29 @@
     function renderWaitingRoom() {
         const shell = ensureOverlay();
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-20" style="background: radial-gradient(circle at 15% 15%, rgba(234, 179, 8, 0.12), transparent 45%), radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.16), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6 items-center text-center">
-                    <div class="live-chip flex items-center gap-2">
-                        <i data-lucide="broadcast" class="w-4 h-4"></i>
-                        Room ${state.roomCode}
+            <div class="live-panel" style="max-width: 400px; margin: 0 auto;">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text">
+                        <span class="win-titlebar-icon">📡</span>
+                        <span>Waiting for Host &mdash; Room ${state.roomCode}</span>
                     </div>
-                    <div class="text-3xl md:text-4xl font-extrabold text-white">Waiting for host</div>
-                    <div class="text-slate-400">Stay here. The host will move everyone to the question screen.</div>
-                    <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3">
-                        <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">${state.me.emoji}</div>
-                        <div class="text-left">
-                            <div class="text-sm text-slate-400">You</div>
-                            <div class="text-lg font-semibold text-white">${state.me.name}</div>
+                </div>
+                <div style="padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;">
+                    <div class="win-progress-bar" style="width: 100%;">
+                        <div class="win-progress-fill" style="width: 100%;"></div>
+                    </div>
+                    <div style="font-size: 13px; font-weight: bold; color: #000080;">Waiting for host to start...</div>
+                    <div class="win-sunken" style="padding: 8px 16px; background: #fff; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 28px;">${state.me.emoji}</span>
+                        <div style="text-align: left;">
+                            <div style="font-size: 9px; color: #555;">You</div>
+                            <div style="font-size: 12px; font-weight: bold; color: #000;">${state.me.name}</div>
                         </div>
                     </div>
-                    <div class="text-xs text-slate-500">Host: ${state.quizMeta?.title || '...'} • ${state.quizMeta?.totalQuestions || '?'} questions</div>
+                    <div style="font-size: 9px; color: #555;">${state.quizMeta?.title || '...'}</div>
+                </div>
+                <div class="win-statusbar">
+                    <div class="win-status-panel" style="flex:1;">Ready</div>
                 </div>
             </div>
         `;
