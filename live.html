@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D'Quest Live Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-[#0a0e27] text-white min-h-screen">
+    <div class="relative z-10 max-w-5xl mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-6">
+            <a href="index.html" class="text-slate-300 hover:text-yellow-400 flex items-center gap-2"><i data-lucide="arrow-left" class="w-4 h-4"></i>Back</a>
+            <h1 class="text-2xl md:text-3xl font-bold text-yellow-400">Live Quiz</h1>
+        </div>
+
+        <div id="live-loading" class="text-center py-10 text-slate-300">Connecting to live session...</div>
+
+        <div id="join-screen" class="hidden bg-slate-900/80 border border-slate-700 rounded-2xl p-6 max-w-xl mx-auto">
+            <h2 class="text-xl font-bold mb-4">Join Live Room</h2>
+            <div class="space-y-3">
+                <input id="join-name" class="w-full bg-slate-800 border border-slate-600 rounded p-3" placeholder="Your name">
+                <input id="join-room" class="w-full bg-slate-800 border border-slate-600 rounded p-3 uppercase" placeholder="Room code">
+                <button id="join-btn" class="w-full bg-purple-600 hover:bg-purple-500 rounded p-3 font-bold">Join Room</button>
+                <div id="join-error" class="text-red-400 text-sm"></div>
+            </div>
+        </div>
+
+        <div id="host-screen" class="hidden space-y-4">
+            <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5">
+                <div class="flex flex-wrap items-center gap-3 justify-between">
+                    <div>
+                        <div class="text-slate-400 text-sm">Room Code</div>
+                        <div id="host-room-code" class="text-3xl font-extrabold tracking-widest text-yellow-400"></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-sm">Players Joined</div>
+                        <div id="host-player-count" class="text-xl font-bold">0</div>
+                    </div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button id="host-start-btn" class="bg-blue-600 hover:bg-blue-500 rounded-lg px-4 py-2 font-bold">Start Live Quiz</button>
+                    <button id="host-next-btn" class="bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg px-4 py-2 font-bold hidden">Next Question</button>
+                    <button id="host-end-btn" class="bg-red-600 hover:bg-red-500 rounded-lg px-4 py-2 font-bold">End Session</button>
+                </div>
+            </div>
+
+            <div id="host-question" class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 hidden"></div>
+            <div id="host-answers" class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 hidden"></div>
+            <div id="host-leaderboard" class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 hidden"></div>
+        </div>
+
+        <div id="player-screen" class="hidden space-y-4">
+            <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-slate-400 text-sm">Room</div>
+                        <div id="player-room-code" class="text-2xl font-bold text-yellow-400"></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-400 text-sm">Status</div>
+                        <div id="player-status" class="font-bold">Waiting for host...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="player-question" class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 hidden"></div>
+            <div id="player-leaderboard" class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 hidden"></div>
+        </div>
+    </div>
+
+    <script src="js/live.js"></script>
+    <script>if(window.lucide) lucide.createIcons();</script>
+</body>
+</html>

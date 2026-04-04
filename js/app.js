@@ -137,6 +137,14 @@ function renderQuizzes(quizzes) {
                     <i data-lucide="play" class="w-4 h-4"></i>
                     <span>Start Quiz</span>
                 </button>
+                <button class="host-live-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Host Live</span>
+                </button>
+                <button class="join-live-btn bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Join</span>
+                </button>
                 <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
                     <i data-lucide="eye" class="w-4 h-4"></i>
                 </button>
@@ -145,6 +153,8 @@ function renderQuizzes(quizzes) {
         
         // Add event listeners
         const startBtn = card.querySelector('.start-quiz-btn');
+        const hostLiveBtn = card.querySelector('.host-live-btn');
+        const joinLiveBtn = card.querySelector('.join-live-btn');
         const previewBtn = card.querySelector('.preview-btn');
         
         startBtn.onclick = (e) => {
@@ -155,6 +165,34 @@ function renderQuizzes(quizzes) {
             } else {
                 window.location.href = `player.html?id=${item.id}`;
             }
+        };
+
+        hostLiveBtn.onclick = async (e) => {
+            e.stopPropagation();
+            const hostName = prompt('Enter host name:', 'Host') || 'Host';
+            try {
+                const response = await fetch('/api/create-live-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hostName,
+                        quizId: item.id || null,
+                        quiz: quiz
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to create live session');
+                window.location.href = `live.html?session=${encodeURIComponent(data.session.id)}&host=1&token=${encodeURIComponent(data.hostToken)}`;
+            } catch (error) {
+                alert(`Failed to create live session: ${error.message}`);
+            }
+        };
+
+        joinLiveBtn.onclick = (e) => {
+            e.stopPropagation();
+            const roomCode = (prompt('Enter live room code:') || '').trim().toUpperCase();
+            if (!roomCode) return;
+            window.location.href = `live.html?room=${encodeURIComponent(roomCode)}`;
         };
         
         previewBtn.onclick = (e) => {
