@@ -20,15 +20,15 @@ const ui = {
 
 document.addEventListener('DOMContentLoaded', init);
 
-function qs(name) {
+function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
 
 async function init() {
-  state.sessionId = qs('session');
-  state.roomCode = (qs('room') || '').toUpperCase();
-  state.hostMode = qs('host') === '1';
-  state.hostToken = qs('token') || localStorage.getItem('dquest_host_token') || null;
+  state.sessionId = getQueryParam('session');
+  state.roomCode = (getQueryParam('room') || '').toUpperCase();
+  state.hostMode = getQueryParam('host') === '1';
+  state.hostToken = getQueryParam('token') || localStorage.getItem('dquest_host_token') || null;
 
   if (state.hostToken) localStorage.setItem('dquest_host_token', state.hostToken);
 

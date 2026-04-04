@@ -51,10 +51,10 @@ export async function supabaseFetch(path, options = {}) {
 }
 
 export function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const roomCodeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += roomCodeChars[Math.floor(Math.random() * roomCodeChars.length)];
   }
   return code;
 }
