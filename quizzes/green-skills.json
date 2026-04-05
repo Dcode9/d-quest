@@ -1,0 +1,52 @@
+{
+  "id": "green-skills-001",
+  "title": "Green Skills",
+  "metadata": {
+    "grade": "8-12",
+    "topic": "Sustainability",
+    "difficulty": "Easy",
+    "emoji": "🌱"
+  },
+  "questions": [
+    {
+      "question": "What is the primary aim of green skills?",
+      "options": ["Increase waste", "Support sustainable development", "Use more fossil fuels", "Reduce teamwork"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which action best conserves electricity at home?",
+      "options": ["Keeping lights on all day", "Using LED bulbs and switching off unused devices", "Running appliances unnecessarily", "Ignoring energy labels"],
+      "correctIndex": 1
+    },
+    {
+      "question": "The 3Rs in environmental management are:",
+      "options": ["Read, Write, Run", "Reduce, Reuse, Recycle", "Repair, Replace, Remove", "React, Respond, Repeat"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which transport choice is generally more eco-friendly for daily commute?",
+      "options": ["Single-person car use", "Public transport or cycling", "Frequent short car trips", "Idling vehicles"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Why is water conservation important?",
+      "options": ["Freshwater is limited", "Water can never run short", "It has no impact on ecosystems", "Only industries need water"],
+      "correctIndex": 0
+    },
+    {
+      "question": "Which workplace habit supports green skills?",
+      "options": ["Printing every draft", "Using digital documents and double-sided printing when needed", "Leaving AC at lowest temperature all day", "Discarding reusable items"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Composting primarily helps in:",
+      "options": ["Increasing plastic waste", "Converting organic waste into useful manure", "Producing harmful gases only", "Wasting food faster"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which industry trend creates demand for green-skilled workers?",
+      "options": ["Renewable energy expansion", "Higher single-use plastic production", "Unregulated emissions", "Ignoring climate goals"],
+      "correctIndex": 0
+    }
+  ]
+}

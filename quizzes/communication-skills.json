@@ -1,0 +1,52 @@
+{
+  "id": "skill-communication-001",
+  "title": "Skill: Communication Skills",
+  "metadata": {
+    "grade": "8-12",
+    "topic": "Communication Skills",
+    "difficulty": "Easy",
+    "emoji": "🗣️"
+  },
+  "questions": [
+    {
+      "question": "Which is an example of active listening?",
+      "options": ["Interrupting the speaker", "Nodding and asking clarifying questions", "Looking at your phone", "Changing the topic"],
+      "correctIndex": 1
+    },
+    {
+      "question": "In formal email writing, the best closing is:",
+      "options": ["Bye", "Take care bro", "Regards", "See ya"],
+      "correctIndex": 2
+    },
+    {
+      "question": "What does non-verbal communication include?",
+      "options": ["Only written words", "Body language and facial expressions", "Only phone calls", "Only grammar rules"],
+      "correctIndex": 1
+    },
+    {
+      "question": "If you disagree in a group discussion, what is the best response?",
+      "options": ["Shout to dominate", "Respectfully present your viewpoint", "Stay silent always", "Ignore everyone"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which sentence is most clear and concise?",
+      "options": ["I mean, like, maybe we can perhaps start now.", "Start the meeting at 10:00 AM.", "You know what I am saying, right?", "Actually basically we could do something."],
+      "correctIndex": 1
+    },
+    {
+      "question": "What is the main purpose of feedback in communication?",
+      "options": ["To confuse people", "To improve understanding and performance", "To end conversations", "To avoid responsibility"],
+      "correctIndex": 1
+    },
+    {
+      "question": "During a presentation, maintaining eye contact helps to:",
+      "options": ["Reduce clarity", "Build connection and confidence", "Avoid audience engagement", "Increase nervousness"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which is the best way to handle misunderstanding?",
+      "options": ["Assume the worst", "Clarify politely and confirm meaning", "Ignore it", "Blame the listener"],
+      "correctIndex": 1
+    }
+  ]
+}

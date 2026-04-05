@@ -1,0 +1,52 @@
+{
+  "id": "skill-ai-employability-001",
+  "title": "Skill: AI - Employability Skills",
+  "metadata": {
+    "grade": "9-12",
+    "topic": "AI Employability Skills",
+    "difficulty": "Medium",
+    "emoji": "🤖"
+  },
+  "questions": [
+    {
+      "question": "Which AI-related skill is most useful for improving workplace productivity?",
+      "options": ["Prompt writing", "Typing speed only", "Memorizing formulas", "Handwriting"],
+      "correctIndex": 0
+    },
+    {
+      "question": "In an AI-assisted workplace, why is critical thinking important?",
+      "options": ["To replace all software", "To verify AI outputs for errors", "To avoid collaboration", "To skip problem-solving"],
+      "correctIndex": 1
+    },
+    {
+      "question": "What is the best way to use AI tools ethically at work?",
+      "options": ["Submit AI output without review", "Hide use of AI from team", "Check facts and cite sources when needed", "Use AI to copy confidential data"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Which employability skill improves when using AI for team projects?",
+      "options": ["Communication", "Avoidance", "Isolation", "Guesswork"],
+      "correctIndex": 0
+    },
+    {
+      "question": "If an AI tool gives biased advice, what should you do first?",
+      "options": ["Accept it quickly", "Report and validate with trusted sources", "Share it publicly", "Ignore all data"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Why is data literacy valuable for AI employability?",
+      "options": ["It helps interpret outputs correctly", "It removes the need for learning", "It guarantees promotions", "It replaces teamwork"],
+      "correctIndex": 0
+    },
+    {
+      "question": "Which behavior shows adaptability in an AI-driven job role?",
+      "options": ["Refusing new tools", "Learning new AI workflows", "Using outdated methods only", "Avoiding feedback"],
+      "correctIndex": 1
+    },
+    {
+      "question": "What is a key reason employers value AI awareness?",
+      "options": ["It increases responsible efficiency", "It removes all training needs", "It ends human decision-making", "It guarantees no mistakes"],
+      "correctIndex": 0
+    }
+  ]
+}

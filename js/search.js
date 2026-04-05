@@ -362,7 +362,9 @@ async function searchDatabase(query) {
     
     const localQuizFiles = [
         'demo.json', 'general-knowledge.json', 'science.json',
-        'history.json', 'geography.json', 'technology.json'
+        'history.json', 'geography.json', 'technology.json',
+        'english-grammar-grade-10.json', 'ai-employability-skills.json',
+        'communication-skills.json', 'green-skills.json'
     ];
     
     // Fire all local fetches in parallel for speed
