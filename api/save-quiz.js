@@ -16,8 +16,8 @@ export default async function handler(req) {
       });
     }
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || "https://apshufcfkoervmpizvoq.supabase.co";
+    const supabaseKey = process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwc2h1ZmNma29lcnZtcGl6dm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDQxOTgsImV4cCI6MjA5MDYyMDE5OH0.71IdaYCvXdudadPOyE_M2dCNAz830AHuRQFXWITCd7g";
 
     if (!supabaseUrl || !supabaseKey) {
         return new Response(JSON.stringify({ error: 'Supabase Config Missing' }), { 

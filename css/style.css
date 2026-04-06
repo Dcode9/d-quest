@@ -223,3 +223,81 @@ body {
 #topic-input::placeholder {
     color: #94a3b8;
 }
+
+/* --- Live Quiz overlay styling --- */
+.live-overlay {
+    background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.08), transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1), transparent 35%),
+                rgba(10, 14, 39, 0.9);
+    backdrop-filter: blur(12px);
+}
+
+.live-panel {
+    background: linear-gradient(145deg, #11162e, #0b0f26);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.live-chip {
+    background: rgba(234, 179, 8, 0.12);
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    color: #facc15;
+    border-radius: 9999px;
+    padding: 4px 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.live-participant {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.live-option-btn {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.live-option-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(234,179,8,0.4);
+    box-shadow: 0 10px 30px rgba(234, 179, 8, 0.08);
+}
+
+.leaderboard-card {
+    background: linear-gradient(145deg, #0f172a, #0a0e27);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+}
+
+.podium-card {
+    background: linear-gradient(160deg, rgba(234, 179, 8, 0.12), rgba(59, 130, 246, 0.15));
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: riseUp 0.6s ease forwards;
+}
+
+@keyframes riseUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.35); }
+    50%      { box-shadow: 0 0 0 15px rgba(234, 179, 8, 0); }
+}
+
+.podium-winner {
+    animation: pulseGlow 1.8s ease-in-out infinite;
+}
+
+.emoji-picker button {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.emoji-picker button:hover {
+    transform: translateY(-2px);
+    border-color: rgba(234, 179, 8, 0.4);
+}
