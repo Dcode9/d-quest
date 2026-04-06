@@ -17,10 +17,13 @@
         quizItem: null,
         questionIndex: 0,
         scores: {},
+        players: {},
         answers: {},
         questionStart: null,
+        currentQuestionPayload: null,
         timers: {
-            question: null
+            question: null,
+            heartbeat: null
         },
         me: null,
         presence: {},
@@ -127,7 +130,10 @@
         if (overlay) overlay.remove();
         state.status = 'idle';
         cleanupTimers();
+        stopPlayerHeartbeat();
         leaveChannel();
+        state.players = {};
+        state.currentQuestionPayload = null;
     }
 
     function leaveChannel() {
@@ -142,9 +148,78 @@
         state.timers.question = null;
     }
 
+    function stopPlayerHeartbeat() {
+        if (state.timers.heartbeat) clearInterval(state.timers.heartbeat);
+        state.timers.heartbeat = null;
+    }
+
+    function upsertPlayer(player) {
+        if (!player || !player.id || player.role === 'host') return;
+
+        const existing = state.players[player.id] || {};
+        state.players[player.id] = {
+            id: player.id,
+            role: 'player',
+            name: player.name || existing.name || 'Player',
+            emoji: player.emoji || existing.emoji || '🎯'
+        };
+
+        if (typeof state.scores[player.id] !== 'number') {
+            state.scores[player.id] = 0;
+        }
+    }
+
+    function getPlayers() {
+        const merged = {};
+
+        Object.values(state.players).forEach((player) => {
+            if (!player?.id) return;
+            merged[player.id] = player;
+        });
+
+        Object.values(state.presence)
+            .filter((entry) => entry.role === 'player' && entry.id)
+            .forEach((entry) => {
+                merged[entry.id] = {
+                    id: entry.id,
+                    role: 'player',
+                    name: entry.name || merged[entry.id]?.name || 'Player',
+                    emoji: entry.emoji || merged[entry.id]?.emoji || '🎯'
+                };
+            });
+
+        return Object.values(merged);
+    }
+
+    function announcePlayerPresence(eventType = 'player-presence') {
+        if (state.role !== 'player') return;
+        broadcast({
+            type: eventType,
+            player: {
+                id: state.me.id,
+                role: 'player',
+                name: state.me.name,
+                emoji: state.me.emoji,
+                status: state.status
+            }
+        });
+    }
+
+    function startPlayerHeartbeat() {
+        if (state.role !== 'player') return;
+        stopPlayerHeartbeat();
+
+        announcePlayerPresence('player-joined');
+
+        state.timers.heartbeat = setInterval(() => {
+            if (state.status === 'idle') return;
+            announcePlayerPresence('player-presence');
+        }, 3000);
+    }
+
     function renderHostLobby() {
         const shell = ensureOverlay();
-        const participants = Object.values(state.presence).filter(p => p.role === 'player');
+        const participants = getPlayers();
         const totalQuestions = state.quizItem?.content?.questions?.length || 0;
         shell.innerHTML = `
             <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
@@ -178,9 +253,9 @@
                             <div class="text-2xl font-bold">${state.quizItem?.content?.title || 'Quiz'}</div>
                             <div class="text-slate-400 text-sm mt-1">Share the code above. Players pick a name and emoji when joining.</div>
                         </div>
-                        <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform disabled:opacity-50" ${participants.length === 0 ? 'disabled' : ''}>
+                        <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
                             <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>${participants.length === 0 ? 'Waiting for players' : 'Start Live Quiz'}</span>
+                            <span>Start Live Quiz</span>
                         </button>
                     </div>
 
@@ -230,6 +305,10 @@
         const startBtn = document.getElementById('start-live-quiz');
         if (startBtn) {
             startBtn.onclick = () => {
+                if (participants.length === 0) {
+                    const proceed = window.confirm('No participants detected yet. Start anyway?');
+                    if (!proceed) return;
+                }
                 startBtn.disabled = true;
                 startLiveSession();
             };
@@ -429,7 +508,9 @@
         state.roomCode = String(Math.floor(100000 + Math.random() * 900000));
         state.questionIndex = 0;
         state.scores = {};
+        state.players = {};
         state.answers = {};
+        state.currentQuestionPayload = null;
         state.status = 'lobby';
         try {
             await trackChannel(state.roomCode);
@@ -504,8 +585,8 @@
             if (latest) flattened[key] = latest;
         });
         state.presence = flattened;
-        Object.values(flattened).forEach(p => {
-            if (!state.scores[p.id]) state.scores[p.id] = 0;
+        Object.values(flattened).forEach((entry) => {
+            upsertPlayer(entry);
         });
         if (state.role === 'host') {
             renderHostLobby();
@@ -525,6 +606,20 @@
 
     function handleBroadcast(payload) {
         if (!payload || !payload.type) return;
+
+        if ((payload.type === 'player-joined' || payload.type === 'player-presence') && state.role === 'host') {
+            upsertPlayer(payload.player || payload);
+
+            if (state.status === 'lobby') {
+                renderHostLobby();
+            }
+
+            if ((state.status === 'question' || state.status === 'in-progress') && state.currentQuestionPayload) {
+                broadcast(state.currentQuestionPayload);
+            }
+            return;
+        }
+
         if (payload.type === 'room-info' && state.role === 'player') {
             state.quizMeta = payload;
             if (state.status === 'waiting') renderWaitingRoom();
@@ -541,6 +636,7 @@
             }
         }
         if (payload.type === 'answer' && state.role === 'host') {
+            upsertPlayer(payload);
             collectAnswer(payload);
         }
         if (payload.type === 'leaderboard') {
@@ -580,6 +676,8 @@
             correctIndex: normalizedCorrectIndex,
             startAt: Date.now()
         };
+        state.status = 'question';
+        state.currentQuestionPayload = payload;
         state.questionStart = payload.startAt;
         state.answers[state.questionIndex] = {};
         broadcast(payload);
@@ -646,7 +744,7 @@
         const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
         const answers = state.answers[state.questionIndex] || {};
         const results = [];
-        const playersOnly = Object.values(state.presence).filter(p => p.role === 'player');
+        const playersOnly = getPlayers();
         playersOnly.forEach((p) => {
             const response = answers[p.id];
             const isCorrect = response ? response.choice === normalizedCorrectIndex : false;
@@ -790,9 +888,12 @@
         state.role = 'player';
         state.status = 'waiting';
         state.scores = {};
+        state.players = {};
         state.answers = {};
+        state.currentQuestionPayload = null;
         try {
             await trackChannel(code);
+            startPlayerHeartbeat();
             renderWaitingRoom();
         } catch (error) {
             console.error('Failed to join live room:', error);
