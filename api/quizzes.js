@@ -1,4 +1,8 @@
 module.exports = async function handler(req, res) {
+  const FALLBACK_SUPABASE_URL = 'https://apshufcfkoervmpizvoq.supabase.co';
+  const FALLBACK_SUPABASE_ANON_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwc2h1ZmNma29lcnZtcGl6dm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDQxOTgsImV4cCI6MjA5MDYyMDE5OH0.71IdaYCvXdudadPOyE_M2dCNAz830AHuRQFXWITCd7g';
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -12,11 +16,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl =
+      process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL;
     const supabaseKey =
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.SUPABASE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      FALLBACK_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       return res.status(500).json({
@@ -34,7 +40,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (q) {
-      const safeQuery = String(q).replace(/,/g, ' ').trim();
+      const safeQuery = String(q)
+        .replace(/[(),]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       // PostgREST or filter must be wrapped in parentheses.
       params.set(
         'or',

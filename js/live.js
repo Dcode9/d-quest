@@ -30,6 +30,17 @@
 
     const audioRefs = {};
 
+    function getTabSessionId() {
+        const key = 'dquest_live_tab_id';
+        let tabId = sessionStorage.getItem(key);
+        if (!tabId) {
+            const randomPart = Math.random().toString(36).slice(2, 10);
+            tabId = `p-${crypto.randomUUID?.() || `${Date.now()}-${randomPart}`}`;
+            sessionStorage.setItem(key, tabId);
+        }
+        return tabId;
+    }
+
     function ensureClient() {
         if (!window.supabase) {
             alert("Supabase could not be loaded. Live quiz is unavailable.");
@@ -48,25 +59,37 @@
 
     function loadIdentity() {
         const stored = localStorage.getItem('dquest_live_identity');
+        const sessionId = getTabSessionId();
         if (stored) {
             try {
-                state.me = JSON.parse(stored);
+                const parsed = JSON.parse(stored) || {};
+                state.me = {
+                    id: sessionId,
+                    name: parsed.name || 'Player',
+                    emoji: parsed.emoji || '🧠'
+                };
                 return;
             } catch (err) {
                 console.warn('Failed to parse stored identity', err);
             }
         }
         state.me = {
-            id: `p-${crypto.randomUUID?.() || Date.now()}`,
+            id: sessionId,
             name: 'Player',
             emoji: '🧠'
         };
-        localStorage.setItem('dquest_live_identity', JSON.stringify(state.me));
+        localStorage.setItem('dquest_live_identity', JSON.stringify({
+            name: state.me.name,
+            emoji: state.me.emoji
+        }));
     }
 
     function updateIdentity(partial) {
         state.me = { ...state.me, ...partial };
-        localStorage.setItem('dquest_live_identity', JSON.stringify(state.me));
+        localStorage.setItem('dquest_live_identity', JSON.stringify({
+            name: state.me.name,
+            emoji: state.me.emoji
+        }));
     }
 
     function initAudio() {
