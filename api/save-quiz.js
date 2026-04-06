@@ -1,4 +1,46 @@
 module.exports = async function handler(req, res) {
+  const FALLBACK_SUPABASE_URL = 'https://apshufcfkoervmpizvoq.supabase.co';
+  const FALLBACK_SUPABASE_ANON_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwc2h1ZmNma29lcnZtcGl6dm9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDQxOTgsImV4cCI6MjA5MDYyMDE5OH0.71IdaYCvXdudadPOyE_M2dCNAz830AHuRQFXWITCd7g';
+
+  function normalizeSupabaseUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    try {
+      const normalized = new URL(rawUrl.trim());
+      return normalized.origin;
+    } catch {
+      return null;
+    }
+  }
+
+  function buildSupabaseCandidates() {
+    const envUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const fallbackUrl = normalizeSupabaseUrl(FALLBACK_SUPABASE_URL);
+    const candidates = [];
+
+    if (envUrl && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      candidates.push({ source: 'env-service-role', url: envUrl, key: process.env.SUPABASE_SERVICE_ROLE_KEY });
+    }
+    if (envUrl && process.env.SUPABASE_KEY) {
+      candidates.push({ source: 'env-supabase-key', url: envUrl, key: process.env.SUPABASE_KEY });
+    }
+    if (envUrl && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      candidates.push({ source: 'env-anon', url: envUrl, key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY });
+    }
+
+    if (fallbackUrl && FALLBACK_SUPABASE_ANON_KEY) {
+      candidates.push({ source: 'fallback-anon', url: fallbackUrl, key: FALLBACK_SUPABASE_ANON_KEY });
+    }
+
+    const seen = new Set();
+    return candidates.filter((candidate) => {
+      const hash = `${candidate.url}::${candidate.key}`;
+      if (seen.has(hash)) return false;
+      seen.add(hash);
+      return true;
+    });
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -29,47 +71,60 @@ module.exports = async function handler(req, res) {
       ...(metadata ? { metadata } : {})
     };
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SUPABASE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const candidates = buildSupabaseCandidates();
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!candidates.length) {
       return res.status(500).json({
         error: 'Supabase config missing',
         hint: 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (preferred) in Vercel env'
       });
     }
 
-    const response = await fetch(`${supabaseUrl}/rest/v1/quizzes`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=representation'
-      },
-      body: JSON.stringify({
-        topic: title,
-        content,
-        created_at: new Date().toISOString()
-      })
-    });
+    let lastFailure = null;
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Supabase save error:', err);
-      return res.status(response.status).json({ error: 'DB Save Failed', details: err });
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(`${candidate.url}/rest/v1/quizzes`, {
+          method: 'POST',
+          headers: {
+            apikey: candidate.key,
+            Authorization: `Bearer ${candidate.key}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation'
+          },
+          body: JSON.stringify({
+            topic: title,
+            content,
+            created_at: new Date().toISOString()
+          })
+        });
+
+        if (response.ok) {
+          const rows = await response.json();
+          const saved = rows?.[0] || null;
+
+          return res.status(200).json({
+            success: true,
+            message: 'Quiz saved successfully',
+            quiz: saved
+          });
+        }
+
+        const err = await response.text();
+        lastFailure = { status: response.status, details: err, source: candidate.source };
+      } catch (error) {
+        lastFailure = {
+          status: 500,
+          details: error?.message || 'fetch failed',
+          source: candidate.source
+        };
+      }
     }
 
-    const rows = await response.json();
-    const saved = rows?.[0] || null;
-
-    return res.status(200).json({
-      success: true,
-      message: 'Quiz saved successfully',
-      quiz: saved
+    return res.status(lastFailure?.status || 500).json({
+      error: 'DB Save Failed',
+      details: lastFailure?.details || 'Unable to reach Supabase',
+      source: lastFailure?.source || 'unknown'
     });
   } catch (error) {
     console.error('Save quiz error:', error);
