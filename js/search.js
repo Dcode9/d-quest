@@ -206,14 +206,6 @@ function resetSkeletonCard() {
         skelPreviewBtn.classList.add('opacity-50', 'cursor-default');
         skelPreviewBtn.classList.remove('hover:bg-slate-600', 'cursor-pointer');
     }
-
-    // Reset live button
-    const skelLiveBtn = document.getElementById('skel-live-btn');
-    if (skelLiveBtn) {
-        skelLiveBtn.onclick = null;
-        skelLiveBtn.classList.add('opacity-50', 'cursor-default');
-        skelLiveBtn.classList.remove('hover:bg-slate-700', 'cursor-pointer', 'border-yellow-400');
-    }
 }
 
 function showSkeletonCard() {
@@ -304,21 +296,6 @@ function revealQuizInSkeleton(quizItem) {
             };
         }
 
-        // Wire up live button
-        const skelLiveBtn = document.getElementById('skel-live-btn');
-        if (skelLiveBtn) {
-            skelLiveBtn.classList.remove('opacity-50', 'cursor-default');
-            skelLiveBtn.classList.add('cursor-pointer', 'hover:bg-slate-700', 'border-yellow-400');
-            skelLiveBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (window.startLiveHost) {
-                    window.startLiveHost(quizItem);
-                } else {
-                    alert('Live hosting is not available right now.');
-                }
-            };
-        }
-
         // Wire up preview button on skeleton card
         const skelPreviewBtn = document.getElementById('skel-preview-btn');
         if (skelPreviewBtn) {
@@ -368,7 +345,6 @@ async function handleSearch() {
         const newQuiz = await generateQuizInstantly(query);
         
         if (newQuiz) {
-            await persistAiQuiz(newQuiz);
             // Reveal data inside skeleton with streaming animation
             revealQuizInSkeleton(newQuiz);
         }
@@ -386,9 +362,7 @@ async function searchDatabase(query) {
     
     const localQuizFiles = [
         'demo.json', 'general-knowledge.json', 'science.json',
-        'history.json', 'geography.json', 'technology.json',
-        'english-grammar-grade-10.json', 'ai-employability-skills.json',
-        'communication-skills.json', 'green-skills.json'
+        'history.json', 'geography.json', 'technology.json'
     ];
     
     // Fire all local fetches in parallel for speed
@@ -416,23 +390,14 @@ async function searchDatabase(query) {
     const localResults = await Promise.all(localPromises);
     localResults.forEach(r => { if (r) allQuizzes.push(r); });
     
-    // Search Supabase in parallel
+    // Search Supabase in parallel via server API
     try {
-        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
-            console.warn('Supabase is not configured. Set DQUEST_SUPABASE_URL and DQUEST_SUPABASE_KEY to enable cloud search.');
-            return allQuizzes;
-        }
-        const { url } = window.getSupabaseConfig();
-        const headers = window.getSupabaseHeaders();
-        
-        const orFilter = encodeURIComponent(`topic.ilike.*${query}*,content->>title.ilike.*${query}*,content->metadata->>topic.ilike.*${query}*`);
-        const response = await fetch(`${url}/rest/v1/quizzes?select=*&or=${orFilter}&order=created_at.desc`, { headers });
+        const response = await fetch(`/api/quizzes?q=${encodeURIComponent(query)}`);
         
         if (response.ok) {
-            const supabaseQuizzes = await response.json();
+            const payload = await response.json();
+            const supabaseQuizzes = Array.isArray(payload.quizzes) ? payload.quizzes : [];
             allQuizzes.push(...supabaseQuizzes);
-        } else {
-            console.warn('Supabase search failed:', await response.text());
         }
     } catch (error) {
         console.warn('Supabase search failed:', error);
@@ -481,19 +446,55 @@ async function generateQuizInstantly(topic) {
         if (!response.ok) throw new Error(data.error || 'Generation failed');
         if (!data.quiz) throw new Error('Invalid response structure from server');
         
-        const formattedQuiz = {
+        const persistedQuiz = await persistGeneratedQuiz(data.quiz);
+
+        if (persistedQuiz) {
+            return persistedQuiz;
+        }
+
+        const fallbackQuiz = {
             id: `ai-${Date.now()}`,
             content: data.quiz,
             created_at: new Date().toISOString(),
             isAI: true,
             isTemp: true
         };
-        
-        sessionStorage.setItem(`quiz_${formattedQuiz.id}`, JSON.stringify(data.quiz));
-        return formattedQuiz;
+
+        sessionStorage.setItem(`quiz_${fallbackQuiz.id}`, JSON.stringify(data.quiz));
+        return fallbackQuiz;
         
     } catch (error) {
         throw new Error(`Failed to generate quiz: ${error.message}`);
+    }
+}
+
+async function persistGeneratedQuiz(quiz) {
+    try {
+        const response = await fetch('/api/save-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: quiz })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(errText || 'Could not save generated quiz');
+        }
+
+        const payload = await response.json();
+        if (!payload?.quiz?.id) {
+            throw new Error('Save response missing quiz id');
+        }
+
+        return {
+            ...payload.quiz,
+            content: payload.quiz.content || quiz,
+            isAI: true,
+            isTemp: false
+        };
+    } catch (error) {
+        console.warn('[SEARCH] Auto-save failed, using temporary quiz:', error.message);
+        return null;
     }
 }
 
@@ -579,31 +580,4 @@ function showLanding() {
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function persistAiQuiz(quizItem) {
-    try {
-        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
-            console.warn('Supabase not configured; skipping AI quiz save.');
-            return;
-        }
-        const { url } = window.getSupabaseConfig();
-        const headers = window.getSupabaseHeaders();
-        const topic = quizItem.content?.metadata?.topic || quizItem.content?.title || 'Untitled';
-        const payload = {
-            topic,
-            content: quizItem.content,
-            created_at: quizItem.created_at || new Date().toISOString()
-        };
-        const res = await fetch(`${url}/rest/v1/quizzes`, {
-            method: 'POST',
-            headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-            console.warn('Failed to persist AI quiz:', await res.text());
-        }
-    } catch (err) {
-        console.warn('AI quiz save error:', err);
-    }
 }

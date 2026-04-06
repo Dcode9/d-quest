@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D'Quest by Dhairya Shah</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230a0e27'/%3E%3Ctext x='32' y='41' font-size='30' text-anchor='middle' fill='%23facc15'%3ED%3C/text%3E%3C/svg%3E">
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Combined CSS -->
     <link rel="stylesheet" href="css/style.css">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase config helper -->
+    <!-- Supabase config helper for live mode -->
     <script src="js/config.js"></script>
-    <!-- Supabase for realtime live-quiz rooms -->
+    <!-- Supabase client for realtime live rooms -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.3/dist/umd/supabase.js"></script>
 </head>
 <body class="bg-[#0a0e27] text-white font-sans min-h-screen overflow-x-hidden">
@@ -80,7 +81,7 @@
                     </div>
                 </div>
 
-                <!-- Live Quiz quick actions -->
+                <!-- Live Quiz quick action -->
                 <div class="mt-8 flex flex-wrap justify-center gap-4">
                     <button id="join-live-btn" class="flex items-center gap-2 px-6 py-3 rounded-full border border-yellow-500/50 bg-slate-900/80 hover:bg-slate-800 text-yellow-400 font-semibold shadow-lg hover:shadow-yellow-500/20 transition-all duration-200">
                         <i data-lucide="users" class="w-4 h-4"></i>
@@ -119,14 +120,10 @@
                             </div>
                         </div>
                         <!-- Action Button skeleton -->
-                        <div class="flex flex-wrap gap-2 mt-auto">
+                        <div class="flex gap-2 mt-auto">
                             <button id="skel-play-btn" class="flex-1 kbc-button text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 opacity-80 cursor-default">
                                 <div class="spin-loader"></div>
                                 <span class="text-sm">Generating with D'Ai</span>
-                            </button>
-                            <button id="skel-live-btn" class="flex-1 bg-slate-800 text-yellow-400 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 opacity-50 cursor-default border border-yellow-500/30">
-                                <i data-lucide="broadcast" class="w-4 h-4"></i>
-                                <span class="text-sm">Live Quiz</span>
                             </button>
                             <button id="skel-preview-btn" class="bg-slate-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center opacity-50 cursor-default">
                                 <i data-lucide="eye" class="w-4 h-4"></i>

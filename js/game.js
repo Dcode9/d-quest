@@ -78,17 +78,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Load from Supabase for regular quizzes
                 console.log('[GAME] Loading quiz from Supabase');
-                if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
-                    throw new Error("Supabase is not configured. Set DQUEST_SUPABASE_URL and DQUEST_SUPABASE_KEY.");
-                }
-                const { url } = window.getSupabaseConfig();
-                const headers = window.getSupabaseHeaders();
-                
-                const response = await fetch(`${url}/rest/v1/quizzes?id=eq.${quizId}&select=*`, { headers });
+                const response = await fetch(`/api/quizzes?id=${encodeURIComponent(quizId)}`);
 
                 if (!response.ok) throw new Error("Failed to fetch quiz from database");
                 
-                const data = await response.json();
+                const payload = await response.json();
+                const data = Array.isArray(payload.quizzes) ? payload.quizzes : [];
                 if (data.length === 0) throw new Error("Quiz not found");
                 
                 state.quizData = data[0].content;

@@ -104,6 +104,14 @@
         if (overlay) overlay.remove();
         state.status = 'idle';
         cleanupTimers();
+        leaveChannel();
+    }
+
+    function leaveChannel() {
+        if (!state.channel) return;
+        state.channel.unsubscribe().catch(() => {});
+        state.channel = null;
+        state.presence = {};
     }
 
     function cleanupTimers() {
@@ -391,7 +399,7 @@
         `;
     }
 
-    function startLiveHost(quizItem) {
+    async function startLiveHost(quizItem) {
         if (!ensureClient()) return;
         state.role = 'host';
         state.quizItem = quizItem;
@@ -400,8 +408,14 @@
         state.scores = {};
         state.answers = {};
         state.status = 'lobby';
-        trackChannel(state.roomCode);
-        renderHostLobby();
+        try {
+            await trackChannel(state.roomCode);
+            renderHostLobby();
+        } catch (error) {
+            console.error('Failed to start live room:', error);
+            alert('Could not create live room. Please try again.');
+            closeOverlay();
+        }
     }
 
     async function trackChannel(code) {
@@ -420,11 +434,7 @@
         state.channel.on('presence', { event: 'join' }, handlePresenceSync);
         state.channel.on('broadcast', { event: 'live' }, ({ payload }) => handleBroadcast(payload));
 
-        await state.channel.subscribe((status) => {
-            if (status === 'CHANNEL_ERROR') {
-                alert('Live connection failed. Please check your network and try again.');
-            }
-        });
+        await waitForSubscribed(state.channel);
 
         await state.channel.track({
             id: state.me.id,
@@ -433,6 +443,32 @@
             role: state.role,
             quizTitle: state.quizItem?.content?.title,
             totalQuestions: state.quizItem?.content?.questions?.length || 0
+        });
+    }
+
+    function waitForSubscribed(channel) {
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            const timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error('Timed out connecting to live room'));
+            }, 10000);
+
+            channel.subscribe((status) => {
+                if (settled) return;
+                if (status === 'SUBSCRIBED') {
+                    clearTimeout(timeout);
+                    settled = true;
+                    resolve();
+                    return;
+                }
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                    clearTimeout(timeout);
+                    settled = true;
+                    reject(new Error(`Live connection failed: ${status}`));
+                }
+            });
         });
     }
 
@@ -511,12 +547,14 @@
     function sendQuestion() {
         cleanupTimers();
         const q = state.quizItem.content.questions[state.questionIndex];
+        const correctIndex = Number.parseInt(q.correctIndex, 10);
+        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
         const payload = {
             type: 'question',
             questionIndex: state.questionIndex,
             question: q.question,
             options: q.options,
-            correctIndex: q.correctIndex,
+            correctIndex: normalizedCorrectIndex,
             startAt: Date.now()
         };
         state.questionStart = payload.startAt;
@@ -581,12 +619,14 @@
     function finishQuestion(forceReveal) {
         cleanupTimers();
         const q = state.quizItem.content.questions[state.questionIndex];
+        const correctIndex = Number.parseInt(q.correctIndex, 10);
+        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
         const answers = state.answers[state.questionIndex] || {};
         const results = [];
         const playersOnly = Object.values(state.presence).filter(p => p.role === 'player');
         playersOnly.forEach((p) => {
             const response = answers[p.id];
-            const isCorrect = response ? response.choice === q.correctIndex : false;
+            const isCorrect = response ? response.choice === normalizedCorrectIndex : false;
             const delta = isCorrect ? calculateScoreDelta(response?.elapsed || 30000) : 0;
             state.scores[p.id] = (state.scores[p.id] || 0) + delta;
             results.push({
@@ -603,10 +643,10 @@
         broadcast({
             type: 'leaderboard',
             questionIndex: state.questionIndex,
-            correctIndex: q.correctIndex,
+            correctIndex: normalizedCorrectIndex,
             results
         });
-        renderLeaderboard(results, q.correctIndex, false);
+        renderLeaderboard(results, normalizedCorrectIndex, false);
         const isLast = state.questionIndex + 1 >= state.quizItem.content.questions.length;
         if (forceReveal && isLast) broadcastFinal(results);
     }
@@ -728,8 +768,14 @@
         state.status = 'waiting';
         state.scores = {};
         state.answers = {};
-        await trackChannel(code);
-        renderWaitingRoom();
+        try {
+            await trackChannel(code);
+            renderWaitingRoom();
+        } catch (error) {
+            console.error('Failed to join live room:', error);
+            alert('Could not join this live room. Please verify the code and try again.');
+            closeOverlay();
+        }
     }
 
     function renderWaitingRoom() {
@@ -739,7 +785,7 @@
                 <div class="absolute inset-0 pointer-events-none opacity-20" style="background: radial-gradient(circle at 15% 15%, rgba(234, 179, 8, 0.12), transparent 45%), radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.16), transparent 35%);"></div>
                 <div class="relative flex flex-col gap-6 items-center text-center">
                     <div class="live-chip flex items-center gap-2">
-                        <i data-lucide="broadcast" class="w-4 h-4"></i>
+                        <i data-lucide="radio" class="w-4 h-4"></i>
                         Room ${state.roomCode}
                     </div>
                     <div class="text-3xl md:text-4xl font-extrabold text-white">Waiting for host</div>

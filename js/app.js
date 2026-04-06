@@ -1,23 +1,16 @@
 async function fetchQuizzes() {
     const grid = document.getElementById('quiz-grid');
-    
+
     let allQuizzes = [];
 
     // 1. Fetch from Supabase
     try {
-        if (!window.hasSupabaseConfig || !window.hasSupabaseConfig()) {
-            console.warn('Supabase is not configured. Using local quizzes only.');
-        } else {
-            const { url } = window.getSupabaseConfig();
-            const headers = window.getSupabaseHeaders();
-            const response = await fetch(`${url}/rest/v1/quizzes?select=*&order=created_at.desc`, { headers });
+        const response = await fetch('/api/quizzes');
 
-            if (response.ok) {
-                const supabaseQuizzes = await response.json();
-                allQuizzes = allQuizzes.concat(supabaseQuizzes);
-            } else {
-                console.warn('Supabase fetch failed:', await response.text());
-            }
+        if (response.ok) {
+            const payload = await response.json();
+            const supabaseQuizzes = Array.isArray(payload.quizzes) ? payload.quizzes : [];
+            allQuizzes = allQuizzes.concat(supabaseQuizzes);
         }
     } catch (error) {
         console.warn("Could not fetch from Supabase:", error);
@@ -30,11 +23,7 @@ async function fetchQuizzes() {
         'science.json',
         'history.json',
         'geography.json',
-        'technology.json',
-        'english-grammar-grade-10.json',
-        'ai-employability-skills.json',
-        'communication-skills.json',
-        'green-skills.json'
+        'technology.json'
     ];
 
     for (const file of localQuizFiles) {
@@ -141,7 +130,7 @@ function renderQuizzes(quizzes) {
                     <span>Start Quiz</span>
                 </button>
                 <button class="live-quiz-btn flex-1 bg-slate-800 hover:bg-slate-700 text-yellow-400 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-yellow-500/30 shadow-lg">
-                    <i data-lucide="broadcast" class="w-4 h-4"></i>
+                    <i data-lucide="radio" class="w-4 h-4"></i>
                     <span>Live Quiz</span>
                 </button>
                 <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
@@ -170,7 +159,7 @@ function renderQuizzes(quizzes) {
             console.log('[RENDER] Previewing quiz:', quiz.title);
             showPreview(quiz);
         };
-        
+
         if (liveBtn) {
             liveBtn.onclick = (e) => {
                 e.stopPropagation();
