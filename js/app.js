@@ -30,7 +30,11 @@ async function fetchQuizzes() {
         'science.json',
         'history.json',
         'geography.json',
-        'technology.json'
+        'technology.json',
+        'english-grammar-grade-10.json',
+        'ai-employability-skills.json',
+        'communication-skills.json',
+        'green-skills.json'
     ];
 
     for (const file of localQuizFiles) {

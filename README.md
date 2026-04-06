@@ -1,18 +1,53 @@
-# d-quest
+# D'Quest
 
-## Supabase setup
+D'Quest is a browser-based quiz platform that lets learners explore local quizzes and generate new quizzes instantly with AI.
 
-The app ships with demo Supabase credentials so it works out of the box, but you should plug in your own project to avoid rate limits or outages.
+## Features
+- Browse and play built-in quizzes from the `quizzes/` folder
+- Search existing quizzes by title
+- AI-generated quizzes through `/api/generate-quiz`
+- Quiz player with scoring and progress flow
 
-1. Create a new project in Supabase.
-2. Copy the project URL (e.g. `https://xyzcompany.supabase.co`) and the **anon** public API key from Project Settings → API.
-3. Set them at runtime before scripts load, or edit `js/config.js`:
-   ```html
-   <script>
-     window.DQUEST_SUPABASE_URL = "https://xyzcompany.supabase.co";
-     window.DQUEST_SUPABASE_KEY = "your-anon-key";
-   </script>
-   ```
-4. Deploy with those values injected (e.g. in Vercel, add the snippet above in a custom `_app` head or inject via environment replacement).
+## Project Structure
+- `/index.html` - main landing/search page
+- `/player.html` - quiz player page
+- `/js/` - client logic (`app.js`, `search.js`, `game.js`)
+- `/quizzes/` - local quiz JSON files
+- `/api/` - serverless API endpoints
 
-If Supabase isn’t configured or reachable, the app will fall back to local quizzes and log a warning. Live quizzes and cloud search require working Supabase credentials.
+## Local Quizzes Added
+This repository includes these newly added quizzes:
+1. **English Grammar (Grade X)**
+   - Topics include noun, pronouns, adjectives, direct/indirect speech, determiners, etc.
+2. **Skill: AI - Employability Skills**
+3. **Skill: Communication Skills**
+4. **Green Skills**
+
+## Quiz JSON Format
+Each quiz file in `quizzes/` follows this shape:
+- `id` (string)
+- `title` (string)
+- `metadata` object with `grade`, `topic`, `difficulty`, optional `emoji`
+- `questions` array of:
+  - `question` (string)
+  - `options` (array of 4 strings)
+  - `correctIndex` (0-3)
+
+## Running the Project
+This project is static-first and can be served by any static server.
+
+Example:
+```bash
+python -m http.server 8000
+```
+Then open `http://localhost:8000`.
+
+## AI Quiz Generation Setup
+To enable AI generation in deployed/serverless environments:
+- Set `CEREBRAS_API_KEY` for `/api/generate-quiz`
+
+## Notes
+- Local quiz lists are configured in:
+  - `js/app.js`
+  - `js/search.js`
+- Add new local quiz files to both lists to make them searchable and visible in the UI.

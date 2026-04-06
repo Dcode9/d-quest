@@ -1,0 +1,52 @@
+{
+  "id": "eng-grammar-g10-001",
+  "title": "English Grammar (Grade X)",
+  "metadata": {
+    "grade": "10",
+    "topic": "English Grammar",
+    "difficulty": "Medium",
+    "emoji": "📝"
+  },
+  "questions": [
+    {
+      "question": "Identify the noun in the sentence: 'Honesty is the best policy.'",
+      "options": ["is", "best", "Honesty", "policy"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Choose the correct pronoun: 'Riya and ___ are going to the library.'",
+      "options": ["me", "I", "my", "mine"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Select the adjective in this sentence: 'She wore a beautiful dress.'",
+      "options": ["She", "wore", "beautiful", "dress"],
+      "correctIndex": 2
+    },
+    {
+      "question": "Choose the correct indirect speech: He said, 'I am tired.'",
+      "options": ["He said that he is tired.", "He said that he was tired.", "He said he had tired.", "He said that I was tired."],
+      "correctIndex": 1
+    },
+    {
+      "question": "Select the correct determiner: 'There are ___ apples in the basket.'",
+      "options": ["much", "many", "little", "less"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Identify the collective noun: 'A ___ of birds flew across the sky.'",
+      "options": ["group", "flock", "herd", "team"],
+      "correctIndex": 1
+    },
+    {
+      "question": "Choose the correct reported speech: She said, 'I will call you tomorrow.'",
+      "options": ["She said that she will call me tomorrow.", "She said that she would call me the next day.", "She said she called me tomorrow.", "She said that she would called me next day."],
+      "correctIndex": 1
+    },
+    {
+      "question": "Which sentence uses the correct possessive pronoun?",
+      "options": ["This book is her.", "This book is hers.", "This is hers book.", "This book is she."],
+      "correctIndex": 1
+    }
+  ]
+}
