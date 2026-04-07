@@ -28,6 +28,8 @@ const TOPICS = [
 
 let currentTopicIndex = 0;
 let isAnimating = false;
+let activeSearchRunId = 0;
+let skeletonHideTimeoutId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('main-search');
@@ -237,6 +239,11 @@ function showSkeletonCard() {
     const landingSection = document.getElementById('landing-section');
     if (landingSection) landingSection.style.display = 'none';
 
+    if (skeletonHideTimeoutId) {
+        clearTimeout(skeletonHideTimeoutId);
+        skeletonHideTimeoutId = null;
+    }
+
     if (section) {
         resetSkeletonCard();
         section.classList.remove('hidden');
@@ -265,10 +272,24 @@ function setSkeletonLoadingState(message) {
 function hideSkeletonCard() {
     const section = document.getElementById('skeleton-card-section');
     if (section) {
+        if (skeletonHideTimeoutId) {
+            clearTimeout(skeletonHideTimeoutId);
+            skeletonHideTimeoutId = null;
+        }
+
         section.style.transition = 'opacity 0.3s ease';
         section.style.opacity = '0';
-        setTimeout(() => section.classList.add('hidden'), 300);
+        skeletonHideTimeoutId = setTimeout(() => {
+            section.classList.add('hidden');
+            skeletonHideTimeoutId = null;
+        }, 300);
     }
+}
+
+function isAbortLikeError(error) {
+    const name = String(error?.name || '').toLowerCase();
+    const message = String(error?.message || '').toLowerCase();
+    return name.includes('abort') || message.includes('aborted') || message.includes('signal is aborted');
 }
 
 // =============================================
@@ -365,9 +386,15 @@ function revealQuizInSkeleton(quizItem) {
 // =============================================
 async function handleSearch() {
     const searchInput = document.getElementById('main-search');
-    const query = searchInput.value.trim();
+    const headerSearchInput = document.getElementById('header-search-input');
+    const query = (searchInput?.value || headerSearchInput?.value || '').trim();
     
     if (!query) return;
+
+    const runId = ++activeSearchRunId;
+
+    if (searchInput) searchInput.value = query;
+    if (headerSearchInput) headerSearchInput.value = query;
     
     // Transition to header layout immediately (D'Quest → top-left, search → top)
     transitionToHeaderSearch(query);
@@ -378,13 +405,14 @@ async function handleSearch() {
         resultsSection.classList.add('hidden');
         resultsSection.classList.remove('fade-in', 'fade-out', 'fade-transition');
     }
-    hideSkeletonCard();
     showSkeletonCard();
     setSkeletonLoadingState('Searching quiz bank...');
     
     try {
         // Step 1: Search existing quizzes (fast)
         const existingQuizzes = await searchDatabase(query);
+
+        if (runId !== activeSearchRunId) return;
         
         if (existingQuizzes.length > 0) {
             // Found results → show them directly, no skeleton
@@ -396,6 +424,8 @@ async function handleSearch() {
         setSkeletonLoadingState("Generating with D'Ai");
         
         const newQuiz = await generateQuizInstantly(query);
+
+        if (runId !== activeSearchRunId) return;
         
         if (newQuiz) {
             // Reveal data inside skeleton with streaming animation
@@ -403,6 +433,7 @@ async function handleSearch() {
         }
         
     } catch (error) {
+        if (runId !== activeSearchRunId) return;
         console.error('[SEARCH] Search error:', error);
         hideSkeletonCard();
         alert(`Error: ${error.message}`);
@@ -487,6 +518,12 @@ async function searchSupabaseQuizzes(query) {
         return Array.isArray(payload.quizzes) ? payload.quizzes : [];
     } catch (error) {
         clearTimeout(timeoutId);
+
+        // Timeout/abort is expected in fast fallback flow, keep logs clean.
+        if (isAbortLikeError(error)) {
+            return [];
+        }
+
         console.warn('Supabase search failed:', error.message || error);
         return [];
     }
