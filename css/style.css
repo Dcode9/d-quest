@@ -435,6 +435,21 @@ body {
     padding-bottom: 12%;
 }
 
+/* Ensure text doesn't overflow in containers */
+.kbc-svg-content .text-white,
+.kbc-svg-content .text-slate-300,
+.kbc-svg-content .question-text {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.kbc-svg-content .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Spotlight animation for finale */
 @keyframes spotlightReveal {
     0% {

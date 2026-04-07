@@ -363,14 +363,14 @@
         cleanupTimers();
 
         // KBC-styled player question view - ONLY 4 ABCD buttons, NO question display
-        // Full screen edge-to-edge buttons
+        // Full screen edge-to-edge buttons with fly-up animation
         shell.innerHTML = `
             <div class="w-full h-screen flex flex-col items-center justify-center p-2 gap-3">
                 <!-- Options Grid - Full Screen ABCD Buttons ONLY -->
                 <div class="w-full h-full flex flex-col gap-3" id="live-options">
                     ${payload.options.map((opt, idx) => `
-                        <div data-idx="${idx}" class="kbc-svg-container kbc-option-box kbc-option-selectable flex-1 animate-slideUp"
-                             style="background-image: url('${KBC_ASSETS.optionNormal}'); animation-delay: ${idx * 0.1}s;">
+                        <div data-idx="${idx}" class="kbc-svg-container kbc-option-box kbc-option-selectable flex-1 opacity-0 animate-slideUp"
+                             style="background-image: url('${KBC_ASSETS.optionNormal}'); animation-delay: ${idx * 0.15}s; animation-fill-mode: forwards;">
                             <div class="kbc-svg-content">
                                 <div class="flex items-center justify-center">
                                     <span class="text-5xl md:text-7xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
@@ -401,6 +401,7 @@
             };
         });
 
+        // No countdown timer display for players, but still track time
         startPlayerCountdown(payload);
     }
 
@@ -1050,19 +1051,10 @@
     }
 
     function startPlayerCountdown(payload) {
-        const countdownEl = document.getElementById('live-countdown');
+        // Players don't see the countdown, but we still track time for answer submission
         let remaining = 30;
-        if (countdownEl) countdownEl.textContent = `${remaining}s`;
         state.timers.question = setInterval(() => {
             remaining -= 1;
-            if (countdownEl) {
-                countdownEl.textContent = `${remaining}s`;
-                // Add urgent animation for last 5 seconds
-                if (remaining <= 5 && remaining > 0) {
-                    countdownEl.classList.remove('kbc-countdown-pulse');
-                    countdownEl.classList.add('kbc-countdown-urgent');
-                }
-            }
             if (remaining <= 0) {
                 clearInterval(state.timers.question);
                 state.status = 'locked';
