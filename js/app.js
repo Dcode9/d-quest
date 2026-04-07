@@ -1,6 +1,20 @@
 async function fetchQuizzes() {
     const grid = document.getElementById('quiz-grid');
 
+    const localQuizFiles = [
+        'demo.json',
+        'general-knowledge.json',
+        'science.json',
+        'history.json',
+        'geography.json',
+        'technology.json',
+        'Improvement_in_Food_Resources.json',
+        'ai-employability-skills.json',
+        'communication-skills.json',
+        'english-grammar-grade-10.json',
+        'green-skills.json'
+    ];
+
     let allQuizzes = [];
 
     // 1. Fetch from Supabase
@@ -17,15 +31,6 @@ async function fetchQuizzes() {
     }
 
     // 2. Fetch from local quizzes folder
-    const localQuizFiles = [
-        'demo.json',
-        'general-knowledge.json',
-        'science.json',
-        'history.json',
-        'geography.json',
-        'technology.json'
-    ];
-
     for (const file of localQuizFiles) {
         try {
             const response = await fetch(`quizzes/${file}`);

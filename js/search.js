@@ -3,6 +3,21 @@
 
 // Constants
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const SEARCH_TIMEOUT_MS = 6000; // 6 seconds
+
+const LOCAL_QUIZ_FILES = [
+    'demo.json',
+    'general-knowledge.json',
+    'science.json',
+    'history.json',
+    'geography.json',
+    'technology.json',
+    'Improvement_in_Food_Resources.json',
+    'ai-employability-skills.json',
+    'communication-skills.json',
+    'english-grammar-grade-10.json',
+    'green-skills.json'
+];
 
 const TOPICS = [
     'Physics', 'Chemistry', 'Biology', 'Mathematics',
@@ -234,6 +249,19 @@ function showSkeletonCard() {
     }
 }
 
+function setSkeletonLoadingState(message) {
+    const btn = document.getElementById('skel-play-btn');
+    if (!btn) return;
+
+    btn.onclick = null;
+    btn.classList.add('opacity-80', 'cursor-default');
+    btn.classList.remove('hover:scale-105', 'cursor-pointer');
+    btn.innerHTML = `
+        <div class="spin-loader"></div>
+        <span class="text-sm">${message}</span>
+    `;
+}
+
 function hideSkeletonCard() {
     const section = document.getElementById('skeleton-card-section');
     if (section) {
@@ -351,6 +379,8 @@ async function handleSearch() {
         resultsSection.classList.remove('fade-in', 'fade-out', 'fade-transition');
     }
     hideSkeletonCard();
+    showSkeletonCard();
+    setSkeletonLoadingState('Searching quiz bank...');
     
     try {
         // Step 1: Search existing quizzes (fast)
@@ -362,8 +392,8 @@ async function handleSearch() {
             return;
         }
         
-        // Step 2: No match → generate with AI. NOW show the skeleton card
-        showSkeletonCard();
+        // Step 2: No match → generate with AI immediately
+        setSkeletonLoadingState("Generating with D'Ai");
         
         const newQuiz = await generateQuizInstantly(query);
         
@@ -381,52 +411,85 @@ async function handleSearch() {
 
 // Search database for existing quizzes
 async function searchDatabase(query) {
-    const allQuizzes = [];
-    
-    const localQuizFiles = [
-        'demo.json', 'general-knowledge.json', 'science.json',
-        'history.json', 'geography.json', 'technology.json'
-    ];
-    
-    // Fire all local fetches in parallel for speed
-    const localPromises = localQuizFiles.map(async (file) => {
+    const [localResults, supabaseResults] = await Promise.all([
+        searchLocalQuizzes(query),
+        searchSupabaseQuizzes(query)
+    ]);
+
+    const allQuizzes = [...localResults, ...supabaseResults];
+    const seen = new Set();
+
+    return allQuizzes.filter((item) => {
+        const key = item?.id || item?.content?.title;
+        if (!key) return true;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+async function searchLocalQuizzes(query) {
+    const normalizedQuery = query.toLowerCase();
+
+    const localPromises = LOCAL_QUIZ_FILES.map(async (file) => {
         try {
             const response = await fetch(`quizzes/${file}`);
-            if (response.ok) {
-                const quizData = await response.json();
-                if (quizData.title.toLowerCase().includes(query.toLowerCase())) {
-                    return {
-                        id: quizData.id || file.replace('.json', ''),
-                        content: quizData,
-                        created_at: '2024-01-01T00:00:00.000Z',
-                        isLocal: true,
-                        fileName: file
-                    };
-                }
-            }
+            if (!response.ok) return null;
+
+            const quizData = await response.json();
+            const title = String(quizData.title || '').toLowerCase();
+            const topic = String(quizData?.metadata?.topic || '').toLowerCase();
+            const grade = String(quizData?.metadata?.grade || '').toLowerCase();
+            const fileName = file.toLowerCase();
+
+            const isMatch =
+                title.includes(normalizedQuery) ||
+                topic.includes(normalizedQuery) ||
+                grade.includes(normalizedQuery) ||
+                fileName.includes(normalizedQuery);
+
+            if (!isMatch) return null;
+
+            return {
+                id: quizData.id || file.replace('.json', ''),
+                content: quizData,
+                created_at: '2024-01-01T00:00:00.000Z',
+                isLocal: true,
+                fileName: file
+            };
         } catch (error) {
             console.warn(`Could not load ${file}:`, error);
+            return null;
         }
-        return null;
     });
 
-    const localResults = await Promise.all(localPromises);
-    localResults.forEach(r => { if (r) allQuizzes.push(r); });
-    
-    // Search Supabase in parallel via server API
+    const results = await Promise.all(localPromises);
+    return results.filter(Boolean);
+}
+
+async function searchSupabaseQuizzes(query) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+
     try {
-        const response = await fetch(`/api/quizzes?q=${encodeURIComponent(query)}`);
-        
-        if (response.ok) {
-            const payload = await response.json();
-            const supabaseQuizzes = Array.isArray(payload.quizzes) ? payload.quizzes : [];
-            allQuizzes.push(...supabaseQuizzes);
+        const response = await fetch(`/api/quizzes?q=${encodeURIComponent(query)}`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const details = await response.text();
+            console.warn('Supabase search failed:', details);
+            return [];
         }
+
+        const payload = await response.json();
+        return Array.isArray(payload.quizzes) ? payload.quizzes : [];
     } catch (error) {
-        console.warn('Supabase search failed:', error);
+        clearTimeout(timeoutId);
+        console.warn('Supabase search failed:', error.message || error);
+        return [];
     }
-    
-    return allQuizzes;
 }
 
 // Generate quiz instantly with AI
