@@ -301,3 +301,243 @@ body {
     transform: translateY(-2px);
     border-color: rgba(234, 179, 8, 0.4);
 }
+
+/* --- KBC-STYLED RESPONSIVE SVG CONTAINERS --- */
+/* These containers maintain aspect ratio and scale properly across all screen sizes */
+
+/* Base responsive SVG container */
+.kbc-svg-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+/* Content wrapper that sits on top of SVG background */
+.kbc-svg-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5%;
+    z-index: 1;
+}
+
+/* Question/Title Box - wide title and question.svg (3695x305 = ~12.1:1 aspect ratio) */
+.kbc-question-box {
+    padding-bottom: 8.25%; /* 305/3695 * 100 */
+}
+
+/* Timer Box - Timer.svg (3695x305 = ~12.1:1 aspect ratio) */
+.kbc-timer-box {
+    padding-bottom: 8.25%; /* 305/3695 * 100 */
+}
+
+/* Normal Option Box - normal option box.svg (1789x278 = ~6.4:1 aspect ratio) */
+.kbc-option-box {
+    padding-bottom: 15.54%; /* 278/1789 * 100 */
+}
+
+/* Green Option Box - option box green.svg (1790x278 = ~6.4:1 aspect ratio) */
+.kbc-option-box-green {
+    padding-bottom: 15.53%; /* 278/1790 * 100 */
+}
+
+/* Orange Option Box - option box orange.svg (assuming similar ratio) */
+.kbc-option-box-orange {
+    padding-bottom: 15.53%; /* 278/1790 * 100 */
+}
+
+/* Yellow Option Box (for selected/hover states) */
+.kbc-option-box-yellow {
+    padding-bottom: 15.53%; /* 278/1790 * 100 */
+}
+
+/* Option Grid Layout for KBC-styled 4 options (2x2) */
+.kbc-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .kbc-options-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .kbc-svg-content {
+        padding: 4%;
+    }
+}
+
+@media (max-width: 480px) {
+    .kbc-svg-content {
+        padding: 3%;
+        font-size: 0.875rem;
+    }
+}
+
+/* Option States with transitions */
+.kbc-option-selectable {
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.kbc-option-selectable:hover {
+    transform: translateY(-4px);
+    filter: brightness(1.15);
+}
+
+.kbc-option-selected {
+    animation: optionPulse 0.3s ease forwards;
+}
+
+.kbc-option-correct {
+    animation: correctAnswer 0.6s ease forwards;
+}
+
+.kbc-option-wrong {
+    animation: wrongAnswer 0.6s ease forwards;
+}
+
+@keyframes optionPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes correctAnswer {
+    0%, 100% { transform: scale(1); }
+    20%, 40%, 60%, 80% { transform: scale(1.03); }
+}
+
+@keyframes wrongAnswer {
+    0%, 100% { transform: translateX(0); }
+    25%, 75% { transform: translateX(-8px); }
+    50% { transform: translateX(8px); }
+}
+
+/* Leaderboard Card - can reuse question box dimensions or custom */
+.kbc-leaderboard-item {
+    padding-bottom: 12%;
+}
+
+/* Ensure text doesn't overflow in containers */
+.kbc-svg-content .text-white,
+.kbc-svg-content .text-slate-300,
+.kbc-svg-content .question-text {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.kbc-svg-content .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Spotlight animation for finale */
+@keyframes spotlightReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.9);
+        filter: brightness(0.3);
+    }
+    50% {
+        filter: brightness(1.5);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: brightness(1);
+    }
+}
+
+.kbc-spotlight-reveal {
+    animation: spotlightReveal 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Position-based reveal delays for Top 3 */
+.kbc-spotlight-3rd {
+    animation-delay: 0s;
+}
+
+.kbc-spotlight-2nd {
+    animation-delay: 1.5s;
+}
+
+.kbc-spotlight-1st {
+    animation-delay: 3s;
+}
+
+/* Countdown timer animation */
+@keyframes countdownPulse {
+    0%, 100% {
+        transform: scale(1);
+        color: #facc15;
+    }
+    50% {
+        transform: scale(1.1);
+        color: #fbbf24;
+    }
+}
+
+.kbc-countdown-pulse {
+    animation: countdownPulse 1s ease-in-out infinite;
+}
+
+/* Countdown urgent (last 5 seconds) */
+@keyframes countdownUrgent {
+    0%, 100% {
+        transform: scale(1);
+        color: #ef4444;
+    }
+    50% {
+        transform: scale(1.15);
+        color: #dc2626;
+    }
+}
+
+.kbc-countdown-urgent {
+    animation: countdownUrgent 0.5s ease-in-out infinite;
+}
+
+/* Leaderboard position change indicators */
+.kbc-position-up {
+    color: #22c55e;
+}
+
+.kbc-position-down {
+    color: #ef4444;
+}
+
+.kbc-position-same {
+    color: #94a3b8;
+}
+
+/* Trophy/Medal colors for Top 3 */
+.kbc-rank-1 {
+    color: #ffd700; /* Gold */
+}
+
+.kbc-rank-2 {
+    color: #c0c0c0; /* Silver */
+}
+
+.kbc-rank-3 {
+    color: #cd7f32; /* Bronze */
+}
