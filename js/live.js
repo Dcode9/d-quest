@@ -9,6 +9,14 @@
         wrong: "assets/audio/Wrong Ans.mp3"
     };
 
+    const KBC_ASSETS = {
+        questionBox: "assets/images/wide title and question.svg",
+        timerBox: "assets/images/Timer.svg",
+        optionNormal: "assets/images/normal option box.svg",
+        optionGreen: "assets/images/option box green.svg",
+        optionOrange: "assets/images/option box orange.svg"
+    };
+
     const state = {
         client: null,
         channel: null,
@@ -23,12 +31,15 @@
         currentQuestionPayload: null,
         timers: {
             question: null,
-            heartbeat: null
+            heartbeat: null,
+            intro: null
         },
         me: null,
         presence: {},
         status: 'idle',
-        lastResults: null
+        lastResults: null,
+        questionPhase: 'none', // 'intro' | 'question-only' | 'options-reveal' | 'answer-reveal' | 'leaderboard'
+        previousScores: {}
     };
 
     const audioRefs = {};
@@ -145,7 +156,9 @@
 
     function cleanupTimers() {
         if (state.timers.question) clearInterval(state.timers.question);
+        if (state.timers.intro) clearTimeout(state.timers.intro);
         state.timers.question = null;
+        state.timers.intro = null;
     }
 
     function stopPlayerHeartbeat() {
@@ -334,88 +347,178 @@
         const shell = ensureOverlay();
         state.status = 'answering';
         cleanupTimers();
+
+        // KBC-styled player question view with responsive SVG containers
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.12), transparent 40%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.12), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${payload.questionIndex + 1}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${payload.question}</div>
-                        </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="clock-3" class="w-4 h-4"></i>
-                            <span id="live-countdown">30s</span>
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 gap-6">
+                <!-- Question Display with KBC SVG -->
+                <div class="w-full max-w-5xl">
+                    <div class="kbc-svg-container kbc-question-box animate-slideUp" style="background-image: url('${KBC_ASSETS.questionBox}');">
+                        <div class="kbc-svg-content">
+                            <div class="text-center">
+                                <div class="text-xs uppercase tracking-wide text-yellow-400/80 mb-2">Question ${payload.questionIndex + 1}</div>
+                                <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white question-text">${payload.question}</div>
+                            </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="live-options">
-                        ${payload.options.map((opt, idx) => `
-                            <button data-idx="${idx}" class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
-                            </button>
-                        `).join('')}
+                <!-- Timer with KBC SVG -->
+                <div class="w-full max-w-4xl">
+                    <div class="kbc-svg-container kbc-timer-box animate-fadeIn" style="background-image: url('${KBC_ASSETS.timerBox}'); animation-delay: 0.2s;">
+                        <div class="kbc-svg-content">
+                            <div class="flex items-center justify-center gap-3">
+                                <i data-lucide="clock-3" class="w-5 h-5 text-yellow-400"></i>
+                                <span id="live-countdown" class="text-2xl font-bold text-yellow-400 kbc-countdown-pulse">30s</span>
+                            </div>
+                        </div>
                     </div>
+                </div>
 
-                    <div class="text-slate-400 text-sm flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        Answers are ranked by correctness and speed.
-                    </div>
+                <!-- Options Grid with KBC SVG containers -->
+                <div class="kbc-options-grid w-full max-w-6xl" id="live-options">
+                    ${payload.options.map((opt, idx) => `
+                        <div data-idx="${idx}" class="kbc-svg-container kbc-option-box kbc-option-selectable animate-slideUp"
+                             style="background-image: url('${KBC_ASSETS.optionNormal}'); animation-delay: ${0.3 + idx * 0.1}s;">
+                            <div class="kbc-svg-content">
+                                <div class="flex items-center gap-4 px-4">
+                                    <span class="text-2xl md:text-3xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
+                                    <span class="text-lg md:text-xl font-semibold text-white">${opt}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="text-slate-400 text-sm flex items-center gap-2 animate-fadeIn" style="animation-delay: 0.7s;">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                    Choose wisely - faster correct answers earn more points!
                 </div>
             </div>
         `;
+
         if (window.lucide) window.lucide.createIcons();
 
-        const optionButtons = Array.from(document.querySelectorAll('#live-options button'));
-        optionButtons.forEach(btn => {
-            btn.onclick = () => {
+        const optionContainers = Array.from(document.querySelectorAll('#live-options .kbc-option-selectable'));
+        optionContainers.forEach(container => {
+            container.onclick = () => {
                 if (state.status !== 'answering') return;
-                const choice = parseInt(btn.getAttribute('data-idx'), 10);
+                const choice = parseInt(container.getAttribute('data-idx'), 10);
                 sendAnswer(choice, payload);
-                optionButtons.forEach(b => b.disabled = true);
-                btn.classList.add('border-yellow-400');
+
+                // Disable all options and highlight selected
+                optionContainers.forEach(c => {
+                    c.classList.remove('kbc-option-selectable');
+                    c.style.pointerEvents = 'none';
+                });
+                container.classList.add('kbc-option-selected');
+                container.style.backgroundImage = `url('${KBC_ASSETS.optionOrange}')`;
             };
         });
 
         startPlayerCountdown(payload);
     }
 
+    function renderPlayerQuestionIntro(payload) {
+        const shell = ensureOverlay();
+        state.status = 'question-intro';
+
+        // Player sees only question number while waiting for options
+        shell.innerHTML = `
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                <div class="text-center animate-fadeIn">
+                    <div class="text-2xl uppercase tracking-[0.3em] text-yellow-400/70 mb-6">Question ${payload.questionIndex + 1}</div>
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-500/30 to-orange-500/20 flex items-center justify-center text-5xl animate-float mb-8">
+                        ${state.me.emoji}
+                    </div>
+                    <div class="text-xl text-slate-300 animate-pulse">Get Ready...</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderHostQuestionIntro(question) {
+        const shell = ensureOverlay();
+
+        // Show only the question with dramatic intro (5 seconds with music)
+        shell.innerHTML = `
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                <div class="text-center mb-8 animate-fadeIn">
+                    <div class="text-sm uppercase tracking-[0.3em] text-yellow-400/70 mb-3">Question ${state.questionIndex + 1} of ${state.quizItem.content.questions.length}</div>
+                    <div class="w-16 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto"></div>
+                </div>
+
+                <div class="w-full max-w-5xl">
+                    <div class="kbc-svg-container kbc-question-box animate-slideUp" style="background-image: url('${KBC_ASSETS.questionBox}');">
+                        <div class="kbc-svg-content">
+                            <div class="text-center">
+                                <div class="text-2xl md:text-3xl lg:text-4xl font-bold text-white question-text animate-typeIn">${question.question}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-slate-400 text-sm flex items-center gap-2 animate-fadeIn" style="animation-delay: 1s;">
+                    <i data-lucide="music" class="w-4 h-4"></i>
+                    Options will appear shortly...
+                </div>
+            </div>
+        `;
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
     function renderHostQuestionView(question) {
         const shell = ensureOverlay();
+
+        // KBC-styled host view with responsive SVG containers and countdown
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-40" style="background: radial-gradient(circle at 25% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 75% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${question.question}</div>
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 gap-6">
+                <!-- Header with Question Number and Controls -->
+                <div class="w-full max-w-6xl flex items-center justify-between mb-4">
+                    <div class="text-xs uppercase tracking-wide text-slate-400">
+                        Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="live-chip flex items-center gap-2">
+                            <i data-lucide="timer" class="w-4 h-4"></i>
+                            <span id="host-countdown" class="kbc-countdown-pulse">30s</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <div class="live-chip flex items-center gap-2">
-                                <i data-lucide="timer" class="w-4 h-4"></i>
-                                <span id="host-countdown">30s</span>
+                        <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 transition-all">
+                            <i data-lucide="skip-forward" class="w-4 h-4 inline mr-1"></i>
+                            Reveal Now
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Question Display with KBC SVG -->
+                <div class="w-full max-w-5xl">
+                    <div class="kbc-svg-container kbc-question-box" style="background-image: url('${KBC_ASSETS.questionBox}');">
+                        <div class="kbc-svg-content">
+                            <div class="text-center">
+                                <div class="text-2xl md:text-3xl lg:text-4xl font-bold text-white question-text">${question.question}</div>
                             </div>
-                            <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
-                                Reveal Now
-                            </button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        ${question.options.map((opt, idx) => `
-                            <div class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
+                <!-- Options Grid with KBC SVG containers -->
+                <div class="kbc-options-grid w-full max-w-6xl">
+                    ${question.options.map((opt, idx) => `
+                        <div class="kbc-svg-container kbc-option-box" style="background-image: url('${KBC_ASSETS.optionNormal}');">
+                            <div class="kbc-svg-content">
+                                <div class="flex items-center gap-4 px-4">
+                                    <span class="text-2xl md:text-3xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
+                                    <span class="text-lg md:text-xl font-semibold text-white">${opt}</span>
+                                </div>
                             </div>
-                        `).join('')}
-                    </div>
+                        </div>
+                    `).join('')}
+                </div>
 
-                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        Live answers will appear automatically. Leaderboard pops after reveal.
-                    </div>
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400 flex items-center gap-2 max-w-4xl">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                    Live answers incoming. Reveal to show correct answer and leaderboard.
                 </div>
             </div>
         `;
@@ -427,46 +530,89 @@
 
     function renderLeaderboard(results, correctIndex, isFinal = false) {
         const shell = ensureOverlay();
-        const topThree = [...results].sort((a, b) => b.total - a.total).slice(0, 3);
+        const sortedResults = [...results].sort((a, b) => b.total - a.total);
+
+        // Calculate position changes from previous scores
+        const resultsWithPositions = sortedResults.map((res, idx) => {
+            const previousTotal = state.previousScores[res.id] || 0;
+            const previousPosition = sortedResults.findIndex(r => r.total === previousTotal);
+            let positionChange = 'same';
+            if (previousPosition >= 0) {
+                if (idx < previousPosition) positionChange = 'up';
+                else if (idx > previousPosition) positionChange = 'down';
+            }
+            return { ...res, position: idx + 1, positionChange };
+        });
+
+        // For finale, show Top 3 with spotlight reveal
+        if (isFinal) {
+            renderFinale(resultsWithPositions.slice(0, 3));
+            return;
+        }
+
+        // Show Top 5 for regular leaderboard
+        const topFive = resultsWithPositions.slice(0, 5);
+        const topThree = resultsWithPositions.slice(0, 3);
+
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">${isFinal ? 'Grand Finale' : 'Leaderboard'}</div>
-                            <div class="text-2xl font-bold text-white">${isFinal ? 'Final Standings' : 'After Question ' + (state.questionIndex + 1)}</div>
-                        </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                            ${typeof correctIndex === 'number' ? `Correct: ${String.fromCharCode(65 + correctIndex)}` : 'Scores'}
-                        </div>
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 gap-6">
+                <!-- Header -->
+                <div class="text-center animate-fadeIn">
+                    <div class="text-sm uppercase tracking-[0.3em] text-yellow-400/70 mb-2">
+                        ${typeof correctIndex === 'number' ? `Correct Answer: ${String.fromCharCode(65 + correctIndex)}` : 'Leaderboard'}
                     </div>
-
-                    ${topThree.length ? renderPodium(topThree) : '<div class="text-slate-400">No answers yet.</div>'}
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto" id="leaderboard-list">
-                        ${results.map((res, idx) => `
-                            <div class="leaderboard-card rounded-xl p-3 flex items-center gap-3 ${res.id === state.me.id ? 'border-yellow-400/60' : 'border-transparent'}">
-                                <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${res.emoji || '🎯'}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-white font-semibold truncate">${idx + 1}. ${res.name}</div>
-                                    <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total}</div>
-                                </div>
-                                ${typeof res.choice === 'number' ? `<div class="text-xs ${res.isCorrect ? 'text-green-400' : 'text-rose-400'}">${String.fromCharCode(65 + res.choice)}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-
-                    ${state.role === 'host' && !isFinal ? `
-                        <div class="flex justify-end gap-3">
-                            <button id="next-question-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-4 h-4"></i>
-                                <span>${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'Finish Quiz' : 'Next Question'}</span>
-                            </button>
-                        </div>
-                    ` : ''}
+                    <div class="text-3xl font-bold text-white">After Question ${state.questionIndex + 1}</div>
                 </div>
+
+                <!-- Top 3 Podium -->
+                ${topThree.length >= 3 ? renderPodium(topThree) : ''}
+
+                <!-- Top 5 List -->
+                <div class="w-full max-w-4xl space-y-3 animate-slideUp" style="animation-delay: 0.3s;">
+                    ${topFive.map((res, idx) => `
+                        <div class="kbc-svg-container kbc-leaderboard-item animate-slideUp ${res.id === state.me?.id ? 'border-2 border-yellow-400' : ''}"
+                             style="background-image: url('${idx < 3 ? KBC_ASSETS.optionGreen : KBC_ASSETS.optionNormal}'); animation-delay: ${0.4 + idx * 0.1}s;">
+                            <div class="kbc-svg-content">
+                                <div class="flex items-center gap-4 px-4">
+                                    <!-- Position -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-2xl font-black ${idx < 3 ? 'kbc-rank-' + (idx + 1) : 'text-yellow-400'}">#${res.position}</span>
+                                        ${res.positionChange === 'up' ? '<i data-lucide="arrow-up" class="w-4 h-4 kbc-position-up"></i>' : ''}
+                                        ${res.positionChange === 'down' ? '<i data-lucide="arrow-down" class="w-4 h-4 kbc-position-down"></i>' : ''}
+                                    </div>
+                                    <!-- Emoji -->
+                                    <div class="text-3xl">${res.emoji || '🎯'}</div>
+                                    <!-- Name and Score -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-lg font-bold text-white truncate">${res.name}</div>
+                                        <div class="text-xs text-slate-300">+${res.delta} points • Total: ${res.total}</div>
+                                    </div>
+                                    <!-- Answer -->
+                                    ${typeof res.choice === 'number' ? `
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-lg font-bold ${res.isCorrect ? 'text-green-400' : 'text-rose-400'}">${String.fromCharCode(65 + res.choice)}</span>
+                                            ${res.isCorrect ? '<i data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>' : '<i data-lucide="x-circle" class="w-5 h-5 text-rose-400"></i>'}
+                                        </div>
+                                    ` : '<span class="text-xs text-slate-500">No answer</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Host Controls -->
+                ${state.role === 'host' ? `
+                    <div class="flex gap-3 animate-fadeIn" style="animation-delay: 1s;">
+                        <button id="next-question-btn" class="kbc-button text-black font-bold px-8 py-4 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+                            <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-5 h-5"></i>
+                            <span>${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'Show Finale' : 'Next Question'}</span>
+                        </button>
+                    </div>
+                ` : `
+                    <div class="text-slate-400 text-sm animate-fadeIn" style="animation-delay: 1s;">
+                        Waiting for host to continue...
+                    </div>
+                `}
             </div>
         `;
 
@@ -474,7 +620,7 @@
             const nextBtn = document.getElementById('next-question-btn');
             if (nextBtn) nextBtn.onclick = () => {
                 if (state.questionIndex + 1 >= state.quizItem.content.questions.length) {
-                    broadcastFinal(results);
+                    broadcastFinal(resultsWithPositions);
                 } else {
                     state.questionIndex += 1;
                     sendQuestion();
@@ -499,6 +645,102 @@
                 `).reverse().join('')}
             </div>
         `;
+    }
+
+    function renderFinale(topThree) {
+        const shell = ensureOverlay();
+
+        // Cinematic finale with spotlight animation revealing Top 3 in order: 3rd → 2nd → 1st
+        shell.innerHTML = `
+            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                <!-- Title -->
+                <div class="text-center mb-12 animate-fadeIn">
+                    <div class="text-sm uppercase tracking-[0.5em] text-yellow-400/70 mb-3">Grand Finale</div>
+                    <div class="text-5xl font-black text-yellow-400 tracking-wider">Hall of Champions</div>
+                    <div class="w-32 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto mt-4"></div>
+                </div>
+
+                <!-- Top 3 Podium with Spotlight Reveals -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+                    <!-- 3rd Place (Reveals First) -->
+                    ${topThree[2] ? `
+                        <div class="kbc-spotlight-reveal kbc-spotlight-3rd opacity-0">
+                            <div class="kbc-svg-container kbc-leaderboard-item" style="background-image: url('${KBC_ASSETS.optionGreen}');">
+                                <div class="kbc-svg-content">
+                                    <div class="text-center">
+                                        <div class="text-6xl kbc-rank-3 mb-2">🥉</div>
+                                        <div class="text-2xl font-black text-white">${topThree[2].name}</div>
+                                        <div class="text-4xl my-2">${topThree[2].emoji || '🎯'}</div>
+                                        <div class="text-xl text-yellow-400 font-bold">${topThree[2].total} points</div>
+                                        <div class="text-sm text-slate-300 mt-1">3rd Place</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- 2nd Place (Reveals Second) -->
+                    ${topThree[1] ? `
+                        <div class="kbc-spotlight-reveal kbc-spotlight-2nd opacity-0">
+                            <div class="kbc-svg-container kbc-leaderboard-item" style="background-image: url('${KBC_ASSETS.optionGreen}');">
+                                <div class="kbc-svg-content">
+                                    <div class="text-center">
+                                        <div class="text-6xl kbc-rank-2 mb-2">🥈</div>
+                                        <div class="text-2xl font-black text-white">${topThree[1].name}</div>
+                                        <div class="text-4xl my-2">${topThree[1].emoji || '🎯'}</div>
+                                        <div class="text-xl text-yellow-400 font-bold">${topThree[1].total} points</div>
+                                        <div class="text-sm text-slate-300 mt-1">2nd Place</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- 1st Place (Reveals Last with Winner Animation) -->
+                    ${topThree[0] ? `
+                        <div class="kbc-spotlight-reveal kbc-spotlight-1st opacity-0">
+                            <div class="kbc-svg-container kbc-leaderboard-item podium-winner" style="background-image: url('${KBC_ASSETS.optionGreen}');">
+                                <div class="kbc-svg-content">
+                                    <div class="text-center">
+                                        <div class="text-6xl kbc-rank-1 mb-2">🥇</div>
+                                        <div class="text-3xl font-black text-yellow-400">${topThree[0].name}</div>
+                                        <div class="text-5xl my-3">${topThree[0].emoji || '🎯'}</div>
+                                        <div class="text-2xl text-yellow-400 font-black">${topThree[0].total} points</div>
+                                        <div class="text-lg text-yellow-300 mt-2 font-bold">🏆 Champion 🏆</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Return to Home -->
+                ${state.role === 'host' ? `
+                    <div class="mt-12 opacity-0 animate-fadeIn" style="animation-delay: 5s;">
+                        <button id="end-quiz-btn" class="kbc-button text-black font-bold px-8 py-4 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+                            <i data-lucide="home" class="w-5 h-5"></i>
+                            <span>End Quiz</span>
+                        </button>
+                    </div>
+                ` : `
+                    <div class="mt-12 text-slate-400 text-sm opacity-0 animate-fadeIn" style="animation-delay: 5s;">
+                        Congratulations to all players!
+                    </div>
+                `}
+            </div>
+        `;
+
+        if (state.role === 'host') {
+            const endBtn = document.getElementById('end-quiz-btn');
+            if (endBtn) {
+                // Delay button activation until animations complete
+                setTimeout(() => {
+                    endBtn.onclick = closeOverlay;
+                }, 5000);
+            }
+        }
+
+        if (window.lucide) window.lucide.createIcons();
     }
 
     async function startLiveHost(quizItem) {
@@ -624,6 +866,14 @@
             state.quizMeta = payload;
             if (state.status === 'waiting') renderWaitingRoom();
         }
+
+        if (payload.type === 'question-intro' && state.role === 'player') {
+            cleanupTimers();
+            state.status = 'question-intro';
+            state.questionIndex = payload.questionIndex;
+            renderPlayerQuestionIntro(payload);
+        }
+
         if (payload.type === 'question') {
             cleanupTimers();
             state.status = 'question';
@@ -668,21 +918,51 @@
         const q = state.quizItem.content.questions[state.questionIndex];
         const correctIndex = Number.parseInt(q.correctIndex, 10);
         const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
-        const payload = {
-            type: 'question',
+
+        // Store previous scores for position tracking
+        state.previousScores = { ...state.scores };
+
+        // Start with intro phase: play music for 5 seconds, show only question
+        state.questionPhase = 'intro';
+        state.status = 'question-intro';
+
+        const introPayload = {
+            type: 'question-intro',
             questionIndex: state.questionIndex,
-            question: q.question,
-            options: q.options,
-            correctIndex: normalizedCorrectIndex,
-            startAt: Date.now()
+            question: q.question
         };
-        state.status = 'question';
-        state.currentQuestionPayload = payload;
-        state.questionStart = payload.startAt;
-        state.answers[state.questionIndex] = {};
-        broadcast(payload);
-        renderHostQuestionView(q);
-        startHostCountdown();
+        broadcast(introPayload);
+
+        if (state.role === 'host') {
+            playAudio('intro');
+            renderHostQuestionIntro(q);
+        }
+
+        // After 5 seconds, reveal options and start countdown
+        state.timers.intro = setTimeout(() => {
+            state.questionPhase = 'options-reveal';
+            state.status = 'question';
+
+            const payload = {
+                type: 'question',
+                questionIndex: state.questionIndex,
+                question: q.question,
+                options: q.options,
+                correctIndex: normalizedCorrectIndex,
+                startAt: Date.now()
+            };
+
+            state.currentQuestionPayload = payload;
+            state.questionStart = payload.startAt;
+            state.answers[state.questionIndex] = {};
+
+            broadcast(payload);
+
+            if (state.role === 'host') {
+                renderHostQuestionView(q);
+                startHostCountdown();
+            }
+        }, 5000);
     }
 
     function startHostCountdown() {
@@ -691,7 +971,14 @@
         if (countdownEl) countdownEl.textContent = `${remaining}s`;
         state.timers.question = setInterval(() => {
             remaining -= 1;
-            if (countdownEl) countdownEl.textContent = `${remaining}s`;
+            if (countdownEl) {
+                countdownEl.textContent = `${remaining}s`;
+                // Add urgent animation for last 5 seconds
+                if (remaining <= 5 && remaining > 0) {
+                    countdownEl.classList.remove('kbc-countdown-pulse');
+                    countdownEl.classList.add('kbc-countdown-urgent');
+                }
+            }
             if (remaining <= 0) {
                 finishQuestion(false);
             }
@@ -704,12 +991,22 @@
         if (countdownEl) countdownEl.textContent = `${remaining}s`;
         state.timers.question = setInterval(() => {
             remaining -= 1;
-            if (countdownEl) countdownEl.textContent = `${remaining}s`;
+            if (countdownEl) {
+                countdownEl.textContent = `${remaining}s`;
+                // Add urgent animation for last 5 seconds
+                if (remaining <= 5 && remaining > 0) {
+                    countdownEl.classList.remove('kbc-countdown-pulse');
+                    countdownEl.classList.add('kbc-countdown-urgent');
+                }
+            }
             if (remaining <= 0) {
                 clearInterval(state.timers.question);
                 state.status = 'locked';
-                const options = document.querySelectorAll('#live-options button');
-                options.forEach(btn => btn.disabled = true);
+                const options = document.querySelectorAll('#live-options .kbc-option-selectable');
+                options.forEach(opt => {
+                    opt.classList.remove('kbc-option-selectable');
+                    opt.style.pointerEvents = 'none';
+                });
             }
         }, 1000);
     }
