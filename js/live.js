@@ -5,6 +5,8 @@
     const DEFAULT_EMOJIS = ['🧠', '🚀', '🦉', '🪐', '🎯', '🎸', '🐉', '🦾', '🧩', '🔥', '🌟', '🎮'];
     const LIVE_AUDIO = {
         intro: "assets/audio/Kaun Banega Crorepati Intro 2019.wav",
+        questionIncoming: "assets/audio/KBC Question incoming.wav",
+        timer30sec: "assets/audio/30 second tic tic kbc clock.mp3",
         correct: "assets/audio/Correct answer.mp3",
         wrong: "assets/audio/Wrong Ans.mp3"
     };
@@ -14,7 +16,8 @@
         timerBox: "assets/images/Timer.svg",
         optionNormal: "assets/images/normal option box.svg",
         optionGreen: "assets/images/option box green.svg",
-        optionOrange: "assets/images/option box orange.svg"
+        optionOrange: "assets/images/option box orange.svg",
+        optionBlue: "assets/images/option box green.svg" // Using green as placeholder for blue
     };
 
     const state = {
@@ -107,9 +110,9 @@
     }
 
     function initAudio() {
-        ['intro', 'correct', 'wrong'].forEach((key) => {
+        ['intro', 'questionIncoming', 'timer30sec', 'correct', 'wrong'].forEach((key) => {
             const audio = new Audio(LIVE_AUDIO[key]);
-            audio.volume = key === 'intro' ? 0.9 : 0.7;
+            audio.volume = key === 'intro' ? 0.9 : (key === 'timer30sec' ? 0.6 : 0.7);
             audioRefs[key] = audio;
         });
     }
@@ -119,6 +122,13 @@
         if (!audio) return;
         audio.currentTime = 0;
         audio.play().catch(() => {});
+    }
+
+    function stopAudio(key) {
+        const audio = audioRefs[key];
+        if (!audio) return;
+        audio.pause();
+        audio.currentTime = 0;
     }
 
     function ensureOverlay() {
@@ -159,6 +169,10 @@
         if (state.timers.intro) clearTimeout(state.timers.intro);
         state.timers.question = null;
         state.timers.intro = null;
+        // Stop all audio when cleaning up
+        stopAudio('intro');
+        stopAudio('questionIncoming');
+        stopAudio('timer30sec');
     }
 
     function stopPlayerHeartbeat() {
@@ -348,51 +362,22 @@
         state.status = 'answering';
         cleanupTimers();
 
-        // KBC-styled player question view with responsive SVG containers
+        // KBC-styled player question view - ONLY 4 ABCD buttons, NO question display
+        // Full screen edge-to-edge buttons
         shell.innerHTML = `
-            <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 gap-6">
-                <!-- Question Display with KBC SVG -->
-                <div class="w-full max-w-5xl">
-                    <div class="kbc-svg-container kbc-question-box animate-slideUp" style="background-image: url('${KBC_ASSETS.questionBox}');">
-                        <div class="kbc-svg-content">
-                            <div class="text-center">
-                                <div class="text-xs uppercase tracking-wide text-yellow-400/80 mb-2">Question ${payload.questionIndex + 1}</div>
-                                <div class="text-xl md:text-2xl lg:text-3xl font-bold text-white question-text">${payload.question}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Timer with KBC SVG -->
-                <div class="w-full max-w-4xl">
-                    <div class="kbc-svg-container kbc-timer-box animate-fadeIn" style="background-image: url('${KBC_ASSETS.timerBox}'); animation-delay: 0.2s;">
-                        <div class="kbc-svg-content">
-                            <div class="flex items-center justify-center gap-3">
-                                <i data-lucide="clock-3" class="w-5 h-5 text-yellow-400"></i>
-                                <span id="live-countdown" class="text-2xl font-bold text-yellow-400 kbc-countdown-pulse">30s</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Options Grid with KBC SVG containers -->
-                <div class="kbc-options-grid w-full max-w-6xl" id="live-options">
+            <div class="w-full h-screen flex flex-col items-center justify-center p-2 gap-3">
+                <!-- Options Grid - Full Screen ABCD Buttons ONLY -->
+                <div class="w-full h-full flex flex-col gap-3" id="live-options">
                     ${payload.options.map((opt, idx) => `
-                        <div data-idx="${idx}" class="kbc-svg-container kbc-option-box kbc-option-selectable animate-slideUp"
-                             style="background-image: url('${KBC_ASSETS.optionNormal}'); animation-delay: ${0.3 + idx * 0.1}s;">
+                        <div data-idx="${idx}" class="kbc-svg-container kbc-option-box kbc-option-selectable flex-1 animate-slideUp"
+                             style="background-image: url('${KBC_ASSETS.optionNormal}'); animation-delay: ${idx * 0.1}s;">
                             <div class="kbc-svg-content">
-                                <div class="flex items-center gap-4 px-4">
-                                    <span class="text-2xl md:text-3xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
-                                    <span class="text-lg md:text-xl font-semibold text-white">${opt}</span>
+                                <div class="flex items-center justify-center">
+                                    <span class="text-5xl md:text-7xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
                                 </div>
                             </div>
                         </div>
                     `).join('')}
-                </div>
-
-                <div class="text-slate-400 text-sm flex items-center gap-2 animate-fadeIn" style="animation-delay: 0.7s;">
-                    <i data-lucide="activity" class="w-4 h-4"></i>
-                    Choose wisely - faster correct answers earn more points!
                 </div>
             </div>
         `;
@@ -406,7 +391,7 @@
                 const choice = parseInt(container.getAttribute('data-idx'), 10);
                 sendAnswer(choice, payload);
 
-                // Disable all options and highlight selected
+                // Disable all options and highlight selected in locked yellow state
                 optionContainers.forEach(c => {
                     c.classList.remove('kbc-option-selectable');
                     c.style.pointerEvents = 'none';
@@ -440,9 +425,17 @@
     function renderHostQuestionIntro(question) {
         const shell = ensureOverlay();
 
-        // Show only the question with dramatic intro (5 seconds with music)
+        // Show only the question with dramatic intro (music will play until complete or skipped)
         shell.innerHTML = `
             <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8">
+                <!-- Skip Button (Top Right) -->
+                <div class="absolute top-4 right-4 z-50">
+                    <button id="skip-intro-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-yellow-500 hover:text-black hover:border-yellow-400 transition-all">
+                        <i data-lucide="skip-forward" class="w-4 h-4 inline mr-1"></i>
+                        Skip Intro
+                    </button>
+                </div>
+
                 <div class="text-center mb-8 animate-fadeIn">
                     <div class="text-sm uppercase tracking-[0.3em] text-yellow-400/70 mb-3">Question ${state.questionIndex + 1} of ${state.quizItem.content.questions.length}</div>
                     <div class="w-16 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto"></div>
@@ -464,6 +457,19 @@
                 </div>
             </div>
         `;
+
+        const skipBtn = document.getElementById('skip-intro-btn');
+        if (skipBtn) {
+            skipBtn.onclick = () => {
+                stopAudio('intro');
+                if (state.timers.intro) {
+                    clearTimeout(state.timers.intro);
+                    state.timers.intro = null;
+                }
+                // Immediately show options
+                revealQuestionOptions();
+            };
+        }
 
         if (window.lucide) window.lucide.createIcons();
     }
@@ -496,7 +502,14 @@
                     <div class="kbc-svg-container kbc-question-box" style="background-image: url('${KBC_ASSETS.questionBox}');">
                         <div class="kbc-svg-content">
                             <div class="text-center">
-                                <div class="text-2xl md:text-3xl lg:text-4xl font-bold text-white question-text">${question.question}</div>
+                                <div class="text-2xl md:text-3xl lg:text-4xl font-bold text-white question-text" style="
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;
+                                    word-wrap: break-word;
+                                ">${question.question}</div>
                             </div>
                         </div>
                     </div>
@@ -509,7 +522,14 @@
                             <div class="kbc-svg-content">
                                 <div class="flex items-center gap-4 px-4">
                                     <span class="text-2xl md:text-3xl font-black text-yellow-400">${String.fromCharCode(65 + idx)}</span>
-                                    <span class="text-lg md:text-xl font-semibold text-white">${opt}</span>
+                                    <span class="text-lg md:text-xl font-semibold text-white" style="
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        display: -webkit-box;
+                                        -webkit-line-clamp: 2;
+                                        -webkit-box-orient: vertical;
+                                        word-wrap: break-word;
+                                    ">${opt}</span>
                                 </div>
                             </div>
                         </div>
@@ -554,12 +574,38 @@
         const topFive = resultsWithPositions.slice(0, 5);
         const topThree = resultsWithPositions.slice(0, 3);
 
+        // Get the current question to display correct answer (host only)
+        const q = state.quizItem?.content?.questions?.[state.questionIndex];
+        const showCorrectAnswer = state.role === 'host' && typeof correctIndex === 'number' && q;
+
         shell.innerHTML = `
             <div class="w-full h-screen flex flex-col items-center justify-center p-4 md:p-8 gap-6">
+                <!-- Correct Answer Display (Host Only) -->
+                ${showCorrectAnswer ? `
+                    <div class="w-full max-w-5xl animate-fadeIn">
+                        <div class="text-center text-sm uppercase tracking-[0.3em] text-blue-400/70 mb-3">Correct Answer</div>
+                        <div class="kbc-svg-container kbc-option-box" style="background-image: url('${KBC_ASSETS.optionBlue}'); filter: hue-rotate(180deg);">
+                            <div class="kbc-svg-content">
+                                <div class="flex items-center gap-4 px-4">
+                                    <span class="text-2xl md:text-3xl font-black text-blue-400">${String.fromCharCode(65 + correctIndex)}</span>
+                                    <span class="text-lg md:text-xl font-semibold text-white" style="
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        display: -webkit-box;
+                                        -webkit-line-clamp: 2;
+                                        -webkit-box-orient: vertical;
+                                        word-wrap: break-word;
+                                    ">${q.options[correctIndex]}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
                 <!-- Header -->
                 <div class="text-center animate-fadeIn">
                     <div class="text-sm uppercase tracking-[0.3em] text-yellow-400/70 mb-2">
-                        ${typeof correctIndex === 'number' ? `Correct Answer: ${String.fromCharCode(65 + correctIndex)}` : 'Leaderboard'}
+                        ${!showCorrectAnswer && typeof correctIndex === 'number' ? `Correct Answer: ${String.fromCharCode(65 + correctIndex)}` : 'Leaderboard'}
                     </div>
                     <div class="text-3xl font-bold text-white">After Question ${state.questionIndex + 1}</div>
                 </div>
@@ -922,7 +968,7 @@
         // Store previous scores for position tracking
         state.previousScores = { ...state.scores };
 
-        // Start with intro phase: play music for 5 seconds, show only question
+        // Start with intro phase: play intro music, show only question
         state.questionPhase = 'intro';
         state.status = 'question-intro';
 
@@ -938,31 +984,48 @@
             renderHostQuestionIntro(q);
         }
 
-        // After 5 seconds, reveal options and start countdown
+        // After intro music completes or is skipped, reveal options
         state.timers.intro = setTimeout(() => {
-            state.questionPhase = 'options-reveal';
-            state.status = 'question';
-
-            const payload = {
-                type: 'question',
-                questionIndex: state.questionIndex,
-                question: q.question,
-                options: q.options,
-                correctIndex: normalizedCorrectIndex,
-                startAt: Date.now()
-            };
-
-            state.currentQuestionPayload = payload;
-            state.questionStart = payload.startAt;
-            state.answers[state.questionIndex] = {};
-
-            broadcast(payload);
-
-            if (state.role === 'host') {
-                renderHostQuestionView(q);
-                startHostCountdown();
-            }
+            revealQuestionOptions();
         }, 5000);
+    }
+
+    function revealQuestionOptions() {
+        const q = state.quizItem.content.questions[state.questionIndex];
+        const correctIndex = Number.parseInt(q.correctIndex, 10);
+        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
+
+        // Play question incoming sound for host
+        if (state.role === 'host') {
+            playAudio('questionIncoming');
+        }
+
+        state.questionPhase = 'options-reveal';
+        state.status = 'question';
+
+        const payload = {
+            type: 'question',
+            questionIndex: state.questionIndex,
+            question: q.question,
+            options: q.options,
+            correctIndex: normalizedCorrectIndex,
+            startAt: Date.now()
+        };
+
+        state.currentQuestionPayload = payload;
+        state.questionStart = payload.startAt;
+        state.answers[state.questionIndex] = {};
+
+        broadcast(payload);
+
+        if (state.role === 'host') {
+            // Wait for question incoming sound to finish, then show options with timer sound
+            setTimeout(() => {
+                renderHostQuestionView(q);
+                playAudio('timer30sec');
+                startHostCountdown();
+            }, 2000); // 2 seconds for question incoming sound
+        }
     }
 
     function startHostCountdown() {
@@ -980,6 +1043,7 @@
                 }
             }
             if (remaining <= 0) {
+                stopAudio('timer30sec');
                 finishQuestion(false);
             }
         }, 1000);
@@ -1036,6 +1100,7 @@
 
     function finishQuestion(forceReveal) {
         cleanupTimers();
+        stopAudio('timer30sec');
         const q = state.quizItem.content.questions[state.questionIndex];
         const correctIndex = Number.parseInt(q.correctIndex, 10);
         const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
