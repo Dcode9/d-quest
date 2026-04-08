@@ -825,7 +825,7 @@
         Object.values(flattened).forEach((entry) => {
             upsertPlayer(entry);
         });
-        if (state.role === 'host') {
+        if (state.role === 'host' && state.status === 'lobby') {
             renderHostLobby();
             broadcastRoomInfo();
         }
@@ -914,7 +914,7 @@
     }
 
     function startLiveSession() {
-        state.status = 'in-progress';
+        state.status = 'title';
         state.introStarted = true;
         const totalQuestions = state.quizItem?.content?.questions?.length || 0;
         const titlePayload = {
@@ -935,7 +935,8 @@
     }
 
     async function handleTitleNext() {
-        if (state.status !== 'title') return;
+        if (state.status !== 'title' && state.status !== 'in-progress') return;
+        state.status = 'title';
         await fadeOutAudioKey('intro', 2000);
         sendQuestion();
     }
