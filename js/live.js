@@ -25,7 +25,9 @@
         answers: {},
         questionStart: null,
         currentQuestionPayload: null,
+        pendingResults: null,
         revealTriggered: false,
+        introStarted: false,
         timers: {
             question: null,
             heartbeat: null,
@@ -39,6 +41,7 @@
     };
 
     const audioRefs = {};
+    let activeAudioKey = null;
 
     function getTabSessionId() {
         const key = 'dquest_live_tab_id';
@@ -114,7 +117,62 @@
         const audio = audioRefs[key];
         if (!audio) return;
         audio.currentTime = 0;
+        activeAudioKey = key;
         audio.play().catch(() => {});
+    }
+
+    function playManagedAudio(key) {
+        const audio = audioRefs[key];
+        if (!audio) return Promise.resolve();
+
+        audio.currentTime = 0;
+        activeAudioKey = key;
+
+        return new Promise((resolve) => {
+            const finish = () => {
+                if (activeAudioKey === key) {
+                    activeAudioKey = null;
+                }
+                resolve();
+            };
+
+            audio.onended = finish;
+            audio.play().catch(() => finish());
+        });
+    }
+
+    function fadeOutAudioKey(key, durationMs = 2000) {
+        const audio = audioRefs[key];
+        if (!audio || audio.paused) return Promise.resolve();
+
+        const startVolume = audio.volume;
+        const steps = 20;
+        const stepDuration = Math.max(20, Math.floor(durationMs / steps));
+        let currentStep = 0;
+
+        return new Promise((resolve) => {
+            const interval = setInterval(() => {
+                currentStep += 1;
+                const nextVolume = Math.max(0, startVolume * (1 - currentStep / steps));
+                audio.volume = nextVolume;
+
+                if (currentStep >= steps) {
+                    clearInterval(interval);
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = startVolume;
+                    if (activeAudioKey === key) {
+                        activeAudioKey = null;
+                    }
+                    resolve();
+                }
+            }, stepDuration);
+        });
+    }
+
+    async function fadeOutAnyActiveAudio(durationMs = 2000) {
+        if (!activeAudioKey) return;
+        await fadeOutAudioKey(activeAudioKey, durationMs);
     }
 
     function ensureOverlay() {
@@ -138,9 +196,18 @@
         state.status = 'idle';
         cleanupTimers();
         stopPlayerHeartbeat();
+        Object.keys(audioRefs).forEach((key) => {
+            const audio = audioRefs[key];
+            if (!audio) return;
+            audio.pause();
+            audio.currentTime = 0;
+        });
+        activeAudioKey = null;
         leaveChannel();
         state.players = {};
         state.currentQuestionPayload = null;
+        state.pendingResults = null;
+        state.revealTriggered = false;
     }
 
     function leaveChannel() {
@@ -359,9 +426,19 @@
                     </div>
                     <div class="live-chip">Question ${payload.questionIndex + 1} of ${payload.totalQuestions}</div>
                     <div class="text-slate-400 text-sm">Get ready...</div>
+                    ${state.role === 'host' ? `
+                        <button id="title-next-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg mt-2">
+                            ${activeAudioKey === 'intro' ? 'Skip Intro' : 'Next'}
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
+
+        if (state.role === 'host') {
+            const nextBtn = document.getElementById('title-next-btn');
+            if (nextBtn) nextBtn.onclick = () => handleTitleNext();
+        }
     }
 
     function renderQuestionOnlyView(payload) {
@@ -370,13 +447,25 @@
             <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                 <div class="relative flex flex-col gap-6 items-center text-center">
                     <div class="live-chip">Question ${payload.questionIndex + 1}</div>
-                    <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8">
-                        <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
-                    </div>
-                    <div class="text-slate-400 text-sm">Options incoming...</div>
+                    ${state.role === 'host' ? `
+                        <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8 question-rise">
+                            <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
+                        </div>
+                        <button id="show-options-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">Show Options</button>
+                    ` : `
+                        <div class="kbc-title-frame max-w-3xl w-full p-5 md:p-8 question-rise">
+                            <div class="text-4xl md:text-6xl font-black text-white">Q${payload.questionIndex + 1}</div>
+                        </div>
+                        <div class="text-slate-400 text-sm">Waiting for options...</div>
+                    `}
                 </div>
             </div>
         `;
+
+        if (state.role === 'host') {
+            const btn = document.getElementById('show-options-btn');
+            if (btn) btn.onclick = () => openOptionsForCurrentQuestion();
+        }
     }
 
     function renderPlayerQuestionView(payload) {
@@ -385,23 +474,14 @@
         cleanupTimers();
         shell.innerHTML = `
             <div class="live-panel rounded-3xl p-4 md:p-6 relative overflow-hidden min-h-[75vh] flex flex-col">
-                <div class="relative flex items-center justify-between gap-3 mb-4">
-                    <div class="live-chip">Q ${payload.questionIndex + 1}</div>
-                    <div class="live-chip flex items-center gap-2">
-                        <i data-lucide="clock-3" class="w-4 h-4"></i>
-                        <span id="live-countdown">30s</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1" id="live-options">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1" id="live-options">
                     ${payload.options.map((opt, idx) => `
-                        <button data-idx="${idx}" class="live-option-btn kbc-option-frame rounded-xl px-4 py-5 md:py-6 text-left text-slate-100 flex gap-3 items-center justify-start">
-                            <span class="text-yellow-300 font-black text-xl">${String.fromCharCode(65 + idx)}</span>
-                            <span class="font-semibold text-lg">${opt}</span>
+                        <button data-idx="${idx}" class="live-option-btn kbc-option-frame option-fly-in rounded-xl px-4 py-8 md:py-10 text-center text-slate-100 flex items-center justify-center" style="animation-delay:${idx * 80}ms">
+                            <span class="text-yellow-300 font-black text-4xl md:text-5xl">${String.fromCharCode(65 + idx)}</span>
                         </button>
                     `).join('')}
                 </div>
-                <div class="text-slate-400 text-xs mt-3 text-center">Select your answer quickly</div>
+                <div class="text-slate-400 text-xs mt-3 text-center">Select A / B / C / D</div>
                     </div>
         `;
         if (window.lucide) window.lucide.createIcons();
@@ -416,8 +496,6 @@
                 btn.classList.add('is-selected');
             };
         });
-
-        startPlayerCountdown(payload);
     }
 
     function renderHostQuestionView(question) {
@@ -434,10 +512,6 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <div class="live-chip flex items-center gap-2">
-                                <i data-lucide="timer" class="w-4 h-4"></i>
-                                <span id="host-countdown">30s</span>
-                            </div>
                             <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
                                 Skip & Reveal
                             </button>
@@ -446,16 +520,15 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         ${question.options.map((opt, idx) => `
-                            <div class="live-option-btn kbc-option-frame rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
+                            <div class="live-option-btn kbc-option-frame option-fly-in rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center" style="animation-delay:${idx * 80}ms">
                                 <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
                                 <span class="font-semibold">${opt}</span>
                             </div>
                         `).join('')}
                     </div>
 
-                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        Live answers will appear automatically. Leaderboard pops after reveal.
+                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400">
+                        Host cannot select answers. Use Skip when needed or wait for timeout.
                     </div>
                 </div>
             </div>
@@ -480,10 +553,7 @@
                             <div class="text-xs uppercase tracking-wide text-slate-400">${isFinal ? 'Grand Finale' : 'Leaderboard'}</div>
                             <div class="text-2xl font-bold text-white">${isFinal ? 'Final Standings' : 'After Question ' + (state.questionIndex + 1)}</div>
                         </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                            ${typeof correctIndex === 'number' ? `Correct: ${String.fromCharCode(65 + correctIndex)}` : 'Scores'}
-                        </div>
+                        <div class="live-chip">Top 5</div>
                     </div>
 
                     ${topThree.length ? renderPodium(topThree) : '<div class="text-slate-400">No answers yet.</div>'}
@@ -497,7 +567,6 @@
                                     <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total} ${res.distanceAhead != null ? `• ${res.distanceAhead} behind above` : ''}</div>
                                 </div>
                                 ${res.rankRise > 0 ? '<div class="text-emerald-400 text-xs font-bold">↑</div>' : ''}
-                                ${typeof res.choice === 'number' ? `<div class="text-xs ${res.isCorrect ? 'text-green-400' : 'text-rose-400'}">${String.fromCharCode(65 + res.choice)}</div>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -521,6 +590,7 @@
                     broadcastFinal(results);
                 } else {
                     state.questionIndex += 1;
+                    state.pendingResults = null;
                     sendQuestion();
                 }
             };
@@ -548,30 +618,39 @@
     function renderAnswerReveal(payload) {
         const shell = ensureOverlay();
         const mine = payload.results.find((r) => r.id === state.me.id);
-        const correctLabel = String.fromCharCode(65 + payload.correctIndex);
-        const mineState = mine
-            ? (mine.isCorrect ? 'Correct!' : 'Wrong Answer')
-            : (state.role === 'host' ? 'Answer Reveal' : 'No answer submitted');
 
+        if (state.role === 'host') {
+            const q = state.quizItem.content.questions[state.questionIndex];
+            shell.innerHTML = `
+                <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                    <div class="relative flex flex-col gap-5">
+                        <div class="text-lg text-slate-300">Correct answer revealed</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${q.options.map((opt, idx) => `
+                                <div class="kbc-option-frame ${idx === payload.correctIndex ? 'is-correct' : ''} rounded-xl px-4 py-4 text-white font-semibold">
+                                    <span class="text-yellow-300 mr-2">${String.fromCharCode(65 + idx)}</span>${opt}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex justify-end">
+                            <button id="to-leaderboard-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">Next: Leaderboard</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const btn = document.getElementById('to-leaderboard-btn');
+            if (btn) btn.onclick = () => showLeaderboardStage();
+            return;
+        }
+
+        const gained = mine?.delta || 0;
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="relative flex flex-col gap-5">
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="text-2xl font-black text-white">${mineState}</div>
-                        <div class="live-chip">Correct: ${correctLabel}</div>
-                    </div>
-                    <div class="kbc-option-frame is-correct rounded-xl px-5 py-4 text-lg font-bold text-white">
-                        ${payload.correctOption || ''}
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        ${payload.results.slice(0, 3).map((res, idx) => `
-                            <div class="leaderboard-card rounded-xl p-3">
-                                <div class="text-sm text-slate-400">#${idx + 1}</div>
-                                <div class="text-lg font-bold text-white truncate">${res.name}</div>
-                                <div class="text-xs text-slate-400">+${res.delta} • Total ${res.total}</div>
-                            </div>
-                        `).join('')}
-                    </div>
+            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden min-h-[60vh] flex items-center justify-center">
+                <div class="text-center">
+                    <div class="text-7xl mb-4">${mine?.isCorrect ? '✅' : '❌'}</div>
+                    <div class="text-3xl font-black text-white mb-2">${mine?.isCorrect ? 'Correct!' : 'Wrong'}</div>
+                    <div class="text-slate-300">+${gained} points</div>
                 </div>
             </div>
         `;
@@ -629,8 +708,27 @@
                 state.timers.finale = setTimeout(reveal, 2200);
             } else {
                 state.timers.finale = setTimeout(() => {
-                    renderLeaderboard(results, null, true);
-                    state.timers.finale = setTimeout(() => closeOverlay(), 8000);
+                    shell.innerHTML = `
+                        <div class="live-panel rounded-3xl p-8 md:p-12 text-center">
+                            <div class="text-slate-400 uppercase tracking-[0.2em] text-xs mb-4">Final Rankings</div>
+                            ${renderPodium(topThree)}
+                            <div class="mt-6">
+                                ${state.role === 'host'
+                                    ? '<button id="end-quiz-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">End Quiz</button>'
+                                    : '<div class="text-slate-300">Waiting for host to end quiz...</div>'}
+                            </div>
+                        </div>
+                    `;
+
+                    if (state.role === 'host') {
+                        const endBtn = document.getElementById('end-quiz-btn');
+                        if (endBtn) {
+                            endBtn.onclick = () => {
+                                broadcast({ type: 'end-session' });
+                                closeOverlay();
+                            };
+                        }
+                    }
                 }, 2000);
             }
         };
@@ -648,6 +746,8 @@
         state.players = {};
         state.answers = {};
         state.currentQuestionPayload = null;
+        state.pendingResults = null;
+        state.introStarted = false;
         state.status = 'lobby';
         try {
             await trackChannel(state.roomCode);
@@ -769,7 +869,7 @@
         if (payload.type === 'question-only') {
             state.currentQuestionPayload = payload;
             state.status = 'question-only';
-            playAudio('incoming');
+            if (state.role === 'player') playManagedAudio('incoming');
             renderQuestionOnlyView(payload);
         }
         if (payload.type === 'options-open') {
@@ -778,8 +878,8 @@
             state.questionIndex = payload.questionIndex;
             state.questionStart = payload.startAt;
             state.currentQuestionPayload = payload;
-            playAudio('countdown');
             if (state.role === 'player') {
+                playAudio('countdown');
                 renderPlayerQuestionView(payload);
             } else if (state.role === 'host') {
                 renderHostQuestionView(state.quizItem.content.questions[state.questionIndex]);
@@ -808,12 +908,15 @@
             cleanupTimers();
             renderFinaleSpotlight(payload.results);
         }
+        if (payload.type === 'end-session') {
+            closeOverlay();
+        }
     }
 
     function startLiveSession() {
         state.status = 'in-progress';
+        state.introStarted = true;
         const totalQuestions = state.quizItem?.content?.questions?.length || 0;
-        const q = state.quizItem.content.questions[state.questionIndex];
         const titlePayload = {
             type: 'quiz-title',
             title: state.quizItem?.content?.title || 'Quiz Show',
@@ -823,80 +926,72 @@
         state.currentQuestionPayload = titlePayload;
         broadcast(titlePayload);
         renderTitleIntro(titlePayload);
-        playAudio('intro');
 
-        state.timers.phase = setTimeout(() => {
-            sendQuestion();
-        }, 4200);
+        playManagedAudio('intro').then(() => {
+            if (state.status === 'title') {
+                renderTitleIntro(titlePayload);
+            }
+        });
+    }
+
+    async function handleTitleNext() {
+        if (state.status !== 'title') return;
+        await fadeOutAudioKey('intro', 2000);
+        sendQuestion();
     }
 
     function sendQuestion() {
         cleanupTimers();
         const q = state.quizItem.content.questions[state.questionIndex];
-        const correctIndex = Number.parseInt(q.correctIndex, 10);
-        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
-
         const questionOnlyPayload = {
             type: 'question-only',
             questionIndex: state.questionIndex,
             question: q.question,
             totalQuestions: state.quizItem.content.questions.length
         };
+
+        state.pendingResults = null;
         state.currentQuestionPayload = questionOnlyPayload;
         state.status = 'question-only';
         broadcast(questionOnlyPayload);
         renderQuestionOnlyView(questionOnlyPayload);
-        playAudio('incoming');
 
-        state.timers.phase = setTimeout(() => {
-            const payload = {
-                type: 'options-open',
-                questionIndex: state.questionIndex,
-                question: q.question,
-                options: q.options,
-                correctIndex: normalizedCorrectIndex,
-                startAt: Date.now()
-            };
-            state.status = 'question';
-            state.currentQuestionPayload = payload;
-            state.revealTriggered = false;
-            state.questionStart = payload.startAt;
-            broadcast(payload);
-            renderHostQuestionView(q);
-            playAudio('countdown');
-            startHostCountdown();
-        }, 5000);
+        playManagedAudio('incoming').catch(() => {});
 
         state.answers[state.questionIndex] = {};
+        state.revealTriggered = false;
+    }
+
+    function openOptionsForCurrentQuestion() {
+        if (state.status !== 'question-only') return;
+        cleanupTimers();
+
+        const q = state.quizItem.content.questions[state.questionIndex];
+        const correctIndex = Number.parseInt(q.correctIndex, 10);
+        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
+        const payload = {
+            type: 'options-open',
+            questionIndex: state.questionIndex,
+            question: q.question,
+            options: q.options,
+            correctIndex: normalizedCorrectIndex,
+            startAt: Date.now()
+        };
+
+        state.status = 'question';
+        state.currentQuestionPayload = payload;
+        state.questionStart = payload.startAt;
+        broadcast(payload);
+        renderHostQuestionView(q);
+        playAudio('countdown');
+        startHostCountdown();
     }
 
     function startHostCountdown() {
-        const countdownEl = document.getElementById('host-countdown');
-        let remaining = 30;
-        if (countdownEl) countdownEl.textContent = `${remaining}s`;
-        state.timers.question = setInterval(() => {
-            remaining -= 1;
-            if (countdownEl) countdownEl.textContent = `${remaining}s`;
-            if (remaining <= 0) {
-                finishQuestion(false);
-            }
-        }, 1000);
-    }
-
-    function startPlayerCountdown(payload) {
-        const countdownEl = document.getElementById('live-countdown');
-        let remaining = 30;
-        if (countdownEl) countdownEl.textContent = `${remaining}s`;
-        state.timers.question = setInterval(() => {
-            remaining -= 1;
-            if (countdownEl) countdownEl.textContent = `${remaining}s`;
-            if (remaining <= 0) {
-                clearInterval(state.timers.question);
-                state.status = 'locked';
-                const options = document.querySelectorAll('#live-options button');
-                options.forEach(btn => btn.disabled = true);
-            }
-        }, 1000);
+        if (state.timers.question) clearTimeout(state.timers.question);
+        state.timers.question = setTimeout(() => {
+            finishQuestion(false);
+        }, 30000);
     }
 
     function sendAnswer(choice, questionPayload) {
@@ -919,7 +1014,6 @@
         }
         if (!state.answers[payload.questionIndex][payload.id]) {
             state.answers[payload.questionIndex][payload.id] = payload;
-            playAudio('suspense');
         }
 
         const totalPlayers = getPlayers().length;
@@ -964,26 +1058,29 @@
             questionIndex: state.questionIndex,
             correctIndex: normalizedCorrectIndex,
             correctOption: q.options?.[normalizedCorrectIndex],
+            options: q.options,
             results: withMeta
         };
 
+        state.pendingResults = withMeta;
+
         broadcast(revealPayload);
         renderAnswerReveal(revealPayload);
+    }
 
-        state.timers.phase = setTimeout(() => {
-            broadcast({
-                type: 'leaderboard',
-                questionIndex: state.questionIndex,
-                correctIndex: normalizedCorrectIndex,
-                results: withMeta
-            });
-            renderLeaderboard(withMeta, normalizedCorrectIndex, false);
-        }, 2800);
+    function showLeaderboardStage() {
+        const q = state.quizItem.content.questions[state.questionIndex];
+        const correctIndex = Number.parseInt(q.correctIndex, 10);
+        const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
+        const results = state.pendingResults || [];
 
-        const isLast = state.questionIndex + 1 >= state.quizItem.content.questions.length;
-        if (isLast) {
-            state.timers.finale = setTimeout(() => broadcastFinal(withMeta), 6500);
-        }
+        broadcast({
+            type: 'leaderboard',
+            questionIndex: state.questionIndex,
+            correctIndex: normalizedCorrectIndex,
+            results
+        });
+        renderLeaderboard(results, normalizedCorrectIndex, false);
     }
 
     function calculateScoreDelta(elapsedMs) {
@@ -1106,6 +1203,8 @@
         state.players = {};
         state.answers = {};
         state.currentQuestionPayload = null;
+        state.pendingResults = null;
+        state.introStarted = false;
         try {
             await trackChannel(code);
             startPlayerHeartbeat();
@@ -1167,6 +1266,13 @@
         loadIdentity();
         initAudio();
         attachEntryPoints();
+
+        const params = new URLSearchParams(window.location.search);
+        const livePin = params.get('livePin');
+        if (/^\d{6}$/.test(String(livePin || ''))) {
+            openJoinDialog(String(livePin));
+            window.history.replaceState({}, '', window.location.pathname);
+        }
     });
 
     // Expose entry for quiz cards
