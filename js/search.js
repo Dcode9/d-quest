@@ -391,6 +391,12 @@ async function handleSearch() {
     
     if (!query) return;
 
+    // If user enters a 6-digit live PIN in search, open live join immediately.
+    if (/^\d{6}$/.test(query) && typeof window.openJoinLive === 'function') {
+        window.openJoinLive(query);
+        return;
+    }
+
     const runId = ++activeSearchRunId;
 
     if (searchInput) searchInput.value = query;

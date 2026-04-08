@@ -301,3 +301,51 @@ body {
     transform: translateY(-2px);
     border-color: rgba(234, 179, 8, 0.4);
 }
+
+/* --- Responsive SVG container scaling (no canvas) --- */
+.kbc-title-frame,
+.kbc-option-frame {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+}
+
+.kbc-title-frame::before,
+.kbc-option-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.kbc-title-frame::before {
+    background-image: url("../assets/images/wide title and question.svg");
+}
+
+.kbc-option-frame::before {
+    background-image: url("../assets/images/normal option box.svg");
+}
+
+.kbc-option-frame.is-selected::before {
+    background-image: url("../assets/images/option box orange.svg");
+}
+
+.kbc-option-frame.is-correct::before {
+    background-image: url("../assets/images/option box green.svg");
+}
+
+.kbc-option-frame,
+.kbc-title-frame {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+}
+
+@media (max-width: 640px) {
+    .kbc-option-frame {
+        min-height: 86px;
+    }
+}

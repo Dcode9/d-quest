@@ -5,6 +5,9 @@
     const DEFAULT_EMOJIS = ['🧠', '🚀', '🦉', '🪐', '🎯', '🎸', '🐉', '🦾', '🧩', '🔥', '🌟', '🎮'];
     const LIVE_AUDIO = {
         intro: "assets/audio/Kaun Banega Crorepati Intro 2019.wav",
+        incoming: "assets/audio/KBC Question incoming.wav",
+        countdown: "assets/audio/30 second tic tic kbc clock.mp3",
+        suspense: "assets/audio/KBC 10 sec timer.wav",
         correct: "assets/audio/Correct answer.mp3",
         wrong: "assets/audio/Wrong Ans.mp3"
     };
@@ -17,13 +20,17 @@
         quizItem: null,
         questionIndex: 0,
         scores: {},
+        prevRanks: {},
         players: {},
         answers: {},
         questionStart: null,
         currentQuestionPayload: null,
+        revealTriggered: false,
         timers: {
             question: null,
-            heartbeat: null
+            heartbeat: null,
+            phase: null,
+            finale: null
         },
         me: null,
         presence: {},
@@ -96,9 +103,9 @@
     }
 
     function initAudio() {
-        ['intro', 'correct', 'wrong'].forEach((key) => {
+        Object.keys(LIVE_AUDIO).forEach((key) => {
             const audio = new Audio(LIVE_AUDIO[key]);
-            audio.volume = key === 'intro' ? 0.9 : 0.7;
+            audio.volume = key === 'intro' ? 0.85 : 0.7;
             audioRefs[key] = audio;
         });
     }
@@ -145,7 +152,11 @@
 
     function cleanupTimers() {
         if (state.timers.question) clearInterval(state.timers.question);
+        if (state.timers.phase) clearTimeout(state.timers.phase);
+        if (state.timers.finale) clearTimeout(state.timers.finale);
         state.timers.question = null;
+        state.timers.phase = null;
+        state.timers.finale = null;
     }
 
     function stopPlayerHeartbeat() {
@@ -221,13 +232,15 @@
         const shell = ensureOverlay();
         const participants = getPlayers();
         const totalQuestions = state.quizItem?.content?.questions?.length || 0;
+        const joinLink = `${window.location.origin}${window.location.pathname}?livePin=${state.roomCode}`;
+        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinLink)}`;
         shell.innerHTML = `
             <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                 <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 30% 20%, rgba(234, 179, 8, 0.1), transparent 40%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.15), transparent 35%);"></div>
                 <div class="relative flex flex-col gap-6">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <div class="text-slate-400 text-sm uppercase tracking-wide">Live Room</div>
+                            <div class="text-slate-400 text-sm uppercase tracking-wide">Live Room PIN</div>
                             <div class="flex items-center gap-3 mt-1">
                                 <span class="text-4xl font-black text-yellow-400 tracking-[0.2em]">${state.roomCode}</span>
                                 <button id="copy-room" class="px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-200 hover:bg-slate-700 transition-colors border border-slate-700 flex items-center gap-1">
@@ -246,16 +259,21 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center">
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center md:items-start">
                         <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500/30 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
-                        <div class="flex-1">
+                        <div class="flex-1 w-full">
                             <div class="text-slate-300 text-sm">Hosting</div>
                             <div class="text-2xl font-bold">${state.quizItem?.content?.title || 'Quiz'}</div>
-                            <div class="text-slate-400 text-sm mt-1">Share the code above. Players pick a name and emoji when joining.</div>
+                            <div class="text-slate-400 text-sm mt-1">Share PIN or QR. Players join with nickname + icon.</div>
+                            <div class="mt-3 text-xs text-slate-500 break-all">${joinLink}</div>
                         </div>
+                        <img src="${qrSrc}" alt="Join QR code" class="w-28 h-28 rounded-xl border border-slate-700 bg-white p-1" />
+                    </div>
+
+                    <div class="flex justify-end">
                         <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
                             <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>Start Live Quiz</span>
+                            <span>Start Quiz Show</span>
                         </button>
                     </div>
 
@@ -277,9 +295,9 @@
                             </div>
                             <ul class="text-slate-400 text-sm space-y-2 list-disc list-inside">
                                 <li>Share the 6-digit room code with players.</li>
-                                <li>Players join from the home screen, choose a name + emoji.</li>
-                                <li>Start when ready. We'll sync questions, timers and leaderboard.</li>
-                                <li>Intro sound plays for you; players hear correct / wrong cues.</li>
+                                <li>Players can join via code from the search bar too.</li>
+                                <li>Sequence: title intro → question only → options.</li>
+                                <li>Reveal when all answer or when you skip.</li>
                             </ul>
                         </div>
                     </div>
@@ -330,40 +348,61 @@
         `;
     }
 
+    function renderTitleIntro(payload) {
+        const shell = ensureOverlay();
+        shell.innerHTML = `
+            <div class="live-panel rounded-3xl p-8 md:p-12 relative overflow-hidden text-center">
+                <div class="relative flex flex-col items-center gap-4">
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Quiz Show Starting</div>
+                    <div class="kbc-title-frame mx-auto max-w-4xl w-full p-6 md:p-8">
+                        <h2 class="text-2xl md:text-4xl font-black text-yellow-300">${payload.title}</h2>
+                    </div>
+                    <div class="live-chip">Question ${payload.questionIndex + 1} of ${payload.totalQuestions}</div>
+                    <div class="text-slate-400 text-sm">Get ready...</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderQuestionOnlyView(payload) {
+        const shell = ensureOverlay();
+        shell.innerHTML = `
+            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                <div class="relative flex flex-col gap-6 items-center text-center">
+                    <div class="live-chip">Question ${payload.questionIndex + 1}</div>
+                    <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8">
+                        <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
+                    </div>
+                    <div class="text-slate-400 text-sm">Options incoming...</div>
+                </div>
+            </div>
+        `;
+    }
+
     function renderPlayerQuestionView(payload) {
         const shell = ensureOverlay();
         state.status = 'answering';
         cleanupTimers();
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.12), transparent 40%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.12), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${payload.questionIndex + 1}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${payload.question}</div>
-                        </div>
-                        <div class="live-chip flex items-center gap-2">
-                            <i data-lucide="clock-3" class="w-4 h-4"></i>
-                            <span id="live-countdown">30s</span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="live-options">
-                        ${payload.options.map((opt, idx) => `
-                            <button data-idx="${idx}" class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-
-                    <div class="text-slate-400 text-sm flex items-center gap-2">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        Answers are ranked by correctness and speed.
+            <div class="live-panel rounded-3xl p-4 md:p-6 relative overflow-hidden min-h-[75vh] flex flex-col">
+                <div class="relative flex items-center justify-between gap-3 mb-4">
+                    <div class="live-chip">Q ${payload.questionIndex + 1}</div>
+                    <div class="live-chip flex items-center gap-2">
+                        <i data-lucide="clock-3" class="w-4 h-4"></i>
+                        <span id="live-countdown">30s</span>
                     </div>
                 </div>
-            </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1" id="live-options">
+                    ${payload.options.map((opt, idx) => `
+                        <button data-idx="${idx}" class="live-option-btn kbc-option-frame rounded-xl px-4 py-5 md:py-6 text-left text-slate-100 flex gap-3 items-center justify-start">
+                            <span class="text-yellow-300 font-black text-xl">${String.fromCharCode(65 + idx)}</span>
+                            <span class="font-semibold text-lg">${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="text-slate-400 text-xs mt-3 text-center">Select your answer quickly</div>
+                    </div>
         `;
         if (window.lucide) window.lucide.createIcons();
 
@@ -374,7 +413,7 @@
                 const choice = parseInt(btn.getAttribute('data-idx'), 10);
                 sendAnswer(choice, payload);
                 optionButtons.forEach(b => b.disabled = true);
-                btn.classList.add('border-yellow-400');
+                btn.classList.add('is-selected');
             };
         });
 
@@ -390,7 +429,9 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-xs uppercase tracking-wide text-slate-400">Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}</div>
-                            <div class="text-xl md:text-2xl font-bold text-white">${question.question}</div>
+                            <div class="kbc-title-frame max-w-4xl mt-2 p-4 md:p-6">
+                                <div class="text-xl md:text-2xl font-bold text-white">${question.question}</div>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="live-chip flex items-center gap-2">
@@ -398,14 +439,14 @@
                                 <span id="host-countdown">30s</span>
                             </div>
                             <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
-                                Reveal Now
+                                Skip & Reveal
                             </button>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         ${question.options.map((opt, idx) => `
-                            <div class="live-option-btn rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
+                            <div class="live-option-btn kbc-option-frame rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center">
                                 <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
                                 <span class="font-semibold">${opt}</span>
                             </div>
@@ -427,7 +468,9 @@
 
     function renderLeaderboard(results, correctIndex, isFinal = false) {
         const shell = ensureOverlay();
-        const topThree = [...results].sort((a, b) => b.total - a.total).slice(0, 3);
+        const sorted = [...results].sort((a, b) => b.total - a.total);
+        const topThree = sorted.slice(0, 3);
+        const topFive = sorted.slice(0, 5);
         shell.innerHTML = `
             <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
                 <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
@@ -446,13 +489,14 @@
                     ${topThree.length ? renderPodium(topThree) : '<div class="text-slate-400">No answers yet.</div>'}
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto" id="leaderboard-list">
-                        ${results.map((res, idx) => `
+                        ${topFive.map((res, idx) => `
                             <div class="leaderboard-card rounded-xl p-3 flex items-center gap-3 ${res.id === state.me.id ? 'border-yellow-400/60' : 'border-transparent'}">
                                 <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${res.emoji || '🎯'}</div>
                                 <div class="flex-1 min-w-0">
                                     <div class="text-white font-semibold truncate">${idx + 1}. ${res.name}</div>
-                                    <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total}</div>
+                                    <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total} ${res.distanceAhead != null ? `• ${res.distanceAhead} behind above` : ''}</div>
                                 </div>
+                                ${res.rankRise > 0 ? '<div class="text-emerald-400 text-xs font-bold">↑</div>' : ''}
                                 ${typeof res.choice === 'number' ? `<div class="text-xs ${res.isCorrect ? 'text-green-400' : 'text-rose-400'}">${String.fromCharCode(65 + res.choice)}</div>` : ''}
                             </div>
                         `).join('')}
@@ -499,6 +543,99 @@
                 `).reverse().join('')}
             </div>
         `;
+    }
+
+    function renderAnswerReveal(payload) {
+        const shell = ensureOverlay();
+        const mine = payload.results.find((r) => r.id === state.me.id);
+        const correctLabel = String.fromCharCode(65 + payload.correctIndex);
+        const mineState = mine
+            ? (mine.isCorrect ? 'Correct!' : 'Wrong Answer')
+            : (state.role === 'host' ? 'Answer Reveal' : 'No answer submitted');
+
+        shell.innerHTML = `
+            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                <div class="relative flex flex-col gap-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-2xl font-black text-white">${mineState}</div>
+                        <div class="live-chip">Correct: ${correctLabel}</div>
+                    </div>
+                    <div class="kbc-option-frame is-correct rounded-xl px-5 py-4 text-lg font-bold text-white">
+                        ${payload.correctOption || ''}
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        ${payload.results.slice(0, 3).map((res, idx) => `
+                            <div class="leaderboard-card rounded-xl p-3">
+                                <div class="text-sm text-slate-400">#${idx + 1}</div>
+                                <div class="text-lg font-bold text-white truncate">${res.name}</div>
+                                <div class="text-xs text-slate-400">+${res.delta} • Total ${res.total}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function computeRankMeta(sortedResults) {
+        return sortedResults.map((res, idx, arr) => {
+            const rank = idx + 1;
+            const prevRank = state.prevRanks[res.id] || rank;
+            const rankRise = Math.max(0, prevRank - rank);
+            const distanceAhead = idx > 0 ? arr[idx - 1].total - res.total : null;
+
+            return {
+                ...res,
+                rank,
+                rankRise,
+                distanceAhead
+            };
+        });
+    }
+
+    function updatePreviousRanks(resultsWithMeta) {
+        const updated = {};
+        resultsWithMeta.forEach((res) => {
+            updated[res.id] = res.rank;
+        });
+        state.prevRanks = updated;
+    }
+
+    function renderFinaleSpotlight(results) {
+        const shell = ensureOverlay();
+        const topThree = [...results].sort((a, b) => b.total - a.total).slice(0, 3);
+        const revealOrder = [2, 1, 0].filter((index) => topThree[index]);
+
+        let step = 0;
+        const reveal = () => {
+            const idx = revealOrder[step];
+            const contestant = topThree[idx];
+            const title = idx === 2 ? 'Third Place' : idx === 1 ? 'Second Place' : 'Champion';
+
+            shell.innerHTML = `
+                <div class="live-panel rounded-3xl p-8 md:p-12 text-center">
+                    <div class="text-slate-400 uppercase tracking-[0.2em] text-xs mb-4">Grand Finale</div>
+                    <div class="text-3xl md:text-5xl font-black text-yellow-300 mb-6">${title}</div>
+                    <div class="podium-card max-w-xl mx-auto rounded-2xl p-6 md:p-8">
+                        <div class="text-6xl mb-2">${contestant?.emoji || '🏆'}</div>
+                        <div class="text-3xl font-black text-white">${contestant?.name || ''}</div>
+                        <div class="text-slate-300 mt-2">${contestant?.total || 0} pts</div>
+                    </div>
+                </div>
+            `;
+
+            step += 1;
+            if (step < revealOrder.length) {
+                state.timers.finale = setTimeout(reveal, 2200);
+            } else {
+                state.timers.finale = setTimeout(() => {
+                    renderLeaderboard(results, null, true);
+                    state.timers.finale = setTimeout(() => closeOverlay(), 8000);
+                }, 2000);
+            }
+        };
+
+        reveal();
     }
 
     async function startLiveHost(quizItem) {
@@ -624,11 +761,24 @@
             state.quizMeta = payload;
             if (state.status === 'waiting') renderWaitingRoom();
         }
-        if (payload.type === 'question') {
+        if (payload.type === 'quiz-title') {
+            state.currentQuestionPayload = payload;
+            state.status = 'title';
+            renderTitleIntro(payload);
+        }
+        if (payload.type === 'question-only') {
+            state.currentQuestionPayload = payload;
+            state.status = 'question-only';
+            playAudio('incoming');
+            renderQuestionOnlyView(payload);
+        }
+        if (payload.type === 'options-open') {
             cleanupTimers();
             state.status = 'question';
             state.questionIndex = payload.questionIndex;
             state.questionStart = payload.startAt;
+            state.currentQuestionPayload = payload;
+            playAudio('countdown');
             if (state.role === 'player') {
                 renderPlayerQuestionView(payload);
             } else if (state.role === 'host') {
@@ -639,13 +789,16 @@
             upsertPlayer(payload);
             collectAnswer(payload);
         }
+        if (payload.type === 'answer-reveal') {
+            renderAnswerReveal(payload);
+            if (state.role === 'player') {
+                const mine = payload.results.find((r) => r.id === state.me.id);
+                if (mine) playAudio(mine.isCorrect ? 'correct' : 'wrong');
+            }
+        }
         if (payload.type === 'leaderboard') {
             cleanupTimers();
             state.lastResults = payload.results;
-            if (state.role === 'player') {
-                const mine = payload.results.find(r => r.id === state.me.id);
-                if (mine) playAudio(mine.isCorrect ? 'correct' : 'wrong');
-            }
             renderLeaderboard(payload.results, payload.correctIndex, false);
             if (payload.isFinal) {
                 renderLeaderboard(payload.results, payload.correctIndex, true);
@@ -653,14 +806,28 @@
         }
         if (payload.type === 'final') {
             cleanupTimers();
-            renderLeaderboard(payload.results, null, true);
+            renderFinaleSpotlight(payload.results);
         }
     }
 
     function startLiveSession() {
         state.status = 'in-progress';
+        const totalQuestions = state.quizItem?.content?.questions?.length || 0;
+        const q = state.quizItem.content.questions[state.questionIndex];
+        const titlePayload = {
+            type: 'quiz-title',
+            title: state.quizItem?.content?.title || 'Quiz Show',
+            questionIndex: state.questionIndex,
+            totalQuestions
+        };
+        state.currentQuestionPayload = titlePayload;
+        broadcast(titlePayload);
+        renderTitleIntro(titlePayload);
         playAudio('intro');
-        sendQuestion();
+
+        state.timers.phase = setTimeout(() => {
+            sendQuestion();
+        }, 4200);
     }
 
     function sendQuestion() {
@@ -668,21 +835,39 @@
         const q = state.quizItem.content.questions[state.questionIndex];
         const correctIndex = Number.parseInt(q.correctIndex, 10);
         const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
-        const payload = {
-            type: 'question',
+
+        const questionOnlyPayload = {
+            type: 'question-only',
             questionIndex: state.questionIndex,
             question: q.question,
-            options: q.options,
-            correctIndex: normalizedCorrectIndex,
-            startAt: Date.now()
+            totalQuestions: state.quizItem.content.questions.length
         };
-        state.status = 'question';
-        state.currentQuestionPayload = payload;
-        state.questionStart = payload.startAt;
+        state.currentQuestionPayload = questionOnlyPayload;
+        state.status = 'question-only';
+        broadcast(questionOnlyPayload);
+        renderQuestionOnlyView(questionOnlyPayload);
+        playAudio('incoming');
+
+        state.timers.phase = setTimeout(() => {
+            const payload = {
+                type: 'options-open',
+                questionIndex: state.questionIndex,
+                question: q.question,
+                options: q.options,
+                correctIndex: normalizedCorrectIndex,
+                startAt: Date.now()
+            };
+            state.status = 'question';
+            state.currentQuestionPayload = payload;
+            state.revealTriggered = false;
+            state.questionStart = payload.startAt;
+            broadcast(payload);
+            renderHostQuestionView(q);
+            playAudio('countdown');
+            startHostCountdown();
+        }, 5000);
+
         state.answers[state.questionIndex] = {};
-        broadcast(payload);
-        renderHostQuestionView(q);
-        startHostCountdown();
     }
 
     function startHostCountdown() {
@@ -734,10 +919,20 @@
         }
         if (!state.answers[payload.questionIndex][payload.id]) {
             state.answers[payload.questionIndex][payload.id] = payload;
+            playAudio('suspense');
+        }
+
+        const totalPlayers = getPlayers().length;
+        const totalAnswers = Object.keys(state.answers[payload.questionIndex] || {}).length;
+
+        if (totalPlayers > 0 && totalAnswers >= totalPlayers && !state.revealTriggered) {
+            finishQuestion(false);
         }
     }
 
     function finishQuestion(forceReveal) {
+        if (state.revealTriggered) return;
+        state.revealTriggered = true;
         cleanupTimers();
         const q = state.quizItem.content.questions[state.questionIndex];
         const correctIndex = Number.parseInt(q.correctIndex, 10);
@@ -761,15 +956,34 @@
             });
         });
         results.sort((a, b) => b.total - a.total || b.delta - a.delta);
-        broadcast({
-            type: 'leaderboard',
+        const withMeta = computeRankMeta(results);
+        updatePreviousRanks(withMeta);
+
+        const revealPayload = {
+            type: 'answer-reveal',
             questionIndex: state.questionIndex,
             correctIndex: normalizedCorrectIndex,
-            results
-        });
-        renderLeaderboard(results, normalizedCorrectIndex, false);
+            correctOption: q.options?.[normalizedCorrectIndex],
+            results: withMeta
+        };
+
+        broadcast(revealPayload);
+        renderAnswerReveal(revealPayload);
+
+        state.timers.phase = setTimeout(() => {
+            broadcast({
+                type: 'leaderboard',
+                questionIndex: state.questionIndex,
+                correctIndex: normalizedCorrectIndex,
+                results: withMeta
+            });
+            renderLeaderboard(withMeta, normalizedCorrectIndex, false);
+        }, 2800);
+
         const isLast = state.questionIndex + 1 >= state.quizItem.content.questions.length;
-        if (forceReveal && isLast) broadcastFinal(results);
+        if (isLast) {
+            state.timers.finale = setTimeout(() => broadcastFinal(withMeta), 6500);
+        }
     }
 
     function calculateScoreDelta(elapsedMs) {
@@ -778,11 +992,12 @@
     }
 
     function broadcastFinal(results) {
+        cleanupTimers();
         broadcast({
             type: 'final',
             results: results.sort((a, b) => b.total - a.total)
         });
-        renderLeaderboard(results.sort((a, b) => b.total - a.total), null, true);
+        renderFinaleSpotlight(results.sort((a, b) => b.total - a.total));
     }
 
     function broadcast(payload) {
@@ -912,8 +1127,8 @@
                         <i data-lucide="radio" class="w-4 h-4"></i>
                         Room ${state.roomCode}
                     </div>
-                    <div class="text-3xl md:text-4xl font-extrabold text-white">Waiting for host</div>
-                    <div class="text-slate-400">Stay here. The host will move everyone to the question screen.</div>
+                    <div class="text-3xl md:text-4xl font-extrabold text-white">You're in! See your nickname on the screen?</div>
+                    <div class="text-slate-400">Stay ready. The host will launch the show in moments.</div>
                     <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3">
                         <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">${state.me.emoji}</div>
                         <div class="text-left">
@@ -931,6 +1146,21 @@
     function attachEntryPoints() {
         const joinBtn = document.getElementById('join-live-btn');
         if (joinBtn) joinBtn.addEventListener('click', () => openJoinDialog());
+
+        const bindCodeJoin = (el) => {
+            if (!el) return;
+            el.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter') return;
+                const value = String(el.value || '').trim();
+                if (/^\d{6}$/.test(value)) {
+                    event.preventDefault();
+                    openJoinDialog(value);
+                }
+            });
+        };
+
+        bindCodeJoin(document.getElementById('main-search'));
+        bindCodeJoin(document.getElementById('header-search-input'));
     }
 
     document.addEventListener('DOMContentLoaded', () => {
