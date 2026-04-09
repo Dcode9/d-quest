@@ -60,9 +60,23 @@ async function fetchQuizzes() {
     // 3. Render all quizzes
     if (allQuizzes.length === 0) {
         grid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <i data-lucide="inbox" class="w-16 h-16 text-slate-600 mx-auto mb-4"></i>
-                <p class="text-slate-400 text-lg">No quizzes yet. Generate one using AI above!</p>
+            <div class="col-span-full text-center py-6">
+                <div class="win-window" style="display: inline-block; text-align: left; min-width: 280px;">
+                    <div class="win-titlebar">
+                        <span class="win-titlebar-icon">ℹ️</span>
+                        <span>Information</span>
+                        <div class="win-ctrl-btns ml-auto">
+                            <div class="win-ctrl-btn" style="width:14px;height:12px;font-size:8px;">✕</div>
+                        </div>
+                    </div>
+                    <div class="win-window-body" style="padding: 12px; display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 28px;">💾</span>
+                        <p style="font-size: 11px; color: #000;">No quizzes yet. Generate one using D&apos;Ai above!</p>
+                    </div>
+                    <div class="win-statusbar" style="justify-content: center;">
+                        <button class="win-btn win-btn-primary" onclick="this.closest('.win-window').remove()">OK</button>
+                    </div>
+                </div>
             </div>
         `;
         if(window.lucide) window.lucide.createIcons();
@@ -88,7 +102,7 @@ function renderQuizzes(quizzes) {
         });
         
         const card = document.createElement('div');
-        card.className = "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden";
+        card.className = "quiz-card-new";
         
         const questionCount = quiz.questions ? quiz.questions.length : 0;
         
@@ -102,51 +116,55 @@ function renderQuizzes(quizzes) {
         console.log(`[RENDER] Card ${index + 1} metadata:`, { emoji, grade, difficulty, topic });
 
         card.innerHTML = `
-            <!-- Emoji Thumbnail -->
-            <div class="flex items-center gap-4 mb-4">
-                <div class="text-6xl flex-shrink-0 w-20 h-20 flex items-center justify-center bg-gradient-to-br from-yellow-400/20 to-orange-500/20 rounded-xl">
-                    ${emoji}
+            <!-- Card Title Bar (Win2k style) -->
+            <div class="card-titlebar">
+                <span style="font-size: 14px; line-height: 1;">${emoji}</span>
+                <span class="truncate" style="font-size: 11px; max-width: 160px;">${quiz.title}</span>
+                <div class="ml-auto win-ctrl-btns">
+                    <div class="win-ctrl-btn" style="width: 14px; height: 12px; font-size: 8px;">_</div>
+                    <div class="win-ctrl-btn" style="width: 14px; height: 12px; font-size: 8px;">□</div>
+                    <div class="win-ctrl-btn" style="width: 14px; height: 12px; font-size: 8px;">✕</div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-2xl font-bold text-white mb-1 line-clamp-2 group-hover:text-yellow-300 transition-colors">${quiz.title}</h3>
-                    <div class="flex items-center gap-2 text-slate-400 text-xs">
-                        <span class="flex items-center gap-1">
-                            <i data-lucide="book-open" class="w-3 h-3"></i>
-                            ${topic}
-                        </span>
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body">
+                <!-- Topic line -->
+                <div class="flex items-center gap-1 mb-2" style="font-size: 10px; color: var(--win-text-grey);">
+                    <i data-lucide="book-open" class="w-3 h-3"></i>
+                    <span>${topic}</span>
+                </div>
+
+                <!-- Metadata -->
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <div class="quiz-meta-cell">
+                        <div class="meta-label">Grade</div>
+                        <div class="meta-value">${grade}</div>
+                    </div>
+                    <div class="quiz-meta-cell">
+                        <div class="meta-label">Difficulty</div>
+                        <div class="meta-value">${difficulty}</div>
+                    </div>
+                    <div class="quiz-meta-cell">
+                        <div class="meta-label">Questions</div>
+                        <div class="meta-value">${questionCount}</div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Metadata -->
-            <div class="grid grid-cols-3 gap-2 mb-4 text-xs">
-                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                    <div class="text-slate-400 mb-1">Grade</div>
-                    <div class="text-white font-bold">${grade}</div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-2 mt-auto">
+                    <button class="start-quiz-btn kbc-button flex-1 win-btn-primary" style="gap: 4px; font-size: 10px; padding: 3px 8px;">
+                        <i data-lucide="play" class="w-3 h-3"></i>
+                        <span>Start Quiz</span>
+                    </button>
+                    <button class="live-quiz-btn win-btn flex-1" style="gap: 4px; font-size: 10px; padding: 3px 8px;">
+                        <i data-lucide="broadcast" class="w-3 h-3"></i>
+                        <span>Live</span>
+                    </button>
+                    <button class="preview-btn win-btn" style="padding: 3px 8px; min-width: 32px;">
+                        <i data-lucide="eye" class="w-3 h-3"></i>
+                    </button>
                 </div>
-                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                    <div class="text-slate-400 mb-1">Difficulty</div>
-                    <div class="text-white font-bold">${difficulty}</div>
-                </div>
-                <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                    <div class="text-slate-400 mb-1">Questions</div>
-                    <div class="text-white font-bold">${questionCount}</div>
-                </div>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="flex flex-wrap gap-2 mt-auto">
-                <button class="start-quiz-btn flex-1 kbc-button text-black font-bold py-3 rounded-xl transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
-                    <i data-lucide="play" class="w-4 h-4"></i>
-                    <span>Start Quiz</span>
-                </button>
-                <button class="live-quiz-btn flex-1 bg-slate-800 hover:bg-slate-700 text-yellow-400 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-yellow-500/30 shadow-lg">
-                    <i data-lucide="broadcast" class="w-4 h-4"></i>
-                    <span>Live Quiz</span>
-                </button>
-                <button class="preview-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center">
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                </button>
             </div>
         `;
         
@@ -220,30 +238,28 @@ function extractTopic(title) {
     return 'General';
 }
 
-// Show preview modal
+// Show preview modal (Win2k dialog style)
 function showPreview(quiz) {
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+    modal.style.background = 'rgba(0,0,128,0.25)';
     modal.onclick = (e) => {
         if (e.target === modal) modal.remove();
     };
-    
-    const content = document.createElement('div');
-    content.className = 'bg-slate-900 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto';
     
     let questionsHTML = '';
     if (quiz.questions && quiz.questions.length > 0) {
         questionsHTML = quiz.questions.map((q, i) => {
             const correctIdx = parseInt(q.correctIndex, 10);
             return `
-            <div class="mb-4 p-4 bg-slate-800 rounded-lg">
-                <div class="font-bold text-yellow-400 mb-2">Q${i + 1}. ${q.question}</div>
-                <div class="space-y-2">
+            <div class="mb-3 win-sunken" style="padding: 6px; background: #fff;">
+                <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #000080;">Q${i + 1}. ${q.question}</div>
+                <div>
                     ${q.options.map((opt, idx) => `
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="${idx === correctIdx ? 'text-green-400' : 'text-slate-400'}">${String.fromCharCode(65 + idx)})</span>
-                            <span class="${idx === correctIdx ? 'text-green-400 font-bold' : 'text-slate-300'}">${opt}</span>
-                            ${idx === correctIdx ? '<span class="text-green-400 ml-auto">✓</span>' : ''}
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 2px; color: ${idx === correctIdx ? '#006400' : '#333'}; font-weight: ${idx === correctIdx ? 'bold' : 'normal'};">
+                            <span style="font-family: Tahoma, Arial; min-width: 16px;">${String.fromCharCode(65 + idx)})</span>
+                            <span>${opt}</span>
+                            ${idx === correctIdx ? '<span style="margin-left: auto; color: #006400;">&#10003;</span>' : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -251,21 +267,34 @@ function showPreview(quiz) {
         `}).join('');
     }
     
+    const content = document.createElement('div');
+    content.className = 'win-window';
+    content.style.cssText = 'width: 100%; max-width: 560px; max-height: 80vh; display: flex; flex-direction: column;';
     content.innerHTML = `
-        <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-yellow-400">${quiz.title}</h2>
-            <button class="close-btn text-slate-400 hover:text-white">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
+        <div class="win-titlebar">
+            <div class="win-titlebar-text">
+                <span class="win-titlebar-icon">🔍</span>
+                <span>Preview: ${quiz.title}</span>
+            </div>
+            <div class="win-ctrl-btns">
+                <div class="win-ctrl-btn close-btn">✕</div>
+            </div>
         </div>
-        <div class="text-slate-300 text-sm mb-4">
-            ${quiz.questions ? quiz.questions.length : 0} Questions • Preview mode shows correct answers
+        <div class="win-window-body" style="overflow-y: auto; flex: 1;">
+            <div style="font-size: 11px; color: #444; margin-bottom: 8px;">
+                ${quiz.questions ? quiz.questions.length : 0} Questions &bull; Preview mode shows correct answers
+            </div>
+            ${questionsHTML}
         </div>
-        ${questionsHTML}
+        <div class="win-statusbar">
+            <div style="flex:1;"></div>
+            <button class="close-btn win-btn win-btn-primary" style="margin-left: auto;">Close</button>
+        </div>
     `;
     
-    const closeBtn = content.querySelector('.close-btn');
-    closeBtn.onclick = () => modal.remove();
+    content.querySelectorAll('.close-btn').forEach(btn => {
+        btn.onclick = () => modal.remove();
+    });
     
     modal.appendChild(content);
     document.body.appendChild(modal);
