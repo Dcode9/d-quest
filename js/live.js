@@ -30,6 +30,7 @@
         introStarted: false,
         timers: {
             question: null,
+            questionTick: null,
             heartbeat: null,
             phase: null,
             finale: null
@@ -218,10 +219,12 @@
     }
 
     function cleanupTimers() {
-        if (state.timers.question) clearInterval(state.timers.question);
+        if (state.timers.question) clearTimeout(state.timers.question);
+        if (state.timers.questionTick) clearInterval(state.timers.questionTick);
         if (state.timers.phase) clearTimeout(state.timers.phase);
         if (state.timers.finale) clearTimeout(state.timers.finale);
         state.timers.question = null;
+        state.timers.questionTick = null;
         state.timers.phase = null;
         state.timers.finale = null;
     }
@@ -451,7 +454,7 @@
                         <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8 question-rise">
                             <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
                         </div>
-                        <button id="show-options-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">Show Options</button>
+                        <div class="text-slate-400 text-sm">Options will open automatically in 10 seconds...</div>
                     ` : `
                         <div class="kbc-title-frame max-w-3xl w-full p-5 md:p-8 question-rise">
                             <div class="text-4xl md:text-6xl font-black text-white">Q${payload.questionIndex + 1}</div>
@@ -461,11 +464,6 @@
                 </div>
             </div>
         `;
-
-        if (state.role === 'host') {
-            const btn = document.getElementById('show-options-btn');
-            if (btn) btn.onclick = () => openOptionsForCurrentQuestion();
-        }
     }
 
     function renderPlayerQuestionView(payload) {
@@ -512,6 +510,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
+                            <div id="host-countdown" class="live-chip min-w-24 justify-center">30s left</div>
                             <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
                                 Skip & Reveal
                             </button>
@@ -851,7 +850,8 @@
                 renderHostLobby();
             }
 
-            if ((state.status === 'question' || state.status === 'in-progress') && state.currentQuestionPayload) {
+            // Re-sync only when a new player joins; heartbeat re-sync caused client-side re-renders.
+            if (payload.type === 'player-joined' && state.status !== 'lobby' && state.currentQuestionPayload) {
                 broadcast(state.currentQuestionPayload);
             }
             return;
@@ -867,19 +867,31 @@
             renderTitleIntro(payload);
         }
         if (payload.type === 'question-only') {
+            const isDuplicateQuestionOnly =
+                state.role === 'player' &&
+                state.currentQuestionPayload?.type === 'question-only' &&
+                state.currentQuestionPayload?.questionIndex === payload.questionIndex &&
+                state.status === 'question-only';
+            if (isDuplicateQuestionOnly) return;
+
             state.currentQuestionPayload = payload;
             state.status = 'question-only';
-            if (state.role === 'player') playManagedAudio('incoming');
             renderQuestionOnlyView(payload);
         }
         if (payload.type === 'options-open') {
+            const isDuplicateOptionsOpen =
+                state.role === 'player' &&
+                state.currentQuestionPayload?.type === 'options-open' &&
+                state.currentQuestionPayload?.questionIndex === payload.questionIndex &&
+                (state.status === 'answering' || state.status === 'locked' || state.status === 'question');
+            if (isDuplicateOptionsOpen) return;
+
             cleanupTimers();
             state.status = 'question';
             state.questionIndex = payload.questionIndex;
             state.questionStart = payload.startAt;
             state.currentQuestionPayload = payload;
             if (state.role === 'player') {
-                playAudio('countdown');
                 renderPlayerQuestionView(payload);
             } else if (state.role === 'host') {
                 renderHostQuestionView(state.quizItem.content.questions[state.questionIndex]);
@@ -959,6 +971,12 @@
 
         playManagedAudio('incoming').catch(() => {});
 
+        state.timers.phase = setTimeout(() => {
+            if (state.role === 'host' && state.status === 'question-only') {
+                openOptionsForCurrentQuestion();
+            }
+        }, 10000);
+
         state.answers[state.questionIndex] = {};
         state.revealTriggered = false;
     }
@@ -990,6 +1008,28 @@
 
     function startHostCountdown() {
         if (state.timers.question) clearTimeout(state.timers.question);
+        if (state.timers.questionTick) clearInterval(state.timers.questionTick);
+
+        let remaining = 30;
+        const paintCountdown = () => {
+            const chip = document.getElementById('host-countdown');
+            if (!chip) return;
+            chip.textContent = `${remaining}s left`;
+            chip.classList.toggle('text-yellow-300', remaining <= 10);
+            chip.classList.toggle('text-slate-100', remaining > 10);
+        };
+
+        paintCountdown();
+
+        state.timers.questionTick = setInterval(() => {
+            remaining = Math.max(0, remaining - 1);
+            paintCountdown();
+            if (remaining <= 0 && state.timers.questionTick) {
+                clearInterval(state.timers.questionTick);
+                state.timers.questionTick = null;
+            }
+        }, 1000);
+
         state.timers.question = setTimeout(() => {
             finishQuestion(false);
         }, 30000);
@@ -1029,6 +1069,7 @@
         if (state.revealTriggered) return;
         state.revealTriggered = true;
         cleanupTimers();
+        fadeOutAudioKey('countdown', 500).catch(() => {});
         const q = state.quizItem.content.questions[state.questionIndex];
         const correctIndex = Number.parseInt(q.correctIndex, 10);
         const normalizedCorrectIndex = Number.isNaN(correctIndex) ? q.correctIndex : correctIndex;
