@@ -23,6 +23,7 @@
         prevRanks: {},
         players: {},
         answers: {},
+        expectedAnswerPlayerIds: {},
         questionStart: null,
         currentQuestionPayload: null,
         pendingResults: null,
@@ -760,6 +761,7 @@
         state.scores = {};
         state.players = {};
         state.answers = {};
+        state.expectedAnswerPlayerIds = {};
         state.currentQuestionPayload = null;
         state.pendingResults = null;
         state.introStarted = false;
@@ -946,9 +948,11 @@
         if (payload.type === 'leaderboard') {
             cleanupTimers();
             state.lastResults = payload.results;
-            renderLeaderboard(payload.results, payload.correctIndex, false);
-            if (payload.isFinal) {
-                renderLeaderboard(payload.results, payload.correctIndex, true);
+            if (state.role === 'host') {
+                renderLeaderboard(payload.results, payload.correctIndex, false);
+                if (payload.isFinal) {
+                    renderLeaderboard(payload.results, payload.correctIndex, true);
+                }
             }
         }
         if (payload.type === 'final') {
@@ -1035,6 +1039,7 @@
         }, 10000);
 
         state.answers[state.questionIndex] = {};
+        state.expectedAnswerPlayerIds[state.questionIndex] = [];
         state.revealTriggered = false;
     }
 
@@ -1057,6 +1062,14 @@
         state.status = 'question';
         state.currentQuestionPayload = payload;
         state.questionStart = payload.startAt;
+
+        // Lock expected responders for this question so reveal waits for everyone in-session.
+        const expectedIds = Array.from(new Set([
+            ...Object.keys(state.players || {}),
+            ...getPlayers().map((player) => player.id).filter(Boolean)
+        ]));
+        state.expectedAnswerPlayerIds[state.questionIndex] = expectedIds;
+
         broadcast(payload);
         renderHostQuestionView(q);
         playAudio('countdown');
@@ -1107,6 +1120,8 @@
     }
 
     function collectAnswer(payload) {
+        if (payload.questionIndex !== state.questionIndex) return;
+
         if (!state.answers[payload.questionIndex]) {
             state.answers[payload.questionIndex] = {};
         }
@@ -1114,10 +1129,17 @@
             state.answers[payload.questionIndex][payload.id] = payload;
         }
 
-        const totalPlayers = getPlayers().length;
-        const totalAnswers = Object.keys(state.answers[payload.questionIndex] || {}).length;
+        const answerMap = state.answers[payload.questionIndex] || {};
+        const expectedAtOpen = state.expectedAnswerPlayerIds[payload.questionIndex] || [];
+        const fallbackExpected = Array.from(new Set([
+            ...Object.keys(state.players || {}),
+            ...getPlayers().map((player) => player.id).filter(Boolean)
+        ]));
+        const expectedIds = expectedAtOpen.length ? expectedAtOpen : fallbackExpected;
+        const totalExpected = expectedIds.length;
+        const answeredExpected = expectedIds.filter((id) => Boolean(answerMap[id])).length;
 
-        if (totalPlayers > 0 && totalAnswers >= totalPlayers && !state.revealTriggered) {
+        if (totalExpected > 0 && answeredExpected >= totalExpected && !state.revealTriggered) {
             finishQuestion(false);
         }
     }
