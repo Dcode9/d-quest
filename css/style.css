@@ -278,15 +278,14 @@ body {
 }
 
 .live-option-btn {
-    background: linear-gradient(145deg, #1e293b, #0f172a);
-    border: 1px solid rgba(255,255,255,0.05);
-    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    transition: transform 0.12s ease;
 }
 
 .live-option-btn:hover {
     transform: translateY(-2px);
-    border-color: rgba(234,179,8,0.4);
-    box-shadow: 0 10px 30px rgba(234, 179, 8, 0.08);
 }
 
 .leaderboard-card {
@@ -389,20 +388,6 @@ body {
     width: 100% !important;
     max-width: none !important;
     height: 100% !important;
-}
-
-.live-overlay .live-panel,
-.live-overlay .live-participant,
-.live-overlay .live-option-btn,
-.live-overlay .leaderboard-card,
-.live-overlay .podium-card,
-.live-overlay .live-lobby-section,
-.live-overlay .live-meta-chip,
-.live-overlay .live-player-pill,
-.live-overlay .live-danger-btn,
-.live-overlay .live-warning-btn,
-.live-overlay .kbc-button {
-    /* Kept some border-radius to preserve the rounded look while removing inner rectangles but letting SVGs have their shapes */
 }
 
 .live-host-lobby {
@@ -614,16 +599,6 @@ body {
     place-items: center;
 }
 
-.live-question-stage-wrap.is-prep {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-.live-question-stage-wrap.is-prep .live-focus-question {
-    transform: translateY(10vh) scale(1.15) !important;
-}
-
 .live-timer-art {
     position: absolute;
     inset: 0;
@@ -646,19 +621,96 @@ body {
     margin: 0 auto;
     filter: blur(16px);
     transform: scale(1.05);
-    opacity: 0.68;
+    opacity: 1;
     animation: liveQuestionUnblur 2s ease forwards;
-    transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .live-question-focus.is-lifted {
-    transform: translateY(-5vh) scale(0.93);
+    transform: translateY(-6vh) scale(0.93);
+}
+
+.live-question-stage-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.live-question-stage-wrap .live-timer-box,
+.live-question-stage-wrap .live-prep-progress-wrap,
+.live-question-stage-wrap .live-options-stage,
+.live-question-stage-wrap .live-bottom-actions,
+.live-question-stage-wrap .live-player-tip,
+.live-question-stage-wrap .live-prep-note {
+    transition: opacity 0.38s ease, transform 0.58s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.45s ease;
+}
+
+.live-prep-note {
+    max-height: 44px;
+    overflow: hidden;
+}
+
+.live-prep-progress-wrap {
+    width: min(760px, calc(100% - 40px));
+    height: 8px;
+    border-radius: 9999px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.65);
+    margin: 2px auto 16px;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.live-prep-progress-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #f59e0b, #facc15);
+}
+
+.live-question-stage-wrap.is-prep .live-timer-box {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+    pointer-events: none;
+}
+
+.live-question-stage-wrap.is-prep .live-prep-progress-wrap {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.live-question-stage-wrap.is-prep .live-focus-question {
+    transform: translateY(10vh) scale(1.12);
+}
+
+.live-question-stage-wrap.is-prep .live-options-stage {
+    max-height: 0;
+    opacity: 1;
+    margin-top: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.live-question-stage-wrap.is-prep .live-bottom-actions,
+.live-question-stage-wrap.is-prep .live-player-tip {
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+}
+
+.live-question-stage-wrap:not(.is-prep) .live-prep-progress-wrap,
+.live-question-stage-wrap:not(.is-prep) .live-prep-note {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    max-height: 0;
+    margin-top: 0 !important;
 }
 
 @keyframes liveQuestionUnblur {
     from {
         filter: blur(18px);
-        opacity: 0.5;
+        opacity: 0.7;
     }
     to {
         filter: blur(0);
@@ -669,33 +721,21 @@ body {
 .live-options-stage {
     width: 100%;
     position: relative;
-    margin-top: -10px;
+    margin-top: 18px;
+    max-height: 420px;
 }
 
 .live-option-row {
     position: relative;
     width: 100%;
-    padding: 6px 0;
-    opacity: 0;
-    transform: translateY(90px);
-    transition: transform 0.5s ease, opacity 0.45s ease;
+    padding: 8px 0;
+    opacity: 1;
+    transform: translateY(48px);
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .live-option-row.is-visible {
-    opacity: 1;
     transform: translateY(0);
-}
-
-.live-option-row-line {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 100%;
-    height: 20px;
-    object-fit: cover;
-    transform: translateY(-50%);
-    opacity: 0.62;
-    pointer-events: none;
 }
 
 .live-option-grid {
@@ -753,17 +793,15 @@ body {
     border: 1px solid rgba(148, 163, 184, 0.26);
     background: rgba(15, 23, 42, 0.7);
     padding: 9px 12px;
-    transition: transform 0.35s ease, opacity 0.35s ease;
+    will-change: transform;
 }
 
 .live-rank-row.is-previous {
-    opacity: 0.45;
-    transform: scale(0.99);
+    opacity: 0.75;
 }
 
 .live-rank-row.is-current {
     opacity: 1;
-    transform: scale(1);
 }
 
 .live-top3-grid {

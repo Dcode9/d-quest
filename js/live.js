@@ -593,51 +593,55 @@
 
     function renderQuestionOnlyView(payload) {
         const isHost = state.role === 'host';
-        const q = state.quizItem.content.questions[payload.questionIndex];
-        
-        const questionText = isHost ? payload.question : `Q${payload.questionIndex + 1}`;
-        const optionHTML = isHost ? 
-            `${renderLiveOptionRow(q, 0, false)}${renderLiveOptionRow(q, 2, false)}` : 
-            `${renderLiveOptionRow(q, 0, true)}${renderLiveOptionRow(q, 2, true)}`;
+        const knownOptions = state.quizItem?.content?.questions?.[payload.questionIndex]?.options;
+        const prepOptions = Array.isArray(knownOptions) && knownOptions.length
+            ? knownOptions
+            : ['...', '...', '...', '...'];
+        const question = {
+            question: payload.question,
+            options: prepOptions
+        };
 
-        // Render the exact same DOM as the final stage, but with .is-prep
         renderStageViewport(`
-            <section class="live-question-stage-wrap is-prep" id="stage-question-${state.role}">
+            <section class="live-question-stage-wrap is-prep" id="live-question-prep-stage">
                 <div class="live-timer-wrap">
-                    <div class="live-timer-box" style="opacity:0; transition: opacity 0.5s ease;">
+                    <div class="live-timer-box">
                         <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
                         <span id="live-timer-text" class="live-timer-text">30</span>
                     </div>
                 </div>
-                
-                <div class="live-prep-progress-wrap" style="width: min(800px, 90%); margin: 15px auto; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position:relative; z-index:3;">
-                    <div id="live-prep-progress" style="width: 0%; height: 100%; background: #fbbf24; border-radius: 3px; transition: width 1s linear;"></div>
+                <div class="live-prep-progress-wrap" aria-hidden="true">
+                    <div id="live-prep-progress" class="live-prep-progress-fill"></div>
                 </div>
-
                 <div class="kbc-title-frame live-focus-question" id="live-focus-question">
-                    <div class="text-xl md:text-4xl font-black text-white text-center leading-tight">${questionText}</div>
-                    ${isHost ? `<div id="host-prep-countdown" class="text-slate-300 text-sm mt-3 text-center">Options will open automatically.</div>` : `<div class="text-slate-300 text-sm mt-5 text-center">Watch the host screen. Options are opening now.</div>`}
+                    <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
+                    ${isHost
+                        ? '<p id="host-prep-countdown" class="live-prep-note text-slate-300 text-xs md:text-sm mt-3 text-center">6s to options</p>'
+                        : '<p class="live-prep-note text-slate-300 text-xs md:text-sm mt-3 text-center">Options are opening now.</p>'}
                 </div>
-                
-                <div class="live-options-stage" style="opacity:0; transition: opacity 0.5s ease;" id="live-options">
-                    ${optionHTML}
+                <div class="live-options-stage" id="live-options">
+                    ${renderLiveOptionRow(question, 0, !isHost)}
+                    ${renderLiveOptionRow(question, 2, !isHost)}
                 </div>
-                
-                ${isHost ? `
-                <div class="live-bottom-actions" style="opacity:0; transition: opacity 0.5s ease;">
-                    <button id="end-question-btn" class="live-warning-btn">Skip & Reveal</button>
-                </div>
-                ` : ''}
+                ${isHost
+                    ? `
+                        <div class="live-bottom-actions">
+                            <button id="end-question-btn" class="live-warning-btn">Skip & Reveal</button>
+                        </div>
+                    `
+                    : '<p class="live-player-tip text-slate-300 text-xs md:text-sm mt-3 text-center">Choose your answer before time runs out.</p>'}
             </section>
-        `, 'stage-question-prep');
+        `, 'stage-question-only');
 
-        setTimeout(() => {
-            const pb = document.getElementById('live-prep-progress');
-            if (pb) {
-                pb.style.transition = `width ${QUESTION_PREP_MS}ms linear`;
-                pb.style.width = '100%';
-            }
-        }, 50);
+        const prepProgress = document.getElementById('live-prep-progress');
+        if (prepProgress) {
+            prepProgress.style.transition = 'none';
+            prepProgress.style.width = '0%';
+            requestAnimationFrame(() => {
+                prepProgress.style.transition = `width ${QUESTION_PREP_MS}ms linear`;
+                prepProgress.style.width = '100%';
+            });
+        }
     }
 
     function renderLiveOptionRow(question, startIdx, interactive = false) {
@@ -670,15 +674,18 @@
     }
 
     function startQuestionRevealAnimation() {
-        const questionFrame = document.getElementById('live-focus-question');
-        if (!questionFrame) return;
+        const prepStage = document.getElementById('live-question-prep-stage');
+        if (prepStage) prepStage.classList.remove('is-prep');
 
-        setTimeout(() => {
+        const questionFrame = document.getElementById('live-focus-question');
+        if (questionFrame) {
             questionFrame.classList.add('is-lifted');
-            document.querySelectorAll('.live-option-row').forEach((row, idx) => {
-                setTimeout(() => row.classList.add('is-visible'), 140 * idx);
-            });
-        }, 2000);
+        }
+
+        document.querySelectorAll('.live-option-row').forEach((row, idx) => {
+            row.style.transitionDelay = `${idx * 70}ms`;
+            row.classList.add('is-visible');
+        });
     }
 
     function renderPlayerQuestionView(payload) {
@@ -689,43 +696,28 @@
             options: payload.options
         };
 
-        const existingPrep = document.getElementById('stage-question-player');
-        if (existingPrep) {
-            existingPrep.classList.remove('is-prep');
-            
-            const timerBox = existingPrep.querySelector('.live-timer-box');
-            if (timerBox) timerBox.style.opacity = '1';
-            
-            const optionsStage = existingPrep.querySelector('.live-options-stage');
-            if (optionsStage) optionsStage.style.opacity = '1';
+        const prepStage = document.getElementById('live-question-prep-stage');
+        if (prepStage) {
+            const questionText = prepStage.querySelector('.leading-tight');
+            if (questionText) questionText.textContent = question.question;
 
-            const progressWrap = existingPrep.querySelector('.live-prep-progress-wrap');
-            if (progressWrap) progressWrap.style.display = 'none';
-            
-            const titleFrame = existingPrep.querySelector('.live-focus-question');
-            if (titleFrame) {
-                const tv = titleFrame.querySelector('.leading-tight') || titleFrame.querySelector('div');
-                if (tv) tv.innerHTML = question.question;
-                
-                const helpText = titleFrame.querySelector('.mt-5');
-                if (helpText) helpText.style.display = 'none';
-            }
-
-            // Append the helper text if not present
-            if (!existingPrep.querySelector('.choose-text-helper')) {
-                const helper = document.createElement('p');
-                helper.className = "text-slate-300 text-xs md:text-sm mt-3 text-center choose-text-helper";
-                helper.textContent = "Choose your answer before time runs out.";
-                existingPrep.appendChild(helper);
-            }
+            payload.options.forEach((optionText, idx) => {
+                const optionBtn = prepStage.querySelector(`#live-option-${idx}`);
+                if (!optionBtn) return;
+                const optionTextEl = optionBtn.querySelector('span:last-child');
+                if (optionTextEl) optionTextEl.textContent = optionText;
+            });
         } else {
             renderStageViewport(`
-                <section class="live-question-stage-wrap" id="stage-question-player">
+                <section class="live-question-stage-wrap" id="live-question-prep-stage">
                     <div class="live-timer-wrap">
                         <div class="live-timer-box">
                             <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
                             <span id="live-timer-text" class="live-timer-text">30</span>
                         </div>
+                    </div>
+                    <div class="live-prep-progress-wrap" aria-hidden="true">
+                        <div class="live-prep-progress-fill" style="width:100%"></div>
                     </div>
                     <div class="kbc-title-frame live-focus-question" id="live-focus-question">
                         <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
@@ -734,7 +726,7 @@
                         ${renderLiveOptionRow(question, 0, true)}
                         ${renderLiveOptionRow(question, 2, true)}
                     </div>
-                    <p class="text-slate-300 text-xs md:text-sm mt-3 text-center choose-text-helper">Choose your answer before time runs out.</p>
+                    <p class="live-player-tip text-slate-300 text-xs md:text-sm mt-3 text-center">Choose your answer before time runs out.</p>
                 </section>
             `, 'stage-question-player');
         }
@@ -755,31 +747,21 @@
     }
 
     function renderHostQuestionView(question) {
-        const existingPrep = document.getElementById('stage-question-host');
-        if (existingPrep) {
-            existingPrep.classList.remove('is-prep');
-            const timerBox = existingPrep.querySelector('.live-timer-box');
-            if (timerBox) timerBox.style.opacity = '1';
-            
-            const optionsStage = existingPrep.querySelector('.live-options-stage');
-            if (optionsStage) optionsStage.style.opacity = '1';
-
-            const bottomActions = existingPrep.querySelector('.live-bottom-actions');
-            if (bottomActions) bottomActions.style.opacity = '1';
-
-            const progressWrap = existingPrep.querySelector('.live-prep-progress-wrap');
-            if (progressWrap) progressWrap.style.display = 'none';
-
-            const hostPrepCountdown = document.getElementById('host-prep-countdown');
-            if (hostPrepCountdown) hostPrepCountdown.style.display = 'none';
+        const prepStage = document.getElementById('live-question-prep-stage');
+        if (prepStage) {
+            const questionText = prepStage.querySelector('.leading-tight');
+            if (questionText) questionText.textContent = question.question;
         } else {
             renderStageViewport(`
-                <section class="live-question-stage-wrap" id="stage-question-host">
+                <section class="live-question-stage-wrap" id="live-question-prep-stage">
                     <div class="live-timer-wrap">
                         <div class="live-timer-box">
                             <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
                             <span id="live-timer-text" class="live-timer-text">30</span>
                         </div>
+                    </div>
+                    <div class="live-prep-progress-wrap" aria-hidden="true">
+                        <div class="live-prep-progress-fill" style="width:100%"></div>
                     </div>
                     <div class="kbc-title-frame live-focus-question" id="live-focus-question">
                         <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
@@ -835,52 +817,41 @@
             </section>
         `, 'stage-leaderboard');
 
-        const renderLeaderboardRows = (rows, phaseClass) => {
-            const list = document.getElementById('leaderboard-list');
-            if (!list) return;
-            const rowHeight = 65; 
-            
-            if (list.innerHTML === '') {
-                list.style.position = 'relative';
-                list.style.height = `${topFive.length * rowHeight}px`;
-                
-                rows.forEach((res, idx) => {
-                    const el = document.createElement('div');
-                    el.id = `leb-row-${res.id}`;
-                    el.className = `leaderboard-card live-rank-row ${phaseClass}`;
-                    el.style.position = 'absolute';
-                    el.style.left = '0';
-                    el.style.right = '0';
-                    el.style.top = '0';
-                    el.style.margin = '0';
-                    el.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease';
-                    el.style.transform = `translateY(${idx * rowHeight}px)`;
-                    el.innerHTML = `
-                        <div class="text-slate-300 font-bold w-8 rank-num">${idx + 1}</div>
-                        <div class="w-10 h-10 bg-slate-800 flex items-center justify-center text-xl">${res.emoji || '🎯'}</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-white font-semibold truncate">${res.name}</div>
-                            <div class="text-slate-400 text-sm score-text">${formatPoints(res.total)} pts</div>
-                        </div>
-                        ${res.rankRise > 0 ? '<div class="text-emerald-400 font-black">↑</div>' : '<div class="w-3"></div>'}
-                    `;
-                    list.appendChild(el);
-                });
-            } else {
-                rows.forEach((res, idx) => {
-                    const el = document.getElementById(`leb-row-${res.id}`);
-                    if (el) {
-                        el.style.transform = `translateY(${idx * rowHeight}px)`;
-                        el.className = `leaderboard-card live-rank-row ${phaseClass}`;
-                        el.querySelector('.rank-num').textContent = idx + 1;
-                        el.querySelector('.score-text').textContent = `${formatPoints(res.total)} pts`;
-                    }
-                });
-            }
-        };
+        const list = document.getElementById('leaderboard-list');
+        if (list) {
+            list.innerHTML = topFive.map((res, idx) => `
+                <div class="leaderboard-card live-rank-row is-current" data-player-id="${res.id}">
+                    <div class="text-slate-300 font-bold w-8">${idx + 1}</div>
+                    <div class="w-10 h-10 bg-slate-800 flex items-center justify-center text-xl">${res.emoji || '🎯'}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-white font-semibold truncate">${res.name}</div>
+                        <div class="text-slate-400 text-sm">${formatPoints(res.total)} pts</div>
+                    </div>
+                    ${res.rankRise > 0 ? '<div class="text-emerald-400 font-black">↑</div>' : '<div class="w-3"></div>'}
+                </div>
+            `).join('');
 
-        renderLeaderboardRows(previousOrder, 'is-previous');
-        setTimeout(() => renderLeaderboardRows(topFive, 'is-current'), 420);
+            const previousIndexById = new Map(previousOrder.map((res, idx) => [res.id, idx]));
+            const rows = Array.from(list.querySelectorAll('.live-rank-row'));
+            const rowGap = 10;
+            const rowHeight = rows[0] ? rows[0].getBoundingClientRect().height + rowGap : 64;
+
+            rows.forEach((row, nextIndex) => {
+                row.style.transition = 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease';
+                const playerId = row.getAttribute('data-player-id');
+                const prevIndex = previousIndexById.has(playerId) ? previousIndexById.get(playerId) : nextIndex;
+                const deltaY = (prevIndex - nextIndex) * rowHeight;
+                if (deltaY !== 0) {
+                    row.style.transform = `translateY(${deltaY}px)`;
+                }
+            });
+
+            requestAnimationFrame(() => {
+                rows.forEach((row) => {
+                    row.style.transform = 'translateY(0)';
+                });
+            });
+        }
 
         if (state.role === 'host') {
             const nextBtn = document.getElementById('next-question-btn');
@@ -1336,20 +1307,14 @@
 
         playManagedAudio('incoming').catch(() => {});
 
-        setTimeout(() => {
-            const pb = document.getElementById('live-prep-progress');
-            if (pb) {
-                pb.style.transition = `width ${QUESTION_PREP_MS}ms linear`;
-                pb.style.width = '100%';
-            }
-        }, 50);
-
         if (state.role === 'host') {
             let prepRemaining = Math.round(QUESTION_PREP_MS / 1000);
             const paintPrepCountdown = () => {
                 const chip = document.getElementById('host-prep-countdown');
                 if (!chip) return;
-                chip.textContent = `Options in ${prepRemaining}s`;
+                chip.textContent = `${prepRemaining}s to options`;
+                chip.classList.toggle('text-yellow-300', prepRemaining <= 3);
+                chip.classList.toggle('text-slate-100', prepRemaining > 3);
             };
 
             paintPrepCountdown();
