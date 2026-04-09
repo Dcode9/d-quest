@@ -115,6 +115,7 @@
     }
 
     function playAudio(key) {
+        if (state.role === 'player' && key !== 'correct' && key !== 'wrong') return;
         const audio = audioRefs[key];
         if (!audio) return;
         audio.currentTime = 0;
@@ -123,6 +124,7 @@
     }
 
     function playManagedAudio(key) {
+        if (state.role === 'player' && key !== 'correct' && key !== 'wrong') return Promise.resolve();
         const audio = audioRefs[key];
         if (!audio) return Promise.resolve();
 
@@ -174,6 +176,19 @@
     async function fadeOutAnyActiveAudio(durationMs = 2000) {
         if (!activeAudioKey) return;
         await fadeOutAudioKey(activeAudioKey, durationMs);
+    }
+
+    function silencePlayerAmbientAudio() {
+        if (state.role !== 'player') return;
+        ['intro', 'incoming', 'countdown', 'suspense'].forEach((key) => {
+            const audio = audioRefs[key];
+            if (!audio) return;
+            audio.pause();
+            audio.currentTime = 0;
+        });
+        if (activeAudioKey && activeAudioKey !== 'correct' && activeAudioKey !== 'wrong') {
+            activeAudioKey = null;
+        }
     }
 
     function ensureOverlay() {
@@ -454,7 +469,8 @@
                         <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8 question-rise">
                             <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
                         </div>
-                        <div class="text-slate-400 text-sm">Options will open automatically in 10 seconds...</div>
+                        <div id="host-prep-countdown" class="live-chip min-w-28 justify-center">10s to options</div>
+                        <div class="text-slate-400 text-sm">Options open automatically. No click needed.</div>
                     ` : `
                         <div class="kbc-title-frame max-w-3xl w-full p-5 md:p-8 question-rise">
                             <div class="text-4xl md:text-6xl font-black text-white">Q${payload.questionIndex + 1}</div>
@@ -843,6 +859,18 @@
     function handleBroadcast(payload) {
         if (!payload || !payload.type) return;
 
+        if (state.role === 'host' && payload.isResync) {
+            return;
+        }
+
+        if (state.role === 'player' && payload.targetId && payload.targetId !== state.me.id) {
+            return;
+        }
+
+        if (state.role === 'player' && payload.type !== 'answer-reveal') {
+            silencePlayerAmbientAudio();
+        }
+
         if ((payload.type === 'player-joined' || payload.type === 'player-presence') && state.role === 'host') {
             upsertPlayer(payload.player || payload);
 
@@ -850,9 +878,16 @@
                 renderHostLobby();
             }
 
-            // Re-sync only when a new player joins; heartbeat re-sync caused client-side re-renders.
+            // Re-sync only for the newly joined player to avoid re-rendering everyone else.
             if (payload.type === 'player-joined' && state.status !== 'lobby' && state.currentQuestionPayload) {
-                broadcast(state.currentQuestionPayload);
+                const joinedPlayerId = payload.player?.id || payload.id;
+                if (joinedPlayerId) {
+                    broadcast({
+                        ...state.currentQuestionPayload,
+                        targetId: joinedPlayerId,
+                        isResync: true
+                    });
+                }
             }
             return;
         }
@@ -970,6 +1005,28 @@
         renderQuestionOnlyView(questionOnlyPayload);
 
         playManagedAudio('incoming').catch(() => {});
+
+        if (state.role === 'host') {
+            let prepRemaining = 10;
+            const paintPrepCountdown = () => {
+                const chip = document.getElementById('host-prep-countdown');
+                if (!chip) return;
+                chip.textContent = `${prepRemaining}s to options`;
+                chip.classList.toggle('text-yellow-300', prepRemaining <= 3);
+                chip.classList.toggle('text-slate-100', prepRemaining > 3);
+            };
+
+            paintPrepCountdown();
+
+            state.timers.questionTick = setInterval(() => {
+                prepRemaining = Math.max(0, prepRemaining - 1);
+                paintPrepCountdown();
+                if (prepRemaining <= 0 && state.timers.questionTick) {
+                    clearInterval(state.timers.questionTick);
+                    state.timers.questionTick = null;
+                }
+            }, 1000);
+        }
 
         state.timers.phase = setTimeout(() => {
             if (state.role === 'host' && state.status === 'question-only') {
