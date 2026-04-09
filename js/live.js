@@ -11,6 +11,8 @@
         correct: "assets/audio/Correct answer.mp3",
         wrong: "assets/audio/Wrong Ans.mp3"
     };
+    const QUESTION_PREP_MS = 6000;
+    const ANSWER_WINDOW_MS = 30000;
 
     const state = {
         client: null,
@@ -207,6 +209,111 @@
         return document.getElementById('live-overlay-shell');
     }
 
+    function setOverlayMode(mode) {
+        const overlay = document.getElementById('live-overlay');
+        const shell = document.getElementById('live-overlay-shell');
+        if (!overlay || !shell) return;
+
+        const fullscreen = mode === 'fullscreen';
+        overlay.classList.toggle('live-overlay-fullscreen', fullscreen);
+        shell.classList.toggle('live-shell-fullscreen', fullscreen);
+        shell.classList.toggle('max-w-5xl', !fullscreen);
+    }
+
+    function getQuizMetadata() {
+        const metadata = state.quizItem?.content?.metadata || {};
+        return {
+            grade: metadata.grade || state.quizItem?.content?.grade || 'All',
+            difficulty: metadata.difficulty || state.quizItem?.content?.difficulty || 'Mixed',
+            totalQuestions: state.quizItem?.content?.questions?.length || state.currentQuestionPayload?.totalQuestions || 0
+        };
+    }
+
+    function getQuestionTrackerLabel() {
+        const { totalQuestions } = getQuizMetadata();
+        const current = Math.min(totalQuestions || (state.questionIndex + 1), state.questionIndex + 1);
+        return `Question ${current} / ${totalQuestions || '?'}`;
+    }
+
+    function formatPoints(value) {
+        return Number(value || 0).toLocaleString();
+    }
+
+    function renderStageTopbar() {
+        const tracker = getQuestionTrackerLabel();
+
+        if (state.role === 'host') {
+            return `
+                <header class="live-stage-topbar">
+                    <div class="live-stage-topbar-left">
+                        <span class="live-chip">PIN ${state.roomCode || '------'}</span>
+                        <button id="toggle-live-fullscreen" class="live-ghost-btn" title="Toggle fullscreen">
+                            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="live-stage-topbar-center">${tracker}</div>
+                    <div class="live-stage-topbar-right">
+                        <button id="end-live-session-btn" class="live-danger-btn">End Quiz</button>
+                    </div>
+                </header>
+            `;
+        }
+
+        const myScore = state.scores[state.me?.id] || 0;
+        return `
+            <header class="live-stage-topbar">
+                <div class="live-stage-topbar-left">
+                    <div class="live-player-pill">
+                        <span class="text-2xl">${state.me?.emoji || '🎯'}</span>
+                        <span>${state.me?.name || 'Player'}</span>
+                    </div>
+                </div>
+                <div class="live-stage-topbar-center">${tracker}</div>
+                <div class="live-stage-topbar-right">
+                    <span class="live-chip">Points ${formatPoints(myScore)}</span>
+                </div>
+            </header>
+        `;
+    }
+
+    function toggleBrowserFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+            return;
+        }
+        document.exitFullscreen?.().catch(() => {});
+    }
+
+    function wireStageTopbarActions() {
+        const fullscreenBtn = document.getElementById('toggle-live-fullscreen');
+        if (fullscreenBtn) {
+            fullscreenBtn.onclick = () => toggleBrowserFullscreen();
+        }
+
+        const endBtn = document.getElementById('end-live-session-btn');
+        if (endBtn) {
+            endBtn.onclick = () => {
+                const shouldEnd = window.confirm('End the live quiz for everyone?');
+                if (!shouldEnd) return;
+                broadcast({ type: 'end-session' });
+                closeOverlay();
+            };
+        }
+    }
+
+    function renderStageViewport(contentHtml, stageClass = '') {
+        const shell = ensureOverlay();
+        setOverlayMode('fullscreen');
+        shell.innerHTML = `
+            <div class="live-stage-screen ${stageClass}">
+                ${renderStageTopbar()}
+                <main class="live-stage-content">${contentHtml}</main>
+            </div>
+        `;
+        wireStageTopbarActions();
+        if (window.lucide) window.lucide.createIcons();
+    }
+
     function closeOverlay() {
         const overlay = document.getElementById('live-overlay');
         if (overlay) overlay.remove();
@@ -316,76 +423,78 @@
 
     function renderHostLobby() {
         const shell = ensureOverlay();
+        setOverlayMode('modal');
         const participants = getPlayers();
-        const totalQuestions = state.quizItem?.content?.questions?.length || 0;
+        const { totalQuestions, grade, difficulty } = getQuizMetadata();
         const joinLink = `${window.location.origin}${window.location.pathname}?livePin=${state.roomCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinLink)}`;
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 30% 20%, rgba(234, 179, 8, 0.1), transparent 40%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.15), transparent 35%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="live-panel live-host-lobby relative overflow-hidden p-0">
+                <div class="live-host-pane">
+                    <div class="live-host-pane-left">
+                        <div class="live-host-avatar">${state.me.emoji}</div>
                         <div>
-                            <div class="text-slate-400 text-sm uppercase tracking-wide">Live Room PIN</div>
-                            <div class="flex items-center gap-3 mt-1">
-                                <span class="text-4xl font-black text-yellow-400 tracking-[0.2em]">${state.roomCode}</span>
-                                <button id="copy-room" class="px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-200 hover:bg-slate-700 transition-colors border border-slate-700 flex items-center gap-1">
-                                    <i data-lucide="copy" class="w-4 h-4"></i> Copy
-                                </button>
-                            </div>
+                            <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Host Console</div>
+                            <div class="text-2xl font-black text-white">${state.me.name}</div>
+                            <div class="text-slate-400 text-sm">${state.quizItem?.content?.title || 'Quiz Show'}</div>
                         </div>
+                    </div>
+                    <div class="live-host-pane-right">
+                        <div class="live-meta-chip"><span>Questions</span><strong>${totalQuestions}</strong></div>
+                        <div class="live-meta-chip"><span>Grade</span><strong>${grade}</strong></div>
+                        <div class="live-meta-chip"><span>Difficulty</span><strong>${difficulty}</strong></div>
+                        <button id="close-live" class="live-ghost-btn" title="Close">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8">
+                    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
                         <div class="flex items-center gap-3">
-                            <span class="live-chip flex items-center gap-2">
-                                <i data-lucide="radio" class="w-4 h-4"></i>
-                                Hosting ${totalQuestions} Qs
-                            </span>
-                            <button id="close-live" class="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors">
-                                <i data-lucide="x" class="w-5 h-5"></i>
+                            <span class="text-slate-400 text-sm uppercase tracking-wide">Game PIN</span>
+                            <span class="text-3xl font-black text-yellow-400 tracking-[0.18em]">${state.roomCode}</span>
+                            <button id="copy-room" class="live-ghost-btn text-xs">
+                                <i data-lucide="copy" class="w-4 h-4"></i> Copy
                             </button>
                         </div>
-                    </div>
-
-                    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center md:items-start">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500/30 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
-                        <div class="flex-1 w-full">
-                            <div class="text-slate-300 text-sm">Hosting</div>
-                            <div class="text-2xl font-bold">${state.quizItem?.content?.title || 'Quiz'}</div>
-                            <div class="text-slate-400 text-sm mt-1">Share PIN or QR. Players join with nickname + icon.</div>
-                            <div class="mt-3 text-xs text-slate-500 break-all">${joinLink}</div>
-                        </div>
-                        <img src="${qrSrc}" alt="Join QR code" class="w-28 h-28 rounded-xl border border-slate-700 bg-white p-1" />
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+                        <button id="start-live-quiz" class="kbc-button text-black font-bold px-6 py-3 shadow-lg flex items-center gap-2 transition-transform hover:scale-[1.02]">
                             <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>Start Quiz Show</span>
+                            <span data-start-label>Start Live Quiz</span>
+                            <span data-start-spinner class="hidden spin-loader"></span>
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <section class="live-lobby-section">
                             <div class="flex items-center justify-between mb-3">
-                                <div class="text-slate-300 font-semibold flex items-center gap-2">
-                                    <i data-lucide="users" class="w-4 h-4"></i> Participants (${participants.length})
+                                <div class="text-slate-200 font-semibold flex items-center gap-2">
+                                    <i data-lucide="users" class="w-4 h-4"></i>
+                                    Participants (${participants.length})
                                 </div>
-                                <div class="text-xs text-slate-500">Live presence</div>
+                                <span class="text-xs text-slate-500">Hover to remove</span>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="live-participant-list">
-                                ${participants.map(p => renderParticipantChip(p)).join('') || '<div class="text-slate-500 text-sm">Waiting for players to join...</div>'}
+                            <div id="live-participant-list" class="live-participant-scroll">
+                                ${participants.map((p) => renderParticipantChip(p)).join('') || '<div class="text-slate-500 text-sm">No players yet. Share your pin and QR.</div>'}
                             </div>
-                        </div>
-                        <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                            <div class="text-slate-300 font-semibold flex items-center gap-2 mb-3">
-                                <i data-lucide="info" class="w-4 h-4"></i> How it works
+                        </section>
+
+                        <section class="live-lobby-section">
+                            <div class="text-slate-200 font-semibold flex items-center gap-2 mb-3">
+                                <i data-lucide="qr-code" class="w-4 h-4"></i>
+                                How To Join
                             </div>
-                            <ul class="text-slate-400 text-sm space-y-2 list-disc list-inside">
-                                <li>Share the 6-digit room code with players.</li>
-                                <li>Players can join via code from the search bar too.</li>
-                                <li>Sequence: title intro → question only → options.</li>
-                                <li>Reveal when all answer or when you skip.</li>
-                            </ul>
-                        </div>
+                            <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
+                                <ol class="text-slate-300 text-sm space-y-2 list-decimal list-inside">
+                                    <li>Open <strong>quest.dverse.fun</strong> or scan the QR code.</li>
+                                    <li>Tap <strong>Join Live Quiz</strong>.</li>
+                                    <li>Enter PIN <strong>${state.roomCode}</strong> and your nickname.</li>
+                                    <li>Tap <strong>Join Room</strong>.</li>
+                                </ol>
+                                <img src="${qrSrc}" alt="Join QR code" class="w-28 h-28 bg-white p-1 border border-slate-700" />
+                            </div>
+                            <div class="mt-3 text-xs text-slate-500 break-all">${joinLink}</div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -414,9 +523,31 @@
                     if (!proceed) return;
                 }
                 startBtn.disabled = true;
+                const label = startBtn.querySelector('[data-start-label]');
+                const spinner = startBtn.querySelector('[data-start-spinner]');
+                if (label) label.textContent = 'Starting...';
+                if (spinner) spinner.classList.remove('hidden');
                 startLiveSession();
             };
         }
+
+        document.querySelectorAll('[data-kick-player]').forEach((kickBtn) => {
+            kickBtn.onclick = () => {
+                const playerId = kickBtn.getAttribute('data-kick-player');
+                if (!playerId) return;
+                const target = participants.find((p) => p.id === playerId);
+                const shouldKick = window.confirm(`Remove ${target?.name || 'this player'} from the lobby?`);
+                if (!shouldKick) return;
+                delete state.players[playerId];
+                delete state.scores[playerId];
+                broadcast({
+                    type: 'kick-player',
+                    targetId: playerId,
+                    reason: 'Removed by host'
+                });
+                renderHostLobby();
+            };
+        });
 
         if (window.lucide) window.lucide.createIcons();
     }
@@ -424,84 +555,135 @@
     function renderParticipantChip(p) {
         const score = state.scores[p.id] || 0;
         return `
-            <div class="live-participant rounded-xl p-3 flex items-center gap-3">
+            <div class="live-participant p-3 flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${p.emoji || '🎯'}</div>
                 <div class="flex-1 min-w-0">
                     <div class="text-white font-semibold truncate">${p.name || 'Player'}</div>
                     <div class="text-xs text-slate-500">Score: ${score}</div>
                 </div>
+                <button data-kick-player="${p.id}" class="live-kick-btn" title="Remove player">
+                    <i data-lucide="user-minus" class="w-4 h-4"></i>
+                </button>
             </div>
         `;
     }
 
     function renderTitleIntro(payload) {
-        const shell = ensureOverlay();
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-8 md:p-12 relative overflow-hidden text-center">
-                <div class="relative flex flex-col items-center gap-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Quiz Show Starting</div>
-                    <div class="kbc-title-frame mx-auto max-w-4xl w-full p-6 md:p-8">
-                        <h2 class="text-2xl md:text-4xl font-black text-yellow-300">${payload.title}</h2>
-                    </div>
-                    <div class="live-chip">Question ${payload.questionIndex + 1} of ${payload.totalQuestions}</div>
-                    <div class="text-slate-400 text-sm">Get ready...</div>
-                    ${state.role === 'host' ? `
-                        <button id="title-next-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg mt-2">
-                            ${activeAudioKey === 'intro' ? 'Skip Intro' : 'Next'}
-                        </button>
-                    ` : ''}
+        const isHost = state.role === 'host';
+        renderStageViewport(`
+            <section class="live-title-stage">
+                <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Welcome To The Live Quiz</div>
+                <div class="kbc-title-frame mx-auto max-w-5xl w-full p-6 md:p-10 mt-4">
+                    <h2 class="text-2xl md:text-5xl font-black text-yellow-300 text-center">${payload.title}</h2>
                 </div>
-            </div>
-        `;
+                <p class="text-slate-300 mt-4 text-lg">Get ready for Question ${payload.questionIndex + 1}.</p>
+                ${isHost ? `
+                    <div class="live-bottom-actions">
+                        <button id="title-next-btn" class="kbc-button text-black font-bold px-7 py-3 shadow-lg">Start!</button>
+                    </div>
+                ` : '<p class="text-slate-400 mt-6">Your host is about to begin. Stay ready.</p>'}
+            </section>
+        `, 'stage-title');
 
-        if (state.role === 'host') {
+        if (isHost) {
             const nextBtn = document.getElementById('title-next-btn');
             if (nextBtn) nextBtn.onclick = () => handleTitleNext();
         }
     }
 
     function renderQuestionOnlyView(payload) {
-        const shell = ensureOverlay();
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="relative flex flex-col gap-6 items-center text-center">
-                    <div class="live-chip">Question ${payload.questionIndex + 1}</div>
-                    ${state.role === 'host' ? `
-                        <div class="kbc-title-frame max-w-5xl w-full p-5 md:p-8 question-rise">
-                            <div class="text-2xl md:text-4xl font-black text-white leading-tight">${payload.question}</div>
-                        </div>
-                        <div id="host-prep-countdown" class="live-chip min-w-28 justify-center">10s to options</div>
-                        <div class="text-slate-400 text-sm">Options open automatically. No click needed.</div>
-                    ` : `
-                        <div class="kbc-title-frame max-w-3xl w-full p-5 md:p-8 question-rise">
-                            <div class="text-4xl md:text-6xl font-black text-white">Q${payload.questionIndex + 1}</div>
-                        </div>
-                        <div class="text-slate-400 text-sm">Waiting for options...</div>
-                    `}
-                </div>
+        const isHost = state.role === 'host';
+        renderStageViewport(`
+            <section class="live-question-only-stage">
+                ${isHost ? `
+                    <div class="kbc-title-frame max-w-5xl w-full p-6 md:p-9 live-question-focus">
+                        <div class="text-2xl md:text-5xl font-black text-white leading-tight text-center">${payload.question}</div>
+                    </div>
+                    <div id="host-prep-countdown" class="live-chip mt-5 min-w-28 justify-center">6s to options</div>
+                    <p class="text-slate-300 text-sm mt-3">Options will open automatically.</p>
+                ` : `
+                    <div class="kbc-title-frame max-w-4xl w-full p-6 md:p-9 live-question-focus">
+                        <div class="text-4xl md:text-6xl font-black text-white text-center">Q${payload.questionIndex + 1}</div>
+                    </div>
+                    <p class="text-slate-300 text-sm mt-5">Watch the host screen. Options are opening now.</p>
+                `}
+            </section>
+        `, 'stage-question-only');
+    }
+
+    function renderLiveOptionRow(question, startIdx, interactive = false) {
+        const options = [startIdx, startIdx + 1]
+            .filter((idx) => idx < question.options.length)
+            .map((idx) => {
+                const label = String.fromCharCode(65 + idx);
+                if (interactive) {
+                    return `
+                        <button data-idx="${idx}" id="live-option-${idx}" class="live-option-btn kbc-option-frame live-option-tile px-4 py-5 text-left text-slate-100 flex gap-3 items-center" type="button">
+                            <span class="text-yellow-300 font-black text-xl md:text-2xl">${label}</span>
+                            <span class="font-semibold text-sm md:text-lg">${question.options[idx]}</span>
+                        </button>
+                    `;
+                }
+                return `
+                    <div id="live-option-${idx}" data-host-option="${idx}" class="live-option-btn kbc-option-frame live-option-tile px-4 py-5 text-left text-slate-100 flex gap-3 items-center">
+                        <span class="text-yellow-300 font-black text-xl md:text-2xl">${label}</span>
+                        <span class="font-semibold text-sm md:text-lg">${question.options[idx]}</span>
+                    </div>
+                `;
+            })
+            .join('');
+
+        return `
+            <div class="live-option-row" id="live-option-row-${startIdx}">
+                <img src="assets/images/line.svg" alt="" class="live-option-row-line" />
+                <div class="live-option-grid">${options}</div>
             </div>
         `;
     }
 
+    function startQuestionRevealAnimation() {
+        const questionFrame = document.getElementById('live-focus-question');
+        if (!questionFrame) return;
+
+        setTimeout(() => {
+            questionFrame.classList.add('is-lifted');
+            document.querySelectorAll('.live-option-row').forEach((row, idx) => {
+                setTimeout(() => row.classList.add('is-visible'), 140 * idx);
+            });
+        }, 2000);
+    }
+
     function renderPlayerQuestionView(payload) {
-        const shell = ensureOverlay();
         state.status = 'answering';
         cleanupTimers();
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-4 md:p-6 relative overflow-hidden min-h-[75vh] flex flex-col">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1" id="live-options">
-                    ${payload.options.map((opt, idx) => `
-                        <button data-idx="${idx}" class="live-option-btn kbc-option-frame option-fly-in rounded-xl px-4 py-8 md:py-10 text-center text-slate-100 flex items-center justify-center" style="animation-delay:${idx * 80}ms">
-                            <span class="text-yellow-300 font-black text-4xl md:text-5xl">${String.fromCharCode(65 + idx)}</span>
-                        </button>
-                    `).join('')}
-                </div>
-                <div class="text-slate-400 text-xs mt-3 text-center">Select A / B / C / D</div>
-                    </div>
-        `;
-        if (window.lucide) window.lucide.createIcons();
+        const question = {
+            question: payload.question,
+            options: payload.options
+        };
 
-        const optionButtons = Array.from(document.querySelectorAll('#live-options button'));
+        renderStageViewport(`
+            <section class="live-question-stage-wrap">
+                <div class="live-timer-wrap">
+                    <div class="live-timer-box">
+                        <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
+                        <span id="live-timer-text" class="live-timer-text">30</span>
+                    </div>
+                </div>
+                <div class="kbc-title-frame live-focus-question" id="live-focus-question">
+                    <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
+                </div>
+                <div class="live-options-stage" id="live-options">
+                    ${renderLiveOptionRow(question, 0, true)}
+                    ${renderLiveOptionRow(question, 2, true)}
+                </div>
+                <p class="text-slate-300 text-xs md:text-sm mt-3 text-center">Choose your answer before time runs out.</p>
+            </section>
+        `, 'stage-question-player');
+
+        startQuestionRevealAnimation();
+        startPlayerCountdown(payload.startAt);
+
+        const optionButtons = Array.from(document.querySelectorAll('#live-options button[data-idx]'));
         optionButtons.forEach(btn => {
             btn.onclick = () => {
                 if (state.status !== 'answering') return;
@@ -514,90 +696,85 @@
     }
 
     function renderHostQuestionView(question) {
-        const shell = ensureOverlay();
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-40" style="background: radial-gradient(circle at 25% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 75% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">Question ${state.questionIndex + 1} / ${state.quizItem.content.questions.length}</div>
-                            <div class="kbc-title-frame max-w-4xl mt-2 p-4 md:p-6">
-                                <div class="text-xl md:text-2xl font-bold text-white">${question.question}</div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div id="host-countdown" class="live-chip min-w-24 justify-center">30s left</div>
-                            <button id="end-question-btn" class="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors">
-                                Skip & Reveal
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        ${question.options.map((opt, idx) => `
-                            <div class="live-option-btn kbc-option-frame option-fly-in rounded-xl px-4 py-4 text-left text-slate-100 flex gap-3 items-center" style="animation-delay:${idx * 80}ms">
-                                <span class="text-yellow-400 font-black">${String.fromCharCode(65 + idx)}</span>
-                                <span class="font-semibold">${opt}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-
-                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-400">
-                        Host cannot select answers. Use Skip when needed or wait for timeout.
+        renderStageViewport(`
+            <section class="live-question-stage-wrap">
+                <div class="live-timer-wrap">
+                    <div class="live-timer-box">
+                        <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
+                        <span id="live-timer-text" class="live-timer-text">30</span>
                     </div>
                 </div>
-            </div>
-        `;
+                <div class="kbc-title-frame live-focus-question" id="live-focus-question">
+                    <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
+                </div>
+                <div class="live-options-stage">
+                    ${renderLiveOptionRow(question, 0, false)}
+                    ${renderLiveOptionRow(question, 2, false)}
+                </div>
+                <div class="live-bottom-actions">
+                    <button id="end-question-btn" class="live-warning-btn">Skip & Reveal</button>
+                </div>
+            </section>
+        `, 'stage-question-host');
+
+        startQuestionRevealAnimation();
 
         const endBtn = document.getElementById('end-question-btn');
         if (endBtn) endBtn.onclick = () => finishQuestion(true);
-        if (window.lucide) window.lucide.createIcons();
     }
 
     function renderLeaderboard(results, correctIndex, isFinal = false) {
-        const shell = ensureOverlay();
-        const sorted = [...results].sort((a, b) => b.total - a.total);
+        const sorted = [...results]
+            .sort((a, b) => (a.rank || 999) - (b.rank || 999) || b.total - a.total);
         const topThree = sorted.slice(0, 3);
         const topFive = sorted.slice(0, 5);
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                <div class="absolute inset-0 pointer-events-none opacity-30" style="background: radial-gradient(circle at 20% 20%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.18), transparent 40%);"></div>
-                <div class="relative flex flex-col gap-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-xs uppercase tracking-wide text-slate-400">${isFinal ? 'Grand Finale' : 'Leaderboard'}</div>
-                            <div class="text-2xl font-bold text-white">${isFinal ? 'Final Standings' : 'After Question ' + (state.questionIndex + 1)}</div>
-                        </div>
-                        <div class="live-chip">Top 5</div>
-                    </div>
+        const previousOrder = [...topFive]
+            .sort((a, b) => (a.prevRank || a.rank || 999) - (b.prevRank || b.rank || 999));
 
-                    ${topThree.length ? renderPodium(topThree) : '<div class="text-slate-400">No answers yet.</div>'}
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto" id="leaderboard-list">
-                        ${topFive.map((res, idx) => `
-                            <div class="leaderboard-card rounded-xl p-3 flex items-center gap-3 ${res.id === state.me.id ? 'border-yellow-400/60' : 'border-transparent'}">
-                                <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${res.emoji || '🎯'}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-white font-semibold truncate">${idx + 1}. ${res.name}</div>
-                                    <div class="text-xs text-slate-500">+${res.delta} • Total ${res.total} ${res.distanceAhead != null ? `• ${res.distanceAhead} behind above` : ''}</div>
-                                </div>
-                                ${res.rankRise > 0 ? '<div class="text-emerald-400 text-xs font-bold">↑</div>' : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-
-                    ${state.role === 'host' && !isFinal ? `
-                        <div class="flex justify-end gap-3">
-                            <button id="next-question-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-4 h-4"></i>
-                                <span>${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'Finish Quiz' : 'Next Question'}</span>
-                            </button>
-                        </div>
-                    ` : ''}
+        renderStageViewport(`
+            <section class="live-leaderboard-stage">
+                <div class="text-xs uppercase tracking-[0.2em] text-slate-400">${isFinal ? 'Final Board' : 'Leaderboard'}</div>
+                <h2 class="text-2xl md:text-4xl font-black text-white mt-2">${isFinal ? 'Final Standings' : `After Question ${state.questionIndex + 1}`}</h2>
+                <div class="live-top3-grid mt-5">
+                    ${topThree.map((res, idx) => `
+                        <article class="live-top3-card ${idx === 0 ? 'is-winner' : ''}">
+                            <div class="text-2xl">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
+                            <div class="text-2xl">${res.emoji || '🎯'}</div>
+                            <div class="text-lg font-black text-white truncate">${res.name}</div>
+                            <div class="text-slate-300 text-sm">${formatPoints(res.total)} pts</div>
+                        </article>
+                    `).join('')}
                 </div>
-            </div>
-        `;
+                <div id="leaderboard-list" class="live-leaderboard-list mt-5"></div>
+                ${state.role === 'host' && !isFinal ? `
+                    <div class="live-bottom-actions">
+                        <button id="next-question-btn" class="kbc-button text-black font-bold px-6 py-3 shadow-lg flex items-center gap-2">
+                            <i data-lucide="${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'flag' : 'skip-forward'}" class="w-4 h-4"></i>
+                            <span>${state.questionIndex + 1 >= state.quizItem.content.questions.length ? 'Finish Quiz' : 'Next Question'}</span>
+                        </button>
+                    </div>
+                ` : ''}
+            </section>
+        `, 'stage-leaderboard');
+
+        const renderLeaderboardRows = (rows, phaseClass) => {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+            list.innerHTML = rows.map((res, idx) => `
+                <div class="leaderboard-card live-rank-row ${phaseClass}">
+                    <div class="text-slate-300 font-bold w-8">${idx + 1}</div>
+                    <div class="w-10 h-10 bg-slate-800 flex items-center justify-center text-xl">${res.emoji || '🎯'}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-white font-semibold truncate">${res.name}</div>
+                        <div class="text-slate-400 text-sm">${formatPoints(res.total)} pts</div>
+                    </div>
+                    ${res.rankRise > 0 ? '<div class="text-emerald-400 font-black">↑</div>' : '<div class="w-3"></div>'}
+                </div>
+            `).join('');
+        };
+
+        renderLeaderboardRows(previousOrder, 'is-previous');
+        setTimeout(() => renderLeaderboardRows(topFive, 'is-current'), 420);
 
         if (state.role === 'host') {
             const nextBtn = document.getElementById('next-question-btn');
@@ -611,65 +788,92 @@
                 }
             };
         }
-
-        if (window.lucide) window.lucide.createIcons();
     }
 
     function renderPodium(entries) {
-        const places = ['🥉', '🥈', '🥇'];
+        const places = ['🥇', '🥈', '🥉'];
         return `
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 ${entries.map((res, idx) => `
-                    <div class="podium-card rounded-2xl p-4 text-center ${idx === 2 ? 'podium-winner' : ''}" style="animation-delay:${idx * 0.1}s">
+                    <div class="podium-card rounded-2xl p-4 text-center ${idx === 0 ? 'podium-winner' : ''}" style="animation-delay:${idx * 0.1}s">
                         <div class="text-3xl">${places[idx] || ''}</div>
                         <div class="text-2xl font-bold text-white mt-1">${res.name}</div>
                         <div class="text-xl">${res.emoji || '🎯'}</div>
                         <div class="text-sm text-slate-300 mt-2">Score ${res.total}</div>
                     </div>
-                `).reverse().join('')}
+                `).join('')}
             </div>
         `;
     }
 
     function renderAnswerReveal(payload) {
-        const shell = ensureOverlay();
         const mine = payload.results.find((r) => r.id === state.me.id);
 
         if (state.role === 'host') {
-            const q = state.quizItem.content.questions[state.questionIndex];
-            shell.innerHTML = `
-                <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
-                    <div class="relative flex flex-col gap-5">
-                        <div class="text-lg text-slate-300">Correct answer revealed</div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            ${q.options.map((opt, idx) => `
-                                <div class="kbc-option-frame ${idx === payload.correctIndex ? 'is-correct' : ''} rounded-xl px-4 py-4 text-white font-semibold">
-                                    <span class="text-yellow-300 mr-2">${String.fromCharCode(65 + idx)}</span>${opt}
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="flex justify-end">
-                            <button id="to-leaderboard-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">Next: Leaderboard</button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const optionEls = Array.from(document.querySelectorAll('[data-host-option]'));
+            if (optionEls.length) {
+                optionEls.forEach((el) => {
+                    el.classList.remove('is-correct');
+                    const idx = Number.parseInt(el.getAttribute('data-host-option'), 10);
+                    if (!Number.isNaN(idx) && idx === payload.correctIndex) {
+                        el.classList.add('is-correct', 'live-correct-flash');
+                    }
+                });
 
+                const bottomActions = document.querySelector('.live-bottom-actions');
+                if (bottomActions) {
+                    bottomActions.innerHTML = `
+                        <button id="to-leaderboard-btn" class="kbc-button text-black font-bold px-6 py-3 shadow-lg">Next: Leaderboard</button>
+                    `;
+                }
+
+                const skipBtn = document.getElementById('end-question-btn');
+                if (skipBtn) skipBtn.remove();
+
+                const toLeaderboardBtnInline = document.getElementById('to-leaderboard-btn');
+                if (toLeaderboardBtnInline) {
+                    toLeaderboardBtnInline.onclick = () => showLeaderboardStage();
+                }
+                return;
+            }
+
+            const q = state.quizItem.content.questions[state.questionIndex];
+            renderStageViewport(`
+                <section class="live-answer-reveal-stage">
+                    <h3 class="text-2xl font-black text-white text-center">Correct answer revealed</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+                        ${q.options.map((opt, idx) => `
+                            <div class="kbc-option-frame ${idx === payload.correctIndex ? 'is-correct' : ''} px-4 py-4 text-white font-semibold">
+                                <span class="text-yellow-300 mr-2">${String.fromCharCode(65 + idx)}</span>${opt}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="live-bottom-actions">
+                        <button id="to-leaderboard-btn" class="kbc-button text-black font-bold px-6 py-3 shadow-lg">Next: Leaderboard</button>
+                    </div>
+                </section>
+            `, 'stage-answer-reveal');
             const btn = document.getElementById('to-leaderboard-btn');
             if (btn) btn.onclick = () => showLeaderboardStage();
             return;
         }
 
+        if (mine) {
+            state.scores[state.me.id] = mine.total;
+        }
+
+        const noAnswer = !mine || mine.choice === undefined || mine.choice === null;
         const gained = mine?.delta || 0;
-        shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden min-h-[60vh] flex items-center justify-center">
+        renderStageViewport(`
+            <section class="live-player-result-stage">
                 <div class="text-center">
-                    <div class="text-7xl mb-4">${mine?.isCorrect ? '✅' : '❌'}</div>
-                    <div class="text-3xl font-black text-white mb-2">${mine?.isCorrect ? 'Correct!' : 'Wrong'}</div>
-                    <div class="text-slate-300">+${gained} points</div>
+                    <div class="text-7xl mb-4">${noAnswer ? '⏰' : mine?.isCorrect ? '✅' : '❌'}</div>
+                    <div class="text-3xl md:text-4xl font-black text-white mb-2">${noAnswer ? 'Time Up' : mine?.isCorrect ? 'Correct!' : 'Wrong Answer'}</div>
+                    <div class="text-slate-300 text-lg">${noAnswer ? 'No answer locked this round.' : `+${gained} points`}</div>
+                    <div class="text-slate-400 mt-3">Next question is coming soon.</div>
                 </div>
-            </div>
-        `;
+            </section>
+        `, 'stage-player-result');
     }
 
     function computeRankMeta(sortedResults) {
@@ -682,6 +886,7 @@
             return {
                 ...res,
                 rank,
+                prevRank,
                 rankRise,
                 distanceAhead
             };
@@ -697,7 +902,6 @@
     }
 
     function renderFinaleSpotlight(results) {
-        const shell = ensureOverlay();
         const topThree = [...results].sort((a, b) => b.total - a.total).slice(0, 3);
         const revealOrder = [2, 1, 0].filter((index) => topThree[index]);
 
@@ -707,25 +911,25 @@
             const contestant = topThree[idx];
             const title = idx === 2 ? 'Third Place' : idx === 1 ? 'Second Place' : 'Champion';
 
-            shell.innerHTML = `
-                <div class="live-panel rounded-3xl p-8 md:p-12 text-center">
+            renderStageViewport(`
+                <section class="text-center w-full max-w-3xl">
                     <div class="text-slate-400 uppercase tracking-[0.2em] text-xs mb-4">Grand Finale</div>
                     <div class="text-3xl md:text-5xl font-black text-yellow-300 mb-6">${title}</div>
-                    <div class="podium-card max-w-xl mx-auto rounded-2xl p-6 md:p-8">
+                    <div class="podium-card max-w-xl mx-auto p-6 md:p-8">
                         <div class="text-6xl mb-2">${contestant?.emoji || '🏆'}</div>
                         <div class="text-3xl font-black text-white">${contestant?.name || ''}</div>
                         <div class="text-slate-300 mt-2">${contestant?.total || 0} pts</div>
                     </div>
-                </div>
-            `;
+                </section>
+            `, 'stage-finale');
 
             step += 1;
             if (step < revealOrder.length) {
                 state.timers.finale = setTimeout(reveal, 2200);
             } else {
                 state.timers.finale = setTimeout(() => {
-                    shell.innerHTML = `
-                        <div class="live-panel rounded-3xl p-8 md:p-12 text-center">
+                    renderStageViewport(`
+                        <section class="text-center w-full max-w-4xl">
                             <div class="text-slate-400 uppercase tracking-[0.2em] text-xs mb-4">Final Rankings</div>
                             ${renderPodium(topThree)}
                             <div class="mt-6">
@@ -733,8 +937,8 @@
                                     ? '<button id="end-quiz-btn" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg">End Quiz</button>'
                                     : '<div class="text-slate-300">Waiting for host to end quiz...</div>'}
                             </div>
-                        </div>
-                    `;
+                        </section>
+                    `, 'stage-finale-final');
 
                     if (state.role === 'host') {
                         const endBtn = document.getElementById('end-quiz-btn');
@@ -759,6 +963,7 @@
         state.roomCode = String(Math.floor(100000 + Math.random() * 900000));
         state.questionIndex = 0;
         state.scores = {};
+        state.prevRanks = {};
         state.players = {};
         state.answers = {};
         state.expectedAnswerPlayerIds = {};
@@ -894,12 +1099,21 @@
             return;
         }
 
+        if (payload.type === 'kick-player' && state.role === 'player') {
+            alert(payload.reason || 'Host removed you from this room.');
+            closeOverlay();
+            return;
+        }
+
         if (payload.type === 'room-info' && state.role === 'player') {
             state.quizMeta = payload;
             if (state.status === 'waiting') renderWaitingRoom();
         }
         if (payload.type === 'quiz-title') {
             state.currentQuestionPayload = payload;
+            if (typeof payload.questionIndex === 'number') {
+                state.questionIndex = payload.questionIndex;
+            }
             state.status = 'title';
             renderTitleIntro(payload);
         }
@@ -912,6 +1126,9 @@
             if (isDuplicateQuestionOnly) return;
 
             state.currentQuestionPayload = payload;
+            if (typeof payload.questionIndex === 'number') {
+                state.questionIndex = payload.questionIndex;
+            }
             state.status = 'question-only';
             renderQuestionOnlyView(payload);
         }
@@ -942,7 +1159,10 @@
             renderAnswerReveal(payload);
             if (state.role === 'player') {
                 const mine = payload.results.find((r) => r.id === state.me.id);
-                if (mine) playAudio(mine.isCorrect ? 'correct' : 'wrong');
+                if (mine) {
+                    state.scores[state.me.id] = mine.total;
+                    playAudio(mine.isCorrect ? 'correct' : 'wrong');
+                }
             }
         }
         if (payload.type === 'leaderboard') {
@@ -1011,7 +1231,7 @@
         playManagedAudio('incoming').catch(() => {});
 
         if (state.role === 'host') {
-            let prepRemaining = 10;
+            let prepRemaining = Math.round(QUESTION_PREP_MS / 1000);
             const paintPrepCountdown = () => {
                 const chip = document.getElementById('host-prep-countdown');
                 if (!chip) return;
@@ -1036,7 +1256,7 @@
             if (state.role === 'host' && state.status === 'question-only') {
                 openOptionsForCurrentQuestion();
             }
-        }, 10000);
+        }, QUESTION_PREP_MS);
 
         state.answers[state.questionIndex] = {};
         state.expectedAnswerPlayerIds[state.questionIndex] = [];
@@ -1080,13 +1300,13 @@
         if (state.timers.question) clearTimeout(state.timers.question);
         if (state.timers.questionTick) clearInterval(state.timers.questionTick);
 
-        let remaining = 30;
+        let remaining = Math.round(ANSWER_WINDOW_MS / 1000);
         const paintCountdown = () => {
-            const chip = document.getElementById('host-countdown');
-            if (!chip) return;
-            chip.textContent = `${remaining}s left`;
-            chip.classList.toggle('text-yellow-300', remaining <= 10);
-            chip.classList.toggle('text-slate-100', remaining > 10);
+            const timerText = document.getElementById('live-timer-text');
+            if (!timerText) return;
+            timerText.textContent = String(remaining);
+            timerText.classList.toggle('text-red-400', remaining <= 5);
+            timerText.classList.toggle('text-white', remaining > 5);
         };
 
         paintCountdown();
@@ -1102,11 +1322,70 @@
 
         state.timers.question = setTimeout(() => {
             finishQuestion(false);
-        }, 30000);
+        }, ANSWER_WINDOW_MS);
+    }
+
+    function startPlayerCountdown(startAt) {
+        if (state.timers.questionTick) clearInterval(state.timers.questionTick);
+
+        const elapsed = Math.max(0, Date.now() - (startAt || Date.now()));
+        let remaining = Math.max(0, Math.ceil((ANSWER_WINDOW_MS - elapsed) / 1000));
+        const paintCountdown = () => {
+            const timerText = document.getElementById('live-timer-text');
+            if (!timerText) return;
+            timerText.textContent = String(remaining);
+            timerText.classList.toggle('text-red-400', remaining <= 5);
+            timerText.classList.toggle('text-white', remaining > 5);
+        };
+
+        paintCountdown();
+
+        state.timers.questionTick = setInterval(() => {
+            remaining = Math.max(0, remaining - 1);
+            paintCountdown();
+
+            if (remaining <= 0) {
+                clearInterval(state.timers.questionTick);
+                state.timers.questionTick = null;
+                if (state.role === 'player' && state.status === 'answering') {
+                    state.status = 'locked';
+                    showPlayerTimeUpState();
+                }
+            }
+        }, 1000);
+    }
+
+    function showPlayerTimeUpState() {
+        document.querySelectorAll('#live-options button[data-idx]').forEach((btn) => {
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+        });
+
+        const existing = document.getElementById('player-timeup-overlay');
+        if (existing) return;
+
+        const optionsStage = document.querySelector('.live-options-stage');
+        if (!optionsStage) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'player-timeup-overlay';
+        overlay.className = 'live-timeup-overlay';
+        overlay.innerHTML = `
+            <div class="live-timeup-card">
+                <div class="text-4xl">⏰</div>
+                <div class="text-xl font-black text-white mt-2">Time Up</div>
+                <div class="text-slate-300 text-sm mt-1">No worries, wait for the reveal.</div>
+            </div>
+        `;
+        optionsStage.appendChild(overlay);
     }
 
     function sendAnswer(choice, questionPayload) {
         state.status = 'locked';
+        if (state.timers.questionTick) {
+            clearInterval(state.timers.questionTick);
+            state.timers.questionTick = null;
+        }
         const elapsed = Date.now() - (questionPayload.startAt || Date.now());
         broadcast({
             type: 'answer',
@@ -1225,53 +1504,54 @@
 
     function openJoinDialog(prefill = '') {
         const shell = ensureOverlay();
+        setOverlayMode('modal');
         state.role = 'player';
         state.status = 'join';
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+            <div class="live-panel p-6 md:p-8 relative overflow-hidden">
                 <div class="absolute inset-0 pointer-events-none opacity-25" style="background: radial-gradient(circle at 10% 15%, rgba(234, 179, 8, 0.15), transparent 45%), radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.2), transparent 35%);"></div>
-                <div class="relative grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div class="text-slate-300 text-sm uppercase tracking-wide">Join Live Room</div>
-                        <div class="text-3xl font-extrabold text-white">Enter the 6-digit code</div>
-                        <div class="text-slate-400 text-sm">Pick a fun name and emoji—your avatar on the leaderboard.</div>
+                <div class="relative max-w-2xl mx-auto space-y-5 text-center">
+                    <div class="text-slate-300 text-sm uppercase tracking-wide">Join Live Room</div>
+                    <div class="text-3xl md:text-4xl font-extrabold text-white">Enter PIN and your nickname</div>
+                    <div class="text-slate-400 text-sm">Pick your avatar and jump into the game.</div>
+
+                    <div class="flex items-center justify-center gap-3">
+                        <div id="live-preview-emoji" class="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
+                        <div class="text-left">
+                            <div class="text-slate-300 text-sm">You</div>
+                            <div class="text-xl font-bold text-white" id="live-preview-name">${state.me.name}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
                         <div class="space-y-2">
                             <label class="text-slate-400 text-sm">Room Code</label>
-                            <input id="join-code" maxlength="6" value="${prefill || ''}" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="123456" />
+                            <input id="join-code" maxlength="6" value="${prefill || ''}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="123456" />
                         </div>
                         <div class="space-y-2">
                             <label class="text-slate-400 text-sm">Display Name</label>
-                            <input id="join-name" value="${state.me.name || ''}" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="Player One" />
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-slate-400 text-sm">Pick an emoji</label>
-                            <div class="grid grid-cols-6 gap-2 emoji-picker">
-                                ${DEFAULT_EMOJIS.map(em => `
-                                    <button data-emoji="${em}" class="rounded-xl bg-slate-900 px-2 py-2 ${state.me.emoji === em ? 'border-yellow-400' : ''}">
-                                        <span class="text-2xl">${em}</span>
-                                    </button>
-                                `).join('')}
-                            </div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button id="submit-join" class="kbc-button text-black font-bold px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
-                                <i data-lucide="log-in" class="w-4 h-4"></i>
-                                Join Room
-                            </button>
-                            <button id="cancel-join" class="px-4 py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
+                            <input id="join-name" value="${state.me.name || ''}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="Player One" />
                         </div>
                     </div>
-                    <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 space-y-3">
-                        <div class="flex items-center gap-3">
-                            <div id="live-preview-emoji" class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
-                            <div>
-                                <div class="text-slate-300 text-sm">You</div>
-                                <div class="text-xl font-bold text-white" id="live-preview-name">${state.me.name}</div>
-                            </div>
+
+                    <div class="space-y-2 text-left">
+                        <label class="text-slate-400 text-sm">Pick an emoji</label>
+                        <div class="grid grid-cols-6 gap-2 emoji-picker">
+                            ${DEFAULT_EMOJIS.map(em => `
+                                <button data-emoji="${em}" class="bg-slate-900 px-2 py-2 ${state.me.emoji === em ? 'border-yellow-400' : ''}">
+                                    <span class="text-2xl">${em}</span>
+                                </button>
+                            `).join('')}
                         </div>
-                        <div class="text-slate-400 text-sm leading-relaxed">
-                            Wait on the lobby screen until the host starts. You'll hear sounds for correct and wrong answers, and see the leaderboard after each round.
-                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-3 pt-2">
+                        <button id="submit-join" class="kbc-button text-black font-bold px-7 py-3 shadow-lg flex items-center gap-2 transition-transform hover:scale-[1.02]">
+                            <i data-lucide="log-in" class="w-4 h-4"></i>
+                            <span data-join-label>Join Room</span>
+                            <span data-join-spinner class="hidden spin-loader"></span>
+                        </button>
+                        <button id="cancel-join" class="px-4 py-3 border border-slate-700 text-slate-300 hover:bg-slate-800">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -1301,7 +1581,7 @@
 
         const submit = document.getElementById('submit-join');
         if (submit) {
-            submit.onclick = () => {
+            submit.onclick = async () => {
                 const code = document.getElementById('join-code').value.trim();
                 const name = document.getElementById('join-name').value.trim() || 'Player';
                 updateIdentity({ name });
@@ -1309,7 +1589,13 @@
                     alert('Enter a 6-digit code');
                     return;
                 }
-                joinAsPlayer(code);
+
+                submit.disabled = true;
+                const label = submit.querySelector('[data-join-label]');
+                const spinner = submit.querySelector('[data-join-spinner]');
+                if (label) label.textContent = 'Joining...';
+                if (spinner) spinner.classList.remove('hidden');
+                await joinAsPlayer(code);
             };
         }
 
@@ -1321,8 +1607,10 @@
         state.role = 'player';
         state.status = 'waiting';
         state.scores = {};
+        state.prevRanks = {};
         state.players = {};
         state.answers = {};
+        state.expectedAnswerPlayerIds = {};
         state.currentQuestionPayload = null;
         state.pendingResults = null;
         state.introStarted = false;
@@ -1339,24 +1627,24 @@
 
     function renderWaitingRoom() {
         const shell = ensureOverlay();
+        setOverlayMode('modal');
         shell.innerHTML = `
-            <div class="live-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+            <div class="live-panel p-6 md:p-8 relative overflow-hidden">
                 <div class="absolute inset-0 pointer-events-none opacity-20" style="background: radial-gradient(circle at 15% 15%, rgba(234, 179, 8, 0.12), transparent 45%), radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.16), transparent 35%);"></div>
                 <div class="relative flex flex-col gap-6 items-center text-center">
                     <div class="live-chip flex items-center gap-2">
                         <i data-lucide="radio" class="w-4 h-4"></i>
                         Room ${state.roomCode}
                     </div>
-                    <div class="text-3xl md:text-4xl font-extrabold text-white">You're in! See your nickname on the screen?</div>
-                    <div class="text-slate-400">Stay ready. The host will launch the show in moments.</div>
-                    <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3">
+                    <div class="text-3xl md:text-4xl font-extrabold text-white">You are in. Wait for your host to start.</div>
+                    <div class="text-slate-400">Keep this screen open and get ready to answer fast.</div>
+                    <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800 px-4 py-3">
                         <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">${state.me.emoji}</div>
                         <div class="text-left">
                             <div class="text-sm text-slate-400">You</div>
                             <div class="text-lg font-semibold text-white">${state.me.name}</div>
                         </div>
                     </div>
-                    <div class="text-xs text-slate-500">Host: ${state.quizMeta?.title || '...'} • ${state.quizMeta?.totalQuestions || '?'} questions</div>
                 </div>
             </div>
         `;
