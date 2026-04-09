@@ -591,16 +591,35 @@
         }
     }
 
+    function getQuestionTextSizeClass(questionText) {
+        const length = (questionText || '').trim().length;
+        if (length > 190) return 'is-long';
+        if (length > 120) return 'is-medium';
+        return 'is-short';
+    }
+
     function renderQuestionOnlyView(payload) {
         const isHost = state.role === 'host';
-        const knownOptions = state.quizItem?.content?.questions?.[payload.questionIndex]?.options;
-        const prepOptions = Array.isArray(knownOptions) && knownOptions.length
-            ? knownOptions
-            : ['...', '...', '...', '...'];
+
+        if (!isHost) {
+            renderStageViewport(`
+                <section class="live-player-pending-stage">
+                    <div class="live-chip inline-flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        Get Ready
+                    </div>
+                    <p class="text-slate-300 text-sm md:text-base mt-4">Options are about to open.</p>
+                </section>
+            `, 'stage-question-only');
+            if (window.lucide) window.lucide.createIcons();
+            return;
+        }
+
         const question = {
             question: payload.question,
-            options: prepOptions
+            options: state.quizItem?.content?.questions?.[payload.questionIndex]?.options || []
         };
+        const textSizeClass = getQuestionTextSizeClass(question.question);
 
         renderStageViewport(`
             <section class="live-question-stage-wrap is-prep" id="live-question-prep-stage">
@@ -610,38 +629,24 @@
                         <span id="live-timer-text" class="live-timer-text">30</span>
                     </div>
                 </div>
-                <div class="live-prep-progress-wrap" aria-hidden="true">
-                    <div id="live-prep-progress" class="live-prep-progress-fill"></div>
+                <div class="live-main-progress-wrap" aria-hidden="true">
+                    <div id="live-main-progress" class="live-main-progress-fill"></div>
                 </div>
-                <div class="kbc-title-frame live-focus-question" id="live-focus-question">
-                    <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
-                    ${isHost
-                        ? '<p id="host-prep-countdown" class="live-prep-note text-slate-300 text-xs md:text-sm mt-3 text-center">6s to options</p>'
-                        : '<p class="live-prep-note text-slate-300 text-xs md:text-sm mt-3 text-center">Options are opening now.</p>'}
+                <div class="kbc-title-frame live-focus-question live-question-frame" id="live-focus-question">
+                    <div class="live-question-text ${textSizeClass}">${question.question}</div>
                 </div>
                 <div class="live-options-stage" id="live-options">
-                    ${renderLiveOptionRow(question, 0, !isHost)}
-                    ${renderLiveOptionRow(question, 2, !isHost)}
+                    ${renderLiveOptionRow(question, 0, false)}
+                    ${renderLiveOptionRow(question, 2, false)}
                 </div>
-                ${isHost
-                    ? `
-                        <div class="live-bottom-actions">
-                            <button id="end-question-btn" class="live-warning-btn">Skip & Reveal</button>
-                        </div>
-                    `
-                    : '<p class="live-player-tip text-slate-300 text-xs md:text-sm mt-3 text-center">Choose your answer before time runs out.</p>'}
+                <div class="live-bottom-actions">
+                    <button id="end-question-btn" class="live-warning-btn">Skip & Reveal</button>
+                </div>
             </section>
         `, 'stage-question-only');
 
-        const prepProgress = document.getElementById('live-prep-progress');
-        if (prepProgress) {
-            prepProgress.style.transition = 'none';
-            prepProgress.style.width = '0%';
-            requestAnimationFrame(() => {
-                prepProgress.style.transition = `width ${QUESTION_PREP_MS}ms linear`;
-                prepProgress.style.width = '100%';
-            });
-        }
+        const endBtn = document.getElementById('end-question-btn');
+        if (endBtn) endBtn.onclick = () => finishQuestion(true);
     }
 
     function renderLiveOptionRow(question, startIdx, interactive = false) {
@@ -696,42 +701,20 @@
             options: payload.options
         };
 
-        const prepStage = document.getElementById('live-question-prep-stage');
-        if (prepStage) {
-            const questionText = prepStage.querySelector('.leading-tight');
-            if (questionText) questionText.textContent = question.question;
+        renderStageViewport(`
+            <section class="live-player-options-stage">
+                <div class="live-options-stage live-options-stage-player" id="live-options">
+                    ${renderLiveOptionRow(question, 0, true)}
+                    ${renderLiveOptionRow(question, 2, true)}
+                </div>
+            </section>
+        `, 'stage-question-player');
 
-            payload.options.forEach((optionText, idx) => {
-                const optionBtn = prepStage.querySelector(`#live-option-${idx}`);
-                if (!optionBtn) return;
-                const optionTextEl = optionBtn.querySelector('span:last-child');
-                if (optionTextEl) optionTextEl.textContent = optionText;
-            });
-        } else {
-            renderStageViewport(`
-                <section class="live-question-stage-wrap" id="live-question-prep-stage">
-                    <div class="live-timer-wrap">
-                        <div class="live-timer-box">
-                            <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
-                            <span id="live-timer-text" class="live-timer-text">30</span>
-                        </div>
-                    </div>
-                    <div class="live-prep-progress-wrap" aria-hidden="true">
-                        <div class="live-prep-progress-fill" style="width:100%"></div>
-                    </div>
-                    <div class="kbc-title-frame live-focus-question" id="live-focus-question">
-                        <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
-                    </div>
-                    <div class="live-options-stage" id="live-options">
-                        ${renderLiveOptionRow(question, 0, true)}
-                        ${renderLiveOptionRow(question, 2, true)}
-                    </div>
-                    <p class="live-player-tip text-slate-300 text-xs md:text-sm mt-3 text-center">Choose your answer before time runs out.</p>
-                </section>
-            `, 'stage-question-player');
-        }
+        document.querySelectorAll('.live-option-row').forEach((row, idx) => {
+            row.style.transitionDelay = `${idx * 70}ms`;
+            row.classList.add('is-visible');
+        });
 
-        startQuestionRevealAnimation();
         startPlayerCountdown(payload.startAt);
 
         const optionButtons = Array.from(document.querySelectorAll('#live-options button[data-idx]'));
@@ -749,9 +732,20 @@
     function renderHostQuestionView(question) {
         const prepStage = document.getElementById('live-question-prep-stage');
         if (prepStage) {
-            const questionText = prepStage.querySelector('.leading-tight');
-            if (questionText) questionText.textContent = question.question;
+            const questionText = prepStage.querySelector('.live-question-text');
+            if (questionText) {
+                questionText.textContent = question.question;
+                questionText.className = `live-question-text ${getQuestionTextSizeClass(question.question)}`;
+            }
+
+            question.options.forEach((optionText, idx) => {
+                const optionNode = prepStage.querySelector(`#live-option-${idx}`);
+                if (!optionNode) return;
+                const textNode = optionNode.querySelector('span:last-child');
+                if (textNode) textNode.textContent = optionText;
+            });
         } else {
+            const textSizeClass = getQuestionTextSizeClass(question.question);
             renderStageViewport(`
                 <section class="live-question-stage-wrap" id="live-question-prep-stage">
                     <div class="live-timer-wrap">
@@ -760,11 +754,11 @@
                             <span id="live-timer-text" class="live-timer-text">30</span>
                         </div>
                     </div>
-                    <div class="live-prep-progress-wrap" aria-hidden="true">
-                        <div class="live-prep-progress-fill" style="width:100%"></div>
+                    <div class="live-main-progress-wrap" aria-hidden="true">
+                        <div id="live-main-progress" class="live-main-progress-fill"></div>
                     </div>
-                    <div class="kbc-title-frame live-focus-question" id="live-focus-question">
-                        <div class="text-xl md:text-3xl font-black text-white text-center leading-tight">${question.question}</div>
+                    <div class="kbc-title-frame live-focus-question live-question-frame" id="live-focus-question">
+                        <div class="live-question-text ${textSizeClass}">${question.question}</div>
                     </div>
                     <div class="live-options-stage">
                         ${renderLiveOptionRow(question, 0, false)}
@@ -1377,14 +1371,30 @@
         if (state.timers.question) clearTimeout(state.timers.question);
         if (state.timers.questionTick) clearInterval(state.timers.questionTick);
 
-        let remaining = Math.round(ANSWER_WINDOW_MS / 1000);
+        const totalSeconds = Math.round(ANSWER_WINDOW_MS / 1000);
+        let remaining = totalSeconds;
+
         const paintCountdown = () => {
             const timerText = document.getElementById('live-timer-text');
-            if (!timerText) return;
-            timerText.textContent = String(remaining);
-            timerText.classList.toggle('text-red-400', remaining <= 5);
-            timerText.classList.toggle('text-white', remaining > 5);
+            if (timerText) {
+                timerText.textContent = String(remaining);
+                timerText.classList.toggle('text-red-400', remaining <= 5);
+                timerText.classList.toggle('text-white', remaining > 5);
+            }
+
+            const progressFill = document.getElementById('live-main-progress');
+            if (progressFill) {
+                const elapsed = Math.max(0, totalSeconds - remaining);
+                const progress = (elapsed / totalSeconds) * 100;
+                progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+            }
         };
+
+        const progressFill = document.getElementById('live-main-progress');
+        if (progressFill) {
+            progressFill.style.width = '0%';
+            progressFill.style.transition = 'width 1s linear';
+        }
 
         paintCountdown();
 

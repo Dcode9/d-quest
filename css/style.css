@@ -617,7 +617,7 @@ body {
 }
 
 .live-question-focus {
-    width: min(980px, 100%);
+    width: min(1080px, 100%);
     margin: 0 auto;
     filter: blur(16px);
     transform: scale(1.05);
@@ -630,6 +630,33 @@ body {
     transform: translateY(-6vh) scale(0.93);
 }
 
+.live-question-frame {
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 28px;
+}
+
+.live-question-text {
+    width: 100%;
+    text-align: center;
+    font-weight: 900;
+    line-height: 1.25;
+    color: #fff;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-size: clamp(1.2rem, 2.1vw, 2.1rem);
+}
+
+.live-question-text.is-medium {
+    font-size: clamp(1.1rem, 1.85vw, 1.8rem);
+}
+
+.live-question-text.is-long {
+    font-size: clamp(0.98rem, 1.5vw, 1.4rem);
+}
+
 .live-question-stage-wrap {
     display: flex;
     flex-direction: column;
@@ -637,20 +664,14 @@ body {
 }
 
 .live-question-stage-wrap .live-timer-box,
-.live-question-stage-wrap .live-prep-progress-wrap,
+.live-question-stage-wrap .live-main-progress-wrap,
 .live-question-stage-wrap .live-options-stage,
 .live-question-stage-wrap .live-bottom-actions,
-.live-question-stage-wrap .live-player-tip,
-.live-question-stage-wrap .live-prep-note {
+.live-question-stage-wrap .live-player-tip {
     transition: opacity 0.38s ease, transform 0.58s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.45s ease;
 }
 
-.live-prep-note {
-    max-height: 44px;
-    overflow: hidden;
-}
-
-.live-prep-progress-wrap {
+.live-main-progress-wrap {
     width: min(760px, calc(100% - 40px));
     height: 8px;
     border-radius: 9999px;
@@ -658,25 +679,21 @@ body {
     background: rgba(15, 23, 42, 0.65);
     margin: 2px auto 16px;
     overflow: hidden;
-    opacity: 0;
-    transform: translateY(-8px);
+    opacity: 1;
+    transform: translateY(0);
 }
 
-.live-prep-progress-fill {
+.live-main-progress-fill {
     height: 100%;
     width: 0;
     background: linear-gradient(90deg, #f59e0b, #facc15);
 }
 
-.live-question-stage-wrap.is-prep .live-timer-box {
+.live-question-stage-wrap.is-prep .live-timer-box,
+.live-question-stage-wrap.is-prep .live-main-progress-wrap {
     opacity: 0;
     transform: translateY(-12px) scale(0.96);
     pointer-events: none;
-}
-
-.live-question-stage-wrap.is-prep .live-prep-progress-wrap {
-    opacity: 1;
-    transform: translateY(0);
 }
 
 .live-question-stage-wrap.is-prep .live-focus-question {
@@ -698,13 +715,17 @@ body {
     pointer-events: none;
 }
 
-.live-question-stage-wrap:not(.is-prep) .live-prep-progress-wrap,
-.live-question-stage-wrap:not(.is-prep) .live-prep-note {
-    opacity: 0;
-    transform: translateY(-10px);
-    pointer-events: none;
-    max-height: 0;
-    margin-top: 0 !important;
+.live-player-pending-stage {
+    width: min(720px, 100%);
+    text-align: center;
+}
+
+.live-player-options-stage {
+    width: min(1120px, 100%);
+}
+
+.live-options-stage-player {
+    margin-top: 0;
 }
 
 @keyframes liveQuestionUnblur {
