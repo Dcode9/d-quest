@@ -399,11 +399,10 @@ body {
 .live-overlay .live-lobby-section,
 .live-overlay .live-meta-chip,
 .live-overlay .live-player-pill,
-.live-overlay .live-ghost-btn,
 .live-overlay .live-danger-btn,
 .live-overlay .live-warning-btn,
 .live-overlay .kbc-button {
-    border-radius: 0 !important;
+    /* Kept some border-radius to preserve the rounded look while removing inner rectangles but letting SVGs have their shapes */
 }
 
 .live-host-lobby {
@@ -615,13 +614,22 @@ body {
     place-items: center;
 }
 
+.live-question-stage-wrap.is-prep {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.live-question-stage-wrap.is-prep .live-focus-question {
+    transform: translateY(10vh) scale(1.15) !important;
+}
+
 .live-timer-art {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
-    animation: pulseGlow 2.2s ease-in-out infinite;
 }
 
 .live-timer-text {
