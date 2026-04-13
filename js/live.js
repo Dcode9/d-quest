@@ -239,9 +239,11 @@
         announcePlayerPresence('player-joined');
 
         state.timers.heartbeat = setInterval(() => {
-            if (state.status === 'idle') return;
+            // Presence heartbeats are only needed while waiting in lobby.
+            // Sending them during active questions creates unnecessary broadcast load.
+            if (state.status !== 'waiting') return;
             announcePlayerPresence('player-presence');
-        }, 3000);
+        }, 10000);
     }
 
     function renderHostLobby() {
@@ -896,15 +898,32 @@
     function handleBroadcast(payload) {
         if (!payload || !payload.type) return;
 
+        // Ignore targeted payloads for other players.
+        if (payload.targetId && payload.targetId !== state.me?.id) return;
+
         if ((payload.type === 'player-joined' || payload.type === 'player-presence') && state.role === 'host') {
-            upsertPlayer(payload.player || payload);
+            const playerMeta = payload.player || payload;
+            upsertPlayer(playerMeta);
 
             if (state.status === 'lobby') {
                 renderHostLobby();
             }
 
-            if ((state.status === 'question' || state.status === 'in-progress') && state.currentQuestionPayload) {
-                broadcast(state.currentQuestionPayload);
+            // Resync only once for newly joined players.
+            // Do not rebroadcast active question payload on heartbeat updates.
+            if (
+                payload.type === 'player-joined' &&
+                state.currentQuestionPayload &&
+                (state.currentQuestionPayload.type === 'question' || state.currentQuestionPayload.type === 'question-intro')
+            ) {
+                const joiningPlayerId = playerMeta?.id;
+                if (joiningPlayerId) {
+                    broadcast({
+                        ...state.currentQuestionPayload,
+                        targetId: joiningPlayerId,
+                        isResync: true
+                    });
+                }
             }
             return;
         }
@@ -915,17 +934,34 @@
         }
 
         if (payload.type === 'question-intro' && state.role === 'player') {
+            const isDuplicateIntro =
+                state.currentQuestionPayload?.type === 'question-intro' &&
+                state.currentQuestionPayload?.questionIndex === payload.questionIndex &&
+                state.status === 'question-intro';
+
+            if (isDuplicateIntro && !payload.isResync) return;
+
             cleanupTimers();
             state.status = 'question-intro';
             state.questionIndex = payload.questionIndex;
+            state.currentQuestionPayload = payload;
             renderPlayerQuestionIntro(payload);
         }
 
         if (payload.type === 'question') {
+            const isDuplicateQuestion =
+                state.role === 'player' &&
+                state.currentQuestionPayload?.type === 'question' &&
+                state.currentQuestionPayload?.questionIndex === payload.questionIndex &&
+                (state.status === 'answering' || state.status === 'locked' || state.status === 'question');
+
+            if (isDuplicateQuestion && !payload.isResync) return;
+
             cleanupTimers();
             state.status = 'question';
             state.questionIndex = payload.questionIndex;
             state.questionStart = payload.startAt;
+            state.currentQuestionPayload = payload;
             if (state.role === 'player') {
                 renderPlayerQuestionView(payload);
             } else if (state.role === 'host') {
@@ -938,7 +974,9 @@
         }
         if (payload.type === 'leaderboard') {
             cleanupTimers();
+            state.status = 'leaderboard';
             state.lastResults = payload.results;
+            state.currentQuestionPayload = payload;
             if (state.role === 'player') {
                 const mine = payload.results.find(r => r.id === state.me.id);
                 if (mine) playAudio(mine.isCorrect ? 'correct' : 'wrong');
@@ -950,6 +988,8 @@
         }
         if (payload.type === 'final') {
             cleanupTimers();
+            state.status = 'final';
+            state.currentQuestionPayload = payload;
             renderLeaderboard(payload.results, null, true);
         }
     }
@@ -978,6 +1018,7 @@
             questionIndex: state.questionIndex,
             question: q.question
         };
+        state.currentQuestionPayload = introPayload;
         broadcast(introPayload);
 
         if (state.role === 'host') {
@@ -1121,6 +1162,13 @@
             correctIndex: normalizedCorrectIndex,
             results
         });
+        state.status = 'leaderboard';
+        state.currentQuestionPayload = {
+            type: 'leaderboard',
+            questionIndex: state.questionIndex,
+            correctIndex: normalizedCorrectIndex,
+            results
+        };
         renderLeaderboard(results, normalizedCorrectIndex, false);
         const isLast = state.questionIndex + 1 >= state.quizItem.content.questions.length;
         if (forceReveal && isLast) broadcastFinal(results);
