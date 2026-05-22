@@ -88,7 +88,7 @@ Return only valid JSON.`;
     const userPrompt = `Create a quiz based on this request: "${topic}"\n\nGenerate ${count} questions about this topic. Follow the JSON structure exactly.`;
     
     const apiRequestBody = {
-      model: "llama3.1-8b", 
+      model: "gpt-oss-120b", 
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
