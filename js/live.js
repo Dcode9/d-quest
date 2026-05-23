@@ -414,11 +414,6 @@
         stopPlayerHeartbeat();
 
         announcePlayerPresence('player-joined');
-
-        state.timers.heartbeat = setInterval(() => {
-            if (state.status === 'idle') return;
-            announcePlayerPresence('player-presence');
-        }, 3000);
     }
 
     function renderHostLobby() {
