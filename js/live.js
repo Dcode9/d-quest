@@ -239,6 +239,37 @@
         return Number(value || 0).toLocaleString();
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    function getLiveOptionTextClass(optionText) {
+        const length = String(optionText || '').trim().length;
+        if (length > 90) return 'is-long-option';
+        if (length > 55) return 'is-medium-option';
+        return '';
+    }
+
+    function renderLiveTimer(initialSeconds = Math.round(ANSWER_WINDOW_MS / 1000)) {
+        return `
+            <div class="live-timer-wrap">
+                <div class="live-timer-box">
+                    <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
+                    <span id="live-timer-text" class="live-timer-text">${initialSeconds}</span>
+                </div>
+            </div>
+            <div class="live-main-progress-wrap" aria-hidden="true">
+                <div id="live-main-progress" class="live-main-progress-fill"></div>
+            </div>
+        `;
+    }
+
     function renderStageTopbar() {
         const tracker = getQuestionTrackerLabel();
 
@@ -265,7 +296,7 @@
                 <div class="live-stage-topbar-left">
                     <div class="live-player-pill">
                         <span class="text-2xl">${state.me?.emoji || '🎯'}</span>
-                        <span>${state.me?.name || 'Player'}</span>
+                        <span>${escapeHtml(state.me?.name || 'Player')}</span>
                     </div>
                 </div>
                 <div class="live-stage-topbar-center">${tracker}</div>
@@ -435,14 +466,14 @@
                         <div class="live-host-avatar">${state.me.emoji}</div>
                         <div>
                             <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Host Console</div>
-                            <div class="text-2xl font-black text-white">${state.me.name}</div>
-                            <div class="text-slate-400 text-sm">${state.quizItem?.content?.title || 'Quiz Show'}</div>
+                            <div class="text-2xl font-black text-white">${escapeHtml(state.me.name)}</div>
+                            <div class="text-slate-400 text-sm">${escapeHtml(state.quizItem?.content?.title || 'Quiz Show')}</div>
                         </div>
                     </div>
                     <div class="live-host-pane-right">
                         <div class="live-meta-chip"><span>Questions</span><strong>${totalQuestions}</strong></div>
-                        <div class="live-meta-chip"><span>Grade</span><strong>${grade}</strong></div>
-                        <div class="live-meta-chip"><span>Difficulty</span><strong>${difficulty}</strong></div>
+                        <div class="live-meta-chip"><span>Grade</span><strong>${escapeHtml(grade)}</strong></div>
+                        <div class="live-meta-chip"><span>Difficulty</span><strong>${escapeHtml(difficulty)}</strong></div>
                         <button id="close-live" class="live-ghost-btn" title="Close">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
@@ -558,7 +589,7 @@
             <div class="live-participant p-3 flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-2xl">${p.emoji || '🎯'}</div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-white font-semibold truncate">${p.name || 'Player'}</div>
+                    <div class="text-white font-semibold truncate">${escapeHtml(p.name || 'Player')}</div>
                     <div class="text-xs text-slate-500">Score: ${score}</div>
                 </div>
                 <button data-kick-player="${p.id}" class="live-kick-btn" title="Remove player">
@@ -574,7 +605,7 @@
             <section class="live-title-stage">
                 <div class="text-xs uppercase tracking-[0.24em] text-slate-400">Welcome To The Live Quiz</div>
                 <div class="kbc-title-frame mx-auto max-w-5xl w-full p-6 md:p-10 mt-4">
-                    <h2 class="text-2xl md:text-5xl font-black text-yellow-300 text-center">${payload.title}</h2>
+                    <h2 class="text-2xl md:text-5xl font-black text-yellow-300 text-center">${escapeHtml(payload.title)}</h2>
                 </div>
                 <p class="text-slate-300 mt-4 text-lg">Get ready for Question ${payload.questionIndex + 1}.</p>
                 ${isHost ? `
@@ -623,18 +654,11 @@
 
         renderStageViewport(`
             <section class="live-question-stage-wrap is-prep" id="live-question-prep-stage">
-                <div class="live-timer-wrap">
-                    <div class="live-timer-box">
-                        <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
-                        <span id="live-timer-text" class="live-timer-text">30</span>
-                    </div>
-                </div>
-                <div class="live-main-progress-wrap" aria-hidden="true">
-                    <div id="live-main-progress" class="live-main-progress-fill"></div>
-                </div>
+                ${renderLiveTimer()}
                 <div class="kbc-title-frame live-focus-question live-question-frame" id="live-focus-question">
-                    <div class="live-question-text ${textSizeClass}">${question.question}</div>
+                    <div class="live-question-text ${textSizeClass}">${escapeHtml(question.question)}</div>
                 </div>
+                <div id="host-prep-countdown" class="live-prep-countdown text-slate-100">${Math.round(QUESTION_PREP_MS / 1000)}s to options</div>
                 <div class="live-options-stage" id="live-options">
                     ${renderLiveOptionRow(question, 0, false)}
                     ${renderLiveOptionRow(question, 2, false)}
@@ -654,18 +678,20 @@
             .filter((idx) => idx < question.options.length)
             .map((idx) => {
                 const label = String.fromCharCode(65 + idx);
+                const optionText = escapeHtml(question.options[idx]);
+                const optionSizeClass = getLiveOptionTextClass(question.options[idx]);
                 if (interactive) {
                     return `
                         <button data-idx="${idx}" id="live-option-${idx}" class="live-option-btn kbc-option-frame live-option-tile px-4 py-5 text-left text-slate-100 flex gap-3 items-center" type="button">
                             <span class="text-yellow-300 font-black text-xl md:text-2xl">${label}</span>
-                            <span class="font-semibold text-sm md:text-lg">${question.options[idx]}</span>
+                            <span class="live-option-text font-semibold text-sm md:text-lg ${optionSizeClass}">${optionText}</span>
                         </button>
                     `;
                 }
                 return `
                     <div id="live-option-${idx}" data-host-option="${idx}" class="live-option-btn kbc-option-frame live-option-tile px-4 py-5 text-left text-slate-100 flex gap-3 items-center">
                         <span class="text-yellow-300 font-black text-xl md:text-2xl">${label}</span>
-                        <span class="font-semibold text-sm md:text-lg">${question.options[idx]}</span>
+                        <span class="live-option-text font-semibold text-sm md:text-lg ${optionSizeClass}">${optionText}</span>
                     </div>
                 `;
             })
@@ -701,8 +727,16 @@
             options: payload.options
         };
 
+        const elapsed = Math.max(0, Date.now() - (payload.startAt || Date.now()));
+        const initialRemaining = Math.max(0, Math.ceil((ANSWER_WINDOW_MS - elapsed) / 1000));
+        const textSizeClass = getQuestionTextSizeClass(question.question);
+
         renderStageViewport(`
             <section class="live-player-options-stage">
+                ${renderLiveTimer(initialRemaining)}
+                <div class="kbc-title-frame live-question-frame live-player-question-frame">
+                    <div class="live-question-text ${textSizeClass}">${escapeHtml(question.question)}</div>
+                </div>
                 <div class="live-options-stage live-options-stage-player" id="live-options">
                     ${renderLiveOptionRow(question, 0, true)}
                     ${renderLiveOptionRow(question, 2, true)}
@@ -748,17 +782,9 @@
             const textSizeClass = getQuestionTextSizeClass(question.question);
             renderStageViewport(`
                 <section class="live-question-stage-wrap" id="live-question-prep-stage">
-                    <div class="live-timer-wrap">
-                        <div class="live-timer-box">
-                            <img src="assets/images/Timer.svg" alt="Timer" class="live-timer-art" />
-                            <span id="live-timer-text" class="live-timer-text">30</span>
-                        </div>
-                    </div>
-                    <div class="live-main-progress-wrap" aria-hidden="true">
-                        <div id="live-main-progress" class="live-main-progress-fill"></div>
-                    </div>
+                    ${renderLiveTimer()}
                     <div class="kbc-title-frame live-focus-question live-question-frame" id="live-focus-question">
-                        <div class="live-question-text ${textSizeClass}">${question.question}</div>
+                        <div class="live-question-text ${textSizeClass}">${escapeHtml(question.question)}</div>
                     </div>
                     <div class="live-options-stage">
                         ${renderLiveOptionRow(question, 0, false)}
@@ -794,7 +820,7 @@
                         <article class="live-top3-card ${idx === 0 ? 'is-winner' : ''}">
                             <div class="text-2xl">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</div>
                             <div class="text-2xl">${res.emoji || '🎯'}</div>
-                            <div class="text-lg font-black text-white truncate">${res.name}</div>
+                            <div class="text-lg font-black text-white truncate">${escapeHtml(res.name)}</div>
                             <div class="text-slate-300 text-sm">${formatPoints(res.total)} pts</div>
                         </article>
                     `).join('')}
@@ -818,7 +844,7 @@
                     <div class="text-slate-300 font-bold w-8">${idx + 1}</div>
                     <div class="w-10 h-10 bg-slate-800 flex items-center justify-center text-xl">${res.emoji || '🎯'}</div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-white font-semibold truncate">${res.name}</div>
+                        <div class="text-white font-semibold truncate">${escapeHtml(res.name)}</div>
                         <div class="text-slate-400 text-sm">${formatPoints(res.total)} pts</div>
                     </div>
                     ${res.rankRise > 0 ? '<div class="text-emerald-400 font-black">↑</div>' : '<div class="w-3"></div>'}
@@ -868,7 +894,7 @@
                 ${entries.map((res, idx) => `
                     <div class="podium-card rounded-2xl p-4 text-center ${idx === 0 ? 'podium-winner' : ''}" style="animation-delay:${idx * 0.1}s">
                         <div class="text-3xl">${places[idx] || ''}</div>
-                        <div class="text-2xl font-bold text-white mt-1">${res.name}</div>
+                        <div class="text-2xl font-bold text-white mt-1">${escapeHtml(res.name)}</div>
                         <div class="text-xl">${res.emoji || '🎯'}</div>
                         <div class="text-sm text-slate-300 mt-2">Score ${res.total}</div>
                     </div>
@@ -915,7 +941,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
                         ${q.options.map((opt, idx) => `
                             <div class="kbc-option-frame ${idx === payload.correctIndex ? 'is-correct' : ''} px-4 py-4 text-white font-semibold">
-                                <span class="text-yellow-300 mr-2">${String.fromCharCode(65 + idx)}</span>${opt}
+                                <span class="text-yellow-300 mr-2">${String.fromCharCode(65 + idx)}</span>${escapeHtml(opt)}
                             </div>
                         `).join('')}
                     </div>
@@ -988,7 +1014,7 @@
                     <div class="text-3xl md:text-5xl font-black text-yellow-300 mb-6">${title}</div>
                     <div class="podium-card max-w-xl mx-auto p-6 md:p-8">
                         <div class="text-6xl mb-2">${contestant?.emoji || '🏆'}</div>
-                        <div class="text-3xl font-black text-white">${contestant?.name || ''}</div>
+                        <div class="text-3xl font-black text-white">${escapeHtml(contestant?.name || '')}</div>
                         <div class="text-slate-300 mt-2">${contestant?.total || 0} pts</div>
                     </div>
                 </section>
@@ -1417,13 +1443,28 @@
 
         const elapsed = Math.max(0, Date.now() - (startAt || Date.now()));
         let remaining = Math.max(0, Math.ceil((ANSWER_WINDOW_MS - elapsed) / 1000));
+        const totalSeconds = Math.round(ANSWER_WINDOW_MS / 1000);
         const paintCountdown = () => {
             const timerText = document.getElementById('live-timer-text');
-            if (!timerText) return;
-            timerText.textContent = String(remaining);
-            timerText.classList.toggle('text-red-400', remaining <= 5);
-            timerText.classList.toggle('text-white', remaining > 5);
+            if (timerText) {
+                timerText.textContent = String(remaining);
+                timerText.classList.toggle('text-red-400', remaining <= 5);
+                timerText.classList.toggle('text-white', remaining > 5);
+            }
+
+            const progressFill = document.getElementById('live-main-progress');
+            if (progressFill) {
+                const elapsedSeconds = Math.max(0, totalSeconds - remaining);
+                const progress = (elapsedSeconds / totalSeconds) * 100;
+                progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+            }
         };
+
+        const progressFill = document.getElementById('live-main-progress');
+        if (progressFill) {
+            progressFill.style.width = '0%';
+            progressFill.style.transition = 'width 1s linear';
+        }
 
         paintCountdown();
 
@@ -1606,18 +1647,18 @@
                         <div id="live-preview-emoji" class="w-16 h-16 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center text-3xl">${state.me.emoji}</div>
                         <div class="text-left">
                             <div class="text-slate-300 text-sm">You</div>
-                            <div class="text-xl font-bold text-white" id="live-preview-name">${state.me.name}</div>
+                            <div class="text-xl font-bold text-white" id="live-preview-name">${escapeHtml(state.me.name)}</div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
                         <div class="space-y-2">
                             <label class="text-slate-400 text-sm">Room Code</label>
-                            <input id="join-code" maxlength="6" value="${prefill || ''}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="123456" />
+                            <input id="join-code" maxlength="6" value="${escapeHtml(prefill || '')}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="123456" />
                         </div>
                         <div class="space-y-2">
                             <label class="text-slate-400 text-sm">Display Name</label>
-                            <input id="join-name" value="${state.me.name || ''}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="Player One" />
+                            <input id="join-name" value="${escapeHtml(state.me.name || '')}" class="w-full bg-slate-900 border border-slate-700 px-4 py-3 text-white focus:border-yellow-400 outline-none" placeholder="Player One" />
                         </div>
                     </div>
 
@@ -1729,7 +1770,7 @@
                         <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">${state.me.emoji}</div>
                         <div class="text-left">
                             <div class="text-sm text-slate-400">You</div>
-                            <div class="text-lg font-semibold text-white">${state.me.name}</div>
+                            <div class="text-lg font-semibold text-white">${escapeHtml(state.me.name)}</div>
                         </div>
                     </div>
                 </div>

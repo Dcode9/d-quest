@@ -1209,3 +1209,213 @@ button, input, textarea, select {
         padding: 11px 12px;
     }
 }
+
+/* --- Mobile live quiz refinements --- */
+.live-overlay {
+    overflow-y: auto;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.live-overlay-fullscreen {
+    height: 100dvh;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+#live-overlay-shell:not(.live-shell-fullscreen) {
+    max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+}
+
+.live-prep-countdown {
+    margin-top: 14px;
+    border: 1px solid rgba(234, 179, 8, 0.38);
+    background: rgba(15, 23, 42, 0.72);
+    border-radius: 9999px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.live-question-stage-wrap:not(.is-prep) .live-prep-countdown {
+    display: none;
+}
+
+.live-player-question-frame {
+    width: min(960px, 100%);
+    margin: 0 auto 8px;
+    min-height: 96px;
+    padding: 18px 22px;
+}
+
+.live-option-text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.live-option-text.is-medium-option {
+    font-size: clamp(0.86rem, 1.5vw, 1rem);
+    line-height: 1.28;
+}
+
+.live-option-text.is-long-option {
+    font-size: clamp(0.78rem, 1.3vw, 0.95rem);
+    line-height: 1.22;
+}
+
+.live-option-btn:disabled {
+    cursor: not-allowed;
+    transform: none;
+}
+
+@media (max-width: 640px) {
+    .live-panel {
+        border-radius: 18px;
+    }
+
+    .live-overlay {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .live-overlay-fullscreen {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .live-title-stage,
+    .live-question-stage-wrap,
+    .live-player-options-stage,
+    .live-player-result-stage,
+    .live-leaderboard-stage {
+        width: 100%;
+    }
+
+    .live-player-options-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        min-height: 100%;
+    }
+
+    .live-player-question-frame {
+        min-height: 84px;
+        padding: 12px 12px;
+        margin-bottom: 6px;
+    }
+
+    .live-options-stage-player {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-height: none;
+    }
+
+    .live-option-tile {
+        min-height: 68px;
+        border-radius: 12px;
+    }
+
+    .live-option-text.is-medium-option,
+    .live-option-text.is-long-option {
+        font-size: 0.82rem;
+    }
+
+    .live-prep-countdown {
+        margin-top: 10px;
+        font-size: 0.68rem;
+        padding: 5px 10px;
+    }
+
+    .live-chip,
+    .live-ghost-btn,
+    .live-danger-btn,
+    .live-warning-btn {
+        min-height: 40px;
+    }
+
+    .live-host-pane-left {
+        width: 100%;
+    }
+
+    .live-host-pane-left .min-w-0 {
+        min-width: 0;
+    }
+
+    .live-host-pane-left h2 {
+        font-size: 1.05rem;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .emoji-picker {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 420px) {
+    .live-stage-content {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .live-stage-topbar {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .live-timer-wrap {
+        height: 74px;
+    }
+
+    .live-timer-box {
+        width: 68px;
+        height: 68px;
+    }
+
+    .live-timer-text {
+        font-size: 19px;
+    }
+
+    .live-question-frame {
+        min-height: 78px;
+    }
+
+    .live-question-text,
+    .live-question-text.is-medium,
+    .live-question-text.is-long {
+        font-size: clamp(0.82rem, 4.8vw, 1.05rem);
+        line-height: 1.16;
+    }
+
+    .live-option-grid {
+        gap: 8px;
+    }
+
+    .live-option-row {
+        padding: 4px 0;
+    }
+
+    .live-option-tile {
+        min-height: 62px;
+        padding: 10px 11px;
+    }
+
+    .live-option-tile span:first-child {
+        font-size: 1rem;
+    }
+
+    .live-option-tile span:last-child,
+    .live-option-text.is-medium-option,
+    .live-option-text.is-long-option {
+        font-size: 0.78rem;
+        line-height: 1.18;
+    }
+}
