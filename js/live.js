@@ -46,6 +46,7 @@
 
     const audioRefs = {};
     let activeAudioKey = null;
+    let lobbyRenderFrame = null;
 
     function getTabSessionId() {
         const key = 'dquest_live_tab_id';
@@ -348,6 +349,10 @@
     function closeOverlay() {
         const overlay = document.getElementById('live-overlay');
         if (overlay) overlay.remove();
+        if (lobbyRenderFrame) {
+            cancelAnimationFrame(lobbyRenderFrame);
+            lobbyRenderFrame = null;
+        }
         state.status = 'idle';
         cleanupTimers();
         stopPlayerHeartbeat();
@@ -424,6 +429,19 @@
             });
 
         return Object.values(merged);
+    }
+
+    function scheduleHostLobbyRender() {
+        if (state.role !== 'host' || state.status !== 'lobby') return;
+        if (lobbyRenderFrame) return;
+
+        lobbyRenderFrame = requestAnimationFrame(() => {
+            lobbyRenderFrame = null;
+            if (state.role === 'host' && state.status === 'lobby') {
+                renderHostLobby();
+                broadcastRoomInfo();
+            }
+        });
     }
 
     function announcePlayerPresence(eventType = 'player-presence') {
@@ -1145,8 +1163,7 @@
             upsertPlayer(entry);
         });
         if (state.role === 'host' && state.status === 'lobby') {
-            renderHostLobby();
-            broadcastRoomInfo();
+            scheduleHostLobbyRender();
         }
     }
 
@@ -1179,7 +1196,7 @@
             upsertPlayer(payload.player || payload);
 
             if (state.status === 'lobby') {
-                renderHostLobby();
+                scheduleHostLobbyRender();
             }
 
             // Re-sync only for the newly joined player to avoid re-rendering everyone else.
