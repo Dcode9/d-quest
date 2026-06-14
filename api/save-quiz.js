@@ -13,22 +13,37 @@ module.exports = async function handler(req, res) {
   }
 
   function buildSupabaseCandidates() {
-    const envUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
     const fallbackUrl = normalizeSupabaseUrl(FALLBACK_SUPABASE_URL);
+    const dverseUrl = normalizeSupabaseUrl(
+      process.env.DVERSE_SUPABASE_URL ||
+      process.env.DQUEST_SUPABASE_URL
+    ) || fallbackUrl;
+    const envUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
     const candidates = [];
 
-    if (envUrl && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      candidates.push({ source: 'env-service-role', url: envUrl, key: process.env.SUPABASE_SERVICE_ROLE_KEY });
-    }
-    if (envUrl && process.env.SUPABASE_KEY) {
-      candidates.push({ source: 'env-supabase-key', url: envUrl, key: process.env.SUPABASE_KEY });
-    }
-    if (envUrl && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      candidates.push({ source: 'env-anon', url: envUrl, key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY });
-    }
+    const addCandidate = (source, url, key) => {
+      if (url && key) candidates.push({ source, url, key });
+    };
 
-    if (fallbackUrl && FALLBACK_SUPABASE_ANON_KEY) {
-      candidates.push({ source: 'fallback-anon', url: fallbackUrl, key: FALLBACK_SUPABASE_ANON_KEY });
+    addCandidate(
+      'dverse-service-role',
+      dverseUrl,
+      process.env.DVERSE_SUPABASE_SERVICE_ROLE_KEY || process.env.DQUEST_SUPABASE_SERVICE_ROLE_KEY
+    );
+    addCandidate(
+      'dverse-publishable',
+      dverseUrl,
+      process.env.DVERSE_SUPABASE_KEY ||
+        process.env.DVERSE_SUPABASE_ANON_KEY ||
+        process.env.DQUEST_SUPABASE_KEY ||
+        process.env.DQUEST_SUPABASE_ANON_KEY ||
+        (dverseUrl === fallbackUrl ? FALLBACK_SUPABASE_ANON_KEY : null)
+    );
+
+    if (envUrl && envUrl === dverseUrl) {
+      addCandidate('env-service-role', envUrl, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      addCandidate('env-supabase-key', envUrl, process.env.SUPABASE_KEY);
+      addCandidate('env-anon', envUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     }
 
     const seen = new Set();
