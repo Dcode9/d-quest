@@ -66,15 +66,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Fetch Quiz Data from Supabase if ID is provided
     if (quizId) {
         try {
-            // Check if it's an AI-generated quiz (starts with 'ai-')
-            if (quizId.startsWith('ai-')) {
-                console.log('[GAME] Loading AI-generated quiz from sessionStorage');
-                const storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
+            // Check if it's a browser-only quiz created or edited in this session.
+            if (quizId.startsWith('ai-') || quizId.startsWith('local-')) {
+                console.log('[GAME] Loading browser-only quiz');
+                let storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
                 if (!storedQuiz) {
-                    throw new Error("AI-generated quiz not found. Please create a new quiz.");
+                    try {
+                        const localQuizzes = JSON.parse(localStorage.getItem('dquest_custom_quizzes') || '[]');
+                        const localQuiz = localQuizzes.find((item) => item.id === quizId);
+                        storedQuiz = localQuiz ? JSON.stringify(localQuiz.content) : null;
+                    } catch (error) {
+                        console.warn('[GAME] Could not read local quizzes:', error);
+                    }
+                }
+                if (!storedQuiz) {
+                    throw new Error("Browser-only quiz not found. Please create or save the quiz again.");
                 }
                 state.quizData = JSON.parse(storedQuiz);
-                console.log('[GAME] AI quiz loaded:', state.quizData.title);
+                console.log('[GAME] Browser-only quiz loaded:', state.quizData.title);
             } else {
                 // Load from Supabase for regular quizzes
                 console.log('[GAME] Loading quiz from Supabase');

@@ -1249,3 +1249,26 @@ button, input, textarea, select {
         padding: 11px 12px;
     }
 }
+
+
+.beta-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid rgba(250, 204, 21, 0.55);
+    border-radius: 999px;
+    background: rgba(250, 204, 21, 0.14);
+    color: #fde68a;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.16);
+}
+
+.beta-badge-lg {
+    transform: translateY(-0.75rem);
+    padding: 0.25rem 0.7rem;
+    font-size: 0.75rem;
+}

@@ -220,6 +220,8 @@ function resetSkeletonCard() {
     const skelPreviewBtn = document.getElementById('skel-preview-btn');
     if (skelPreviewBtn) {
         skelPreviewBtn.onclick = null;
+        skelPreviewBtn.title = 'Preview quiz';
+        skelPreviewBtn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
         skelPreviewBtn.classList.add('opacity-50', 'cursor-default');
         skelPreviewBtn.classList.remove('hover:bg-slate-600', 'cursor-pointer');
     }
@@ -364,6 +366,16 @@ function revealQuizInSkeleton(quizItem) {
             };
         }
 
+        const skelEditBtn = document.getElementById('skel-preview-btn');
+        if (skelEditBtn) {
+            skelEditBtn.innerHTML = '<i data-lucide="pencil" class="w-4 h-4"></i>';
+            skelEditBtn.title = 'Edit AI quiz';
+            skelEditBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.openQuizBuilder) window.openQuizBuilder(quiz, { id: quizItem.id, mode: 'edit-ai' });
+            };
+        }
+
         // Wire up live host button on skeleton card
         const skelLiveBtn = document.getElementById('skel-live-btn');
         if (skelLiveBtn) {
@@ -448,12 +460,13 @@ async function handleSearch() {
 
 // Search database for existing quizzes
 async function searchDatabase(query) {
-    const [localResults, supabaseResults] = await Promise.all([
+    const [customResults, localResults, supabaseResults] = await Promise.all([
+        searchCustomQuizzes(query),
         searchLocalQuizzes(query),
         searchSupabaseQuizzes(query)
     ]);
 
-    const allQuizzes = [...localResults, ...supabaseResults];
+    const allQuizzes = [...customResults, ...localResults, ...supabaseResults];
     const seen = new Set();
 
     return allQuizzes.filter((item) => {
@@ -462,6 +475,17 @@ async function searchDatabase(query) {
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
+    });
+}
+
+async function searchCustomQuizzes(query) {
+    const normalizedQuery = query.toLowerCase();
+    if (typeof getCustomQuizzes !== 'function') return [];
+    return getCustomQuizzes().filter((item) => {
+        const quiz = item.content || {};
+        return String(quiz.title || '').toLowerCase().includes(normalizedQuery) ||
+            String(quiz.metadata?.topic || '').toLowerCase().includes(normalizedQuery) ||
+            String(quiz.metadata?.grade || '').toLowerCase().includes(normalizedQuery);
     });
 }
 
@@ -575,12 +599,6 @@ async function generateQuizInstantly(topic) {
         if (!response.ok) throw new Error(data.error || 'Generation failed');
         if (!data.quiz) throw new Error('Invalid response structure from server');
         
-        const persistedQuiz = await persistGeneratedQuiz(data.quiz);
-
-        if (persistedQuiz) {
-            return persistedQuiz;
-        }
-
         const fallbackQuiz = {
             id: `ai-${Date.now()}`,
             content: data.quiz,
