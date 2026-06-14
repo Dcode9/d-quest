@@ -29,7 +29,7 @@
         
         <!-- Fixed top-left D'Quest branding (hidden initially, shown after search transition) -->
         <div id="header-brand" class="fixed top-0 left-0 z-50 px-4 py-3 opacity-0 pointer-events-none transition-all duration-700" style="transform: translateX(-30px)">
-            <h1 class="text-xl md:text-2xl font-extrabold text-yellow-400 tracking-wider">D'Quest</h1>
+            <div class="flex items-center gap-2"><h1 class="text-xl md:text-2xl font-extrabold text-yellow-400 tracking-wider">D'Quest</h1><span class="beta-badge">Beta</span></div>
         </div>
 
         <div id="dverse-account" class="dverse-account">
@@ -55,9 +55,12 @@
             <div id="landing-content" class="w-full max-w-3xl text-center transition-all duration-700">
                 <!-- Branding -->
                 <div id="branding" class="mb-12 animate-fadeIn transition-all duration-700">
-                    <h1 id="landing-title" class="kbc-title text-4xl md:text-6xl font-extrabold mb-4 text-yellow-400 tracking-wider">
-                        D'Quest
-                    </h1>
+                    <div class="inline-flex items-center justify-center gap-3 mb-4">
+                        <h1 id="landing-title" class="kbc-title text-4xl md:text-6xl font-extrabold text-yellow-400 tracking-wider">
+                            D'Quest
+                        </h1>
+                        <span class="beta-badge beta-badge-lg">Beta</span>
+                    </div>
                     <p id="landing-subtitle" class="text-slate-400 text-sm flex items-center justify-center gap-2 transition-all duration-500">
                         <i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i>
                         Powered by D'Ai
@@ -91,6 +94,10 @@
                     <button id="join-live-btn" class="flex items-center gap-2 px-6 py-3 rounded-full border border-yellow-500/50 bg-slate-900/80 hover:bg-slate-800 text-yellow-400 font-semibold shadow-lg hover:shadow-yellow-500/20 transition-all duration-200">
                         <i data-lucide="users" class="w-4 h-4"></i>
                         Join Live Quiz
+                    </button>
+                    <button id="create-quiz-btn" class="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-400/50 bg-slate-900/80 hover:bg-slate-800 text-blue-200 font-semibold shadow-lg hover:shadow-blue-500/20 transition-all duration-200">
+                        <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
+                        Make Your Own Quiz
                     </button>
                 </div>
             </div>
