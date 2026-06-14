@@ -36,6 +36,46 @@ button, input, textarea, select {
     font: inherit;
 }
 
+.dverse-account {
+    position: fixed;
+    top: 0.75rem;
+    right: 1rem;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    max-width: min(18rem, calc(100vw - 2rem));
+    padding: 0.35rem 0.45rem 0.35rem 0.8rem;
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.86);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(14px);
+}
+
+.dverse-account span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fde68a;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.dverse-account button {
+    flex-shrink: 0;
+    min-height: 2rem;
+    padding: 0 0.8rem;
+    border: 0;
+    border-radius: 999px;
+    background: #facc15;
+    color: #0a0e27;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
 /* --- KBC Style Animations --- */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
