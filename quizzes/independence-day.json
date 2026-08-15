@@ -1,0 +1,74 @@
+{
+  "id": "independence-day-2026",
+  "title": "Independence Day Special Quiz 🇮🇳",
+  "metadata": {
+    "grade": "All Grades",
+    "topic": "Indian History & Freedom",
+    "difficulty": "Medium",
+    "emoji": "🇮🇳",
+    "featured": true,
+    "description": "Celebrate 80 years of freedom with questions on historic milestones, freedom fighters, the Constitution, and national symbols."
+  },
+  "questions": [
+    {
+      "question": "At what exact time on August 15, 1947 did Jawaharlal Nehru deliver his historic 'Tryst with Destiny' speech?",
+      "options": ["Midnight (12:00 AM)", "Sunrise (6:00 AM)", "Noon (12:00 PM)", "Sunset (6:00 PM)"],
+      "correctIndex": 0,
+      "explanation": "Pandit Jawaharlal Nehru delivered the famous 'Tryst with Destiny' speech to the Indian Constituent Assembly on the eve of India's independence, towards midnight on 14-15 August 1947."
+    },
+    {
+      "question": "Who was affectionately known as the 'Iron Man of India' for unifying over 560 princely states into the Indian Union?",
+      "options": ["Subhas Chandra Bose", "Sardar Vallabhbhai Patel", "Bhagat Singh", "Lal Bahadur Shastri"],
+      "correctIndex": 1,
+      "explanation": "Sardar Vallabhbhai Patel, India's first Deputy Prime Minister and Home Minister, led the historic integration of 565 princely states into the Republic of India."
+    },
+    {
+      "question": "Which revolutionary gave the iconic slogan 'Give me blood, and I shall give you freedom!'?",
+      "options": ["Chandra Shekhar Azad", "Netaji Subhas Chandra Bose", "Bal Gangadhar Tilak", "Bhagat Singh"],
+      "correctIndex": 1,
+      "explanation": "Netaji Subhas Chandra Bose motivated the Indian National Army (Azad Hind Fauj) with this stirring call during India's struggle for independence."
+    },
+    {
+      "question": "What revolutionary democratic reform did India adopt on Day One that took Western democracies over a century to implement?",
+      "options": ["Universal Adult Suffrage (voting rights for all citizens)", "Compulsory military draft", "Two-party political system", "Direct democracy referendums"],
+      "correctIndex": 0,
+      "explanation": "India granted universal adult voting rights to every citizen on day one regardless of gender, literacy, or property ownership."
+    },
+    {
+      "question": "Who designed the national flag of independent India (the Tricolor with Ashoka Chakra)?",
+      "options": ["Rabindranath Tagore", "Pingali Venkayya", "Bankim Chandra Chatterjee", "Dr. B.R. Ambedkar"],
+      "correctIndex": 1,
+      "explanation": "Pingali Venkayya, an Indian freedom fighter and educationist, designed the original model on which the national flag was based."
+    },
+    {
+      "question": "How many spokes are in the Ashoka Chakra situated in the center of the Indian National Flag?",
+      "options": ["18", "24", "32", "36"],
+      "correctIndex": 1,
+      "explanation": "The Ashoka Chakra has 24 spokes, symbolizing the 24 hours of the day and 24 virtuous principles of human life and continuous progress."
+    },
+    {
+      "question": "Who was the Chairman of the Drafting Committee of the Indian Constitution?",
+      "options": ["Dr. Rajendra Prasad", "Dr. B.R. Ambedkar", "Jawaharlal Nehru", "Sarvepalli Radhakrishnan"],
+      "correctIndex": 1,
+      "explanation": "Dr. Bhimrao Ramji Ambedkar chaired the Drafting Committee and is revered as the Father of the Indian Constitution."
+    },
+    {
+      "question": "In which historic year did Mahatma Gandhi lead the Dandi March (Salt Satyagraha) protesting the British salt tax?",
+      "options": ["1919", "1930", "1942", "1947"],
+      "correctIndex": 1,
+      "explanation": "The 24-day Salt March to Dandi took place from March 12 to April 6, 1930, capturing global attention for the civil disobedience movement."
+    },
+    {
+      "question": "Which patriotic national song was composed by Bankim Chandra Chatterjee in his novel 'Anandamath'?",
+      "options": ["Jana Gana Mana", "Vande Mataram", "Sare Jahan Se Achha", "Kadam Kadam Badhaye Ja"],
+      "correctIndex": 1,
+      "explanation": "Bankim Chandra Chatterjee wrote 'Vande Mataram' in 1876, which later became the national song of India."
+    },
+    {
+      "question": "Which historic mission made India the first nation in the world to successfully land a spacecraft near the lunar south pole?",
+      "options": ["Mangalyaan", "Chandrayaan-3", "Gaganyaan", "Aditya-L1"],
+      "correctIndex": 1,
+      "explanation": "On August 23, 2023, ISRO's Chandrayaan-3 achieved a historic soft landing near the Moon's South Pole, celebrating India's modern scientific leadership."
+    }
+  ]
+}

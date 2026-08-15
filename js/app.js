@@ -2,6 +2,7 @@ async function fetchQuizzes() {
     const grid = document.getElementById('quiz-grid');
 
     const localQuizFiles = [
+        'independence-day.json',
         'demo.json',
         'general-knowledge.json',
         'science.json',
@@ -41,7 +42,7 @@ async function fetchQuizzes() {
                 allQuizzes.push({
                     id: quizData.id || file.replace('.json', ''),
                     content: quizData,
-                    created_at: '2024-01-01T00:00:00.000Z',
+                    created_at: file === 'independence-day.json' ? '2026-08-15T00:00:00.000Z' : '2024-01-01T00:00:00.000Z',
                     isLocal: true,
                     fileName: file
                 });
@@ -86,8 +87,11 @@ function renderQuizzes(quizzes) {
             questionCount: quiz.questions?.length
         });
         
+        const isIndependenceQuiz = item.fileName === 'independence-day.json' || quiz.id === 'independence-day-2026' || (quiz.title && quiz.title.includes('Independence'));
         const card = document.createElement('div');
-        card.className = "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden";
+        card.className = isIndependenceQuiz 
+            ? "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden border-2 border-orange-500/50 shadow-[0_0_30px_rgba(255,153,51,0.2)] bg-gradient-to-b from-slate-900 via-slate-900 to-orange-950/30"
+            : "quiz-card-new p-6 rounded-2xl flex flex-col h-auto group relative overflow-hidden";
         
         const questionCount = quiz.questions ? quiz.questions.length : 0;
         
@@ -100,7 +104,12 @@ function renderQuizzes(quizzes) {
         
         console.log(`[RENDER] Card ${index + 1} metadata:`, { emoji, grade, difficulty, topic });
 
+        const festiveBadgeHtml = isIndependenceQuiz 
+            ? `<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500/30 via-white/10 to-green-500/30 border border-orange-400/40 text-[11px] font-extrabold text-amber-300 mb-3 w-fit shadow-md"><span>🇮🇳</span> 15TH AUGUST SPECIAL</div>` 
+            : '';
+
         card.innerHTML = `
+            ${festiveBadgeHtml}
             <!-- Emoji Thumbnail -->
             <div class="flex items-center gap-4 mb-4">
                 <div class="text-6xl flex-shrink-0 w-20 h-20 flex items-center justify-center bg-gradient-to-br from-yellow-400/20 to-orange-500/20 rounded-xl">

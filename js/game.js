@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Get Quiz ID or Filename from URL
     const urlParams = new URLSearchParams(window.location.search);
     const quizId = urlParams.get('id');
-    const quizFile = urlParams.get('quiz');
+    const quizFile = urlParams.get('quiz') || urlParams.get('file');
 
     // MOCK DATA Fallback if no URL param (for testing)
     if (!quizId && !quizFile) {
