@@ -1,193 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>D'Quest by Dhairya Shah</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230a0e27'/%3E%3Ctext x='32' y='41' font-size='30' text-anchor='middle' fill='%23facc15'%3ED%3C/text%3E%3C/svg%3E">
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Combined CSS -->
-    <link rel="stylesheet" href="css/style.css">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase config helper for live mode -->
-    <script src="js/config.js"></script>
-    <!-- Supabase client for realtime live rooms -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.3/dist/umd/supabase.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f3ec">
+  <title>D'Quest by Dhairya Shah</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23c1ee81'/%3E%3Ctext x='32' y='44' font-size='36' font-weight='900' text-anchor='middle' fill='%23282d26'%3ED%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/preview-builder.css">
+  <link rel="stylesheet" href="css/live-theme.css">
+  <!-- The live room module still renders with utility class names, so Tailwind stays for it only.
+       Preflight is off and the palette is remapped to the paper theme. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      corePlugins: { preflight: false },
+      theme: { extend: { colors: {
+        slate: { 100: '#282d26', 200: '#2f352e', 300: '#3b423b', 400: '#74776b', 500: '#8a8d80', 600: '#aaa89a', 700: '#c9c7b8', 800: '#efeadd', 900: '#fffdf8' },
+        yellow: { 300: '#4d7a12', 400: '#5f8f1a', 500: '#7fb02e' },
+        red: { 400: '#d4573d' }, emerald: { 400: '#3f8a2f' }
+      } } }
+    };
+  </script>
+  <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.3/dist/umd/supabase.js"></script>
 </head>
-<body class="bg-[#0a0e27] text-white font-sans min-h-[100dvh] w-full overflow-x-hidden">
-    
-    <!-- Animated Background -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-950 via-[#0a0e27] to-black opacity-90"></div>
-        <div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(#4f46e5 1px, transparent 1px), linear-gradient(90deg, #4f46e5 1px, transparent 1px); background-size: 50px 50px;"></div>
-    </div>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="D'Quest home">
+        <span class="brand-mark">D</span>
+        <span class="brand-name">D'Quest</span><span class="beta-badge">Beta</span>
+      </a>
+      <div id="dverse-account" class="account">
+        <span id="dverse-account-label" class="account-label">D'Verse</span>
+        <button id="dverse-auth-button" type="button">Sign in</button>
+      </div>
+    </header>
 
-    <!-- Main Container -->
-    <div class="relative z-10 min-h-screen flex flex-col">
-        
-        <!-- Fixed top-left D'Quest branding (hidden initially, shown after search transition) -->
-        <div id="header-brand" class="fixed top-0 left-0 z-50 px-4 py-3 opacity-0 pointer-events-none transition-all duration-700" style="transform: translateX(-30px)">
-            <div class="flex items-center gap-2"><h1 class="text-xl md:text-2xl font-extrabold text-yellow-400 tracking-wider">D'Quest</h1><span class="beta-badge">Beta</span></div>
+    <main class="page">
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title" class="hero-title">Quiz <mark>anything</mark>, instantly.</h1>
+        <p class="hero-sub">Search the quiz bank or let D'Ai write a fresh one from live sources. Play solo, or host a live room for friends.</p>
+        <form id="search-form" class="search" role="search" autocomplete="off">
+          <i data-lucide="search"></i>
+          <input id="main-search" type="text" inputmode="search" enterkeyhint="search" aria-label="Search for a quiz topic or enter a 6 digit room PIN" placeholder="Try &quot;10 questions about Space&quot;">
+          <button id="search-btn" class="btn btn-lime" type="submit" aria-label="Search or generate a quiz">Go</button>
+        </form>
+        <div class="quick">
+          <button type="button" class="chip" data-prompt="10 questions about space">🚀 Space</button>
+          <button type="button" class="chip" data-prompt="Grade 10 biology: human nervous system">🧬 Biology</button>
+          <button type="button" class="chip" data-prompt="5 challenging questions about world geography">🌍 Geography</button>
+          <button type="button" class="chip" data-prompt="History of ancient Rome">📜 History</button>
         </div>
-
-        <div id="dverse-account" class="dverse-account">
-            <span id="dverse-account-label">D'Verse</span>
-            <button id="dverse-auth-button" type="button">Sign in</button>
+        <div class="actions">
+          <button id="join-live-btn" type="button" class="btn btn-purple"><i data-lucide="users"></i><span>Join live quiz</span></button>
+          <button id="create-quiz-btn" type="button" class="btn"><i data-lucide="pencil-ruler"></i><span>Make your own quiz</span></button>
         </div>
+      </section>
 
-        <!-- Fixed top search bar (hidden initially, the center bar animates here) -->
-        <div id="header-search-bar" class="fixed top-0 left-0 right-0 z-40 opacity-0 pointer-events-none transition-all duration-700" style="transform: translateY(-20px)">
-            <div class="max-w-2xl mx-auto px-4 py-3" style="padding-left: 140px;">
-                <div class="relative bg-slate-900/95 backdrop-blur-md rounded-full border border-slate-700 shadow-lg">
-                    <div class="flex items-center px-4 py-2">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-500 flex-shrink-0"></i>
-                        <input type="text" id="header-search-input" class="flex-1 bg-transparent border-none outline-none text-white text-sm px-3 placeholder:text-slate-500" placeholder="Search..." autocomplete="off">
-                        <button id="header-search-btn" class="flex-shrink-0 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-bold px-5 py-1.5 rounded-full text-sm">Go</button>
-                    </div>
-                </div>
-            </div>
+      <div id="status" hidden></div>
+
+      <section id="results" hidden>
+        <div class="results-bar">
+          <h2 id="results-title" class="results-title"></h2>
+          <button id="back-to-library" type="button" class="btn btn-sm"><i data-lucide="arrow-left"></i><span>All quizzes</span></button>
         </div>
+        <div id="results-grid" class="grid-cards"></div>
+      </section>
 
-        <!-- Landing Section with Search -->
-        <section id="landing-section" class="flex-1 flex items-center justify-center px-4 py-20 transition-all duration-700">
-            <div id="landing-content" class="w-full max-w-3xl text-center transition-all duration-700">
-                <!-- Branding -->
-                <div id="branding" class="mb-12 animate-fadeIn transition-all duration-700">
-                    <div class="inline-flex items-center justify-center gap-3 mb-4">
-                        <h1 id="landing-title" class="kbc-title text-4xl md:text-6xl font-extrabold text-yellow-400 tracking-wider">
-                            D'Quest
-                        </h1>
-                        <span class="beta-badge beta-badge-lg">Beta</span>
-                    </div>
-                    <p id="landing-subtitle" class="text-slate-400 text-sm flex items-center justify-center gap-2 transition-all duration-500">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i>
-                        Powered by D'Ai <span class="text-slate-600">·</span> Live web-grounded quizzes
-                    </p>
-                </div>
+      <section id="library">
+        <div class="section-head">
+          <div><h2>Quiz library</h2><p>Pick one and play, preview it, or host it live.</p></div>
+        </div>
+        <div id="library-grid" class="grid-cards"></div>
+      </section>
+    </main>
+    <footer class="footer">Powered by D'Ai. Made by Dhairya Shah.</footer>
+  </div>
 
-                <!-- Pill-shaped Search Bar -->
-                <div id="main-search-container" class="search-container animate-slideUp transition-all duration-700">
-                    <div class="relative group">
-                        <div class="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-300"></div>
-                        <div class="relative bg-slate-900/80 backdrop-blur-sm rounded-full border-2 border-slate-700 group-hover:border-yellow-500/50 transition-all duration-300 shadow-2xl">
-                            <div class="flex items-center px-8 py-5">
-                                <i data-lucide="search" class="w-6 h-6 text-slate-500 group-hover:text-yellow-400 transition-colors flex-shrink-0"></i>
-                                <input 
-                                    type="text" 
-                                    id="main-search" 
-                                    class="flex-1 bg-transparent border-none outline-none text-white text-xl px-6 placeholder:text-slate-500"
-                                    placeholder="Search for Anything"
-                                    autocomplete="off"
-                                >
-                                <button id="search-btn" aria-label="Generate quiz" class="flex-shrink-0 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-black font-bold px-8 py-3 rounded-full transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 shadow-lg">
-                                    Go
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Prompt cues -->
-                <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
-                    <button type="button" class="prompt-chip" data-prompt="10 questions about space">10 questions · Space</button>
-                    <button type="button" class="prompt-chip" data-prompt="Grade 10 biology: human nervous system">Grade 10 · Biology</button>
-                    <button type="button" class="prompt-chip" data-prompt="5 challenging questions about world geography">5 challenging · Geography</button>
-                </div>
-
-                <!-- Live Quiz quick action -->
-                <div class="mt-8 flex flex-wrap justify-center gap-4">
-                    <button id="join-live-btn" class="flex items-center gap-2 px-6 py-3 rounded-full border border-yellow-500/50 bg-slate-900/80 hover:bg-slate-800 text-yellow-400 font-semibold shadow-lg hover:shadow-yellow-500/20 transition-all duration-200">
-                        <i data-lucide="users" class="w-4 h-4"></i>
-                        Join Live Quiz
-                    </button>
-                    <button id="create-quiz-btn" class="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-400/50 bg-slate-900/80 hover:bg-slate-800 text-blue-200 font-semibold shadow-lg hover:shadow-blue-500/20 transition-all duration-200">
-                        <i data-lucide="pencil-ruler" class="w-4 h-4"></i>
-                        Make Your Own Quiz
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Skeleton Card Section (shown during AI generation, below the header) -->
-        <section id="skeleton-card-section" class="hidden px-4 transition-all duration-700" style="padding-top: 5rem;">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div id="skeleton-card" class="quiz-card-new p-6 rounded-2xl flex flex-col h-auto relative overflow-hidden">
-                        <!-- Emoji Thumbnail skeleton -->
-                        <div class="flex items-center gap-4 mb-4">
-                            <div id="skel-emoji" class="w-20 h-20 flex-shrink-0 rounded-xl skeleton-text bg-slate-800">&nbsp;</div>
-                            <div class="flex-1 min-w-0">
-                                <div id="skel-title" class="skeleton-text text-2xl font-bold mb-1 h-7 rounded">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                                <div id="skel-topic" class="skeleton-text text-xs h-4 w-24 rounded mt-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-                            </div>
-                        </div>
-                        <div id="skel-grounding" class="mt-2 inline-flex items-center gap-1.5 rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">
-                    <i data-lucide="globe-2" class="w-3.5 h-3.5"></i>
-                    <span>Checking live sources…</span>
-                </div>
-                <!-- Metadata skeleton -->
-                        <div class="grid grid-cols-3 gap-2 mb-4 text-xs">
-                            <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                                <div class="text-slate-400 mb-1">Grade</div>
-                                <div id="skel-grade" class="skeleton-text font-bold h-4 rounded">&nbsp;&nbsp;&nbsp;</div>
-                            </div>
-                            <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                                <div class="text-slate-400 mb-1">Difficulty</div>
-                                <div id="skel-diff" class="skeleton-text font-bold h-4 rounded">&nbsp;&nbsp;&nbsp;</div>
-                            </div>
-                            <div class="bg-slate-800/50 rounded-lg p-2 text-center">
-                                <div class="text-slate-400 mb-1">Questions</div>
-                                <div id="skel-count" class="skeleton-text font-bold h-4 rounded">&nbsp;&nbsp;&nbsp;</div>
-                            </div>
-                        </div>
-                        <!-- Action Button skeleton -->
-                        <div class="flex gap-2 mt-auto">
-                            <button id="skel-play-btn" class="flex-1 kbc-button text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 opacity-80 cursor-default">
-                                <div class="spin-loader"></div>
-                                <span class="text-sm">Generating with D'Ai</span>
-                            </button>
-                            <button id="skel-live-btn" class="bg-slate-800 text-yellow-400 font-bold py-3 px-4 rounded-xl flex items-center justify-center opacity-50 cursor-default border border-yellow-500/30">
-                                <i data-lucide="radio" class="w-4 h-4"></i>
-                            </button>
-                            <button id="skel-preview-btn" class="bg-slate-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center opacity-50 cursor-default">
-                                <i data-lucide="eye" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Results Section (Hidden initially) -->
-        <section id="results-section" class="hidden px-4 py-10 transition-all duration-700">
-            <div class="max-w-7xl mx-auto">
-                <!-- Back to Search -->
-                <button id="back-btn" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-yellow-400 transition-colors">
-                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    <span>New Search</span>
-                </button>
-
-                <!-- Results Grid -->
-                <div id="quiz-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Quiz cards will be inserted here -->
-                </div>
-            </div>
-        </section>
-
-    </div>
-
-    <!-- Scripts -->
-    <script src="js/search.js"></script>
-    <script src="js/live.js"></script>
-    <script src="js/dverse-auth.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        // Initialize Lucide icons if available
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-    </script>
+  <script src="js/dverse-auth.js"></script>
+  <script src="js/live.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
