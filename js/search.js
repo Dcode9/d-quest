@@ -48,6 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
     if (backBtn) backBtn.addEventListener('click', showLanding);
 
+    document.querySelectorAll('.prompt-chip[data-prompt]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const prompt = chip.getAttribute('data-prompt') || '';
+            if (!prompt || !searchInput) return;
+            searchInput.value = prompt;
+            handleSearch();
+        });
+    });
+
     // Header search bar events
     if (headerSearchBtn) {
         headerSearchBtn.addEventListener('click', () => {
