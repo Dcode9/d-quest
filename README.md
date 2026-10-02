@@ -42,12 +42,25 @@ python -m http.server 8000
 ```
 Then open `http://localhost:8000`.
 
-## AI Quiz Generation Setup
-To enable AI generation in deployed/serverless environments:
-- Set `CEREBRAS_API_KEY` for `/api/generate-quiz`
+## AI Quiz Generation
+D'Quest now uses the same D'Ai backend/model system as the D'Ai app.
+
+The `/api/generate-quiz` endpoint:
+- routes model generation through D'Ai's provider cascade
+- grounds every generated quiz with D'Ai's web-search layer when sources are available
+- validates the returned JSON and automatically runs a repair pass when the schema or question quality checks fail
+- keeps model/provider API keys out of the D'Quest repository
+
+### Vercel configuration
+Set this server-side environment variable on the D'Quest Vercel project:
+
+- `DAI_API_BASE_URL` — optional; defaults to the current D'Ai production API base.
+
+The D'Ai project owns the provider credentials (Gemini/Groq/Cerebras/Pollinations/Inception and the web-search key), so those secrets should remain in D'Ai rather than being copied into browser code.
 
 ## Notes
 - Local quiz lists are configured in:
   - `js/app.js`
   - `js/search.js`
 - Add new local quiz files to both lists to make them searchable and visible in the UI.
+- Search prompts can be plain topics (for example, "photosynthesis") or richer requests such as "10 challenging questions about world geography".
