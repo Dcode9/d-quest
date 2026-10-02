@@ -4,16 +4,27 @@ D'Quest is a browser-based quiz platform that lets learners explore local quizze
 
 ## Features
 - Browse and play built-in quizzes from the `quizzes/` folder
-- Search existing quizzes by title
+- Search existing quizzes by title, topic or grade
 - AI-generated quizzes through `/api/generate-quiz`
-- Quiz player with scoring and progress flow
+- Quiz player with timer, scoring and progress
+- Live rooms (host and join with a 6 digit PIN)
+- Make your own quiz, keep it on the device or publish it
 
 ## Project Structure
-- `/index.html` - main landing/search page
-- `/player.html` - quiz player page
-- `/js/` - client logic (`app.js`, `search.js`, `game.js`)
-- `/quizzes/` - local quiz JSON files
-- `/api/` - serverless API endpoints
+- `/index.html` - home: search, library, entry buttons
+- `/player.html` - solo quiz player
+- `/css/` - design system: `tokens.css`, `base.css`, `components.css`, then page files (`home.css`, `play.css`, `preview-builder.css`) and `live-theme.css` for the live room skin
+- `/js/main.js` - home controller (ES module)
+- `/js/lib/` - `dom.js`, `storage.js`, `quizzes.js` (catalog and loading), `generate.js` (AI generate and publish)
+- `/js/views/` - `card.js`, `preview.js`, `builder.js`
+- `/js/play/` - `main.js` (loader), `game.js` (state machine), `audio.js`
+- `/js/live.js` - live room logic (unchanged behaviour, themed by `css/live-theme.css`)
+- `/js/config.js`, `/js/dverse-auth.js` - Supabase config and D'Verse sign-in bridge
+- `/quizzes/` - built-in quiz JSON files, listed in `quizzes/index.json`
+- `/api/` - serverless endpoints (unchanged)
+
+## Adding a built-in quiz
+Drop a JSON file in `quizzes/` and add its file name to `quizzes/index.json`.
 
 ## Local Quizzes Added
 This repository includes these newly added quizzes:
