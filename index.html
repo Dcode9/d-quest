@@ -63,7 +63,7 @@
                     </div>
                     <p id="landing-subtitle" class="text-slate-400 text-sm flex items-center justify-center gap-2 transition-all duration-500">
                         <i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i>
-                        Powered by D'Ai
+                        Powered by D'Ai <span class="text-slate-600">·</span> Live web-grounded quizzes
                     </p>
                 </div>
 
@@ -81,12 +81,19 @@
                                     placeholder="Search for Anything"
                                     autocomplete="off"
                                 >
-                                <button id="search-btn" class="flex-shrink-0 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-black font-bold px-8 py-3 rounded-full transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 shadow-lg">
+                                <button id="search-btn" aria-label="Generate quiz" class="flex-shrink-0 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-black font-bold px-8 py-3 rounded-full transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 shadow-lg">
                                     Go
                                 </button>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Prompt cues -->
+                <div class="mt-4 flex flex-wrap justify-center gap-2 text-xs text-slate-400">
+                    <button type="button" class="prompt-chip" data-prompt="10 questions about space">10 questions · Space</button>
+                    <button type="button" class="prompt-chip" data-prompt="Grade 10 biology: human nervous system">Grade 10 · Biology</button>
+                    <button type="button" class="prompt-chip" data-prompt="5 challenging questions about world geography">5 challenging · Geography</button>
                 </div>
 
                 <!-- Live Quiz quick action -->
@@ -116,7 +123,11 @@
                                 <div id="skel-topic" class="skeleton-text text-xs h-4 w-24 rounded mt-2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
                             </div>
                         </div>
-                        <!-- Metadata skeleton -->
+                        <div id="skel-grounding" class="mt-2 inline-flex items-center gap-1.5 rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1 text-[11px] font-semibold text-blue-200">
+                    <i data-lucide="globe-2" class="w-3.5 h-3.5"></i>
+                    <span>Checking live sources…</span>
+                </div>
+                <!-- Metadata skeleton -->
                         <div class="grid grid-cols-3 gap-2 mb-4 text-xs">
                             <div class="bg-slate-800/50 rounded-lg p-2 text-center">
                                 <div class="text-slate-400 mb-1">Grade</div>

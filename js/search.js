@@ -2,7 +2,7 @@
 // Handles search, AI generation, and displaying results
 
 // Constants
-const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const REQUEST_TIMEOUT_MS = 60000; // D-Ai + web grounding + optional repair pass
 const SEARCH_TIMEOUT_MS = 6000; // 6 seconds
 
 const LOCAL_QUIZ_FILES = [
@@ -47,6 +47,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (searchBtn) searchBtn.addEventListener('click', handleSearch);
     if (backBtn) backBtn.addEventListener('click', showLanding);
+
+    document.querySelectorAll('.prompt-chip[data-prompt]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const prompt = chip.getAttribute('data-prompt') || '';
+            if (!prompt || !searchInput) return;
+            searchInput.value = prompt;
+            handleSearch();
+        });
+    });
 
     // Header search bar events
     if (headerSearchBtn) {
@@ -565,12 +574,16 @@ async function generateQuizInstantly(topic) {
         let questionCount = 5;
         const countMatch = topic.match(/(\d+)\s*questions?/i);
         if (countMatch) {
-            questionCount = Math.min(Math.max(parseInt(countMatch[1]), 1), 20);
+            questionCount = Math.min(Math.max(parseInt(countMatch[1], 10), 1), 20);
         }
-        
+
+        setSkeletonLoadingState('Grounding the topic with live web sources…');
+        await delay(120);
+        setSkeletonLoadingState("Building a polished quiz with D'Ai…");
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        
+
         let response;
         try {
             response = await fetch('/api/generate-quiz', {
@@ -579,37 +592,56 @@ async function generateQuizInstantly(topic) {
                 body: JSON.stringify({ topic, count: questionCount }),
                 signal: controller.signal
             });
-            clearTimeout(timeoutId);
         } catch (fetchError) {
-            clearTimeout(timeoutId);
-            if (fetchError.name === 'AbortError') {
-                throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS/1000} seconds.`);
+            if (fetchError?.name === 'AbortError') {
+                throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds.`);
             }
             throw new Error(`Network error: ${fetchError.message}`);
+        } finally {
+            clearTimeout(timeoutId);
         }
-        
+
         const text = await response.text();
         let data;
         try {
             data = JSON.parse(text);
-        } catch (err) {
-            throw new Error('Failed to parse server response.');
+        } catch (_) {
+            throw new Error('D-Quest received an invalid response from the AI backend.');
         }
-        
-        if (!response.ok) throw new Error(data.error || 'Generation failed');
-        if (!data.quiz) throw new Error('Invalid response structure from server');
-        
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Quiz generation failed');
+        }
+
+        if (!data.quiz || !Array.isArray(data.quiz.questions)) {
+            throw new Error('D-Ai returned an incomplete quiz.');
+        }
+
+        const generationMeta = data.meta || {};
         const fallbackQuiz = {
             id: `ai-${Date.now()}`,
             content: data.quiz,
             created_at: new Date().toISOString(),
             isAI: true,
-            isTemp: true
+            isTemp: true,
+            generationMeta
         };
 
         sessionStorage.setItem(`quiz_${fallbackQuiz.id}`, JSON.stringify(data.quiz));
+
+        const groundingBadge = document.getElementById('skel-grounding');
+        if (groundingBadge) {
+            const grounded = Boolean(generationMeta.webGrounded);
+            groundingBadge.innerHTML = grounded
+                ? `<i data-lucide="globe-2" class="w-3.5 h-3.5"></i><span>Web-grounded · ${Number(generationMeta.sourceCount || 0)} live sources</span>`
+                : `<i data-lucide="sparkles" class="w-3.5 h-3.5"></i><span>D'Ai generated · stable-knowledge mode</span>`;
+            groundingBadge.className = grounded
+                ? 'mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200'
+                : 'mt-2 inline-flex items-center gap-1.5 rounded-full border border-slate-600 bg-slate-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-300';
+            if (window.lucide) window.lucide.createIcons();
+        }
+
         return fallbackQuiz;
-        
     } catch (error) {
         throw new Error(`Failed to generate quiz: ${error.message}`);
     }

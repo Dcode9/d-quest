@@ -1272,3 +1272,24 @@ button, input, textarea, select {
     padding: 0.25rem 0.7rem;
     font-size: 0.75rem;
 }
+
+
+/* --- D-Ai grounded discovery cues --- */
+.prompt-chip {
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    background: rgba(15, 23, 42, 0.52);
+    color: #94a3b8;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+.prompt-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(250, 204, 21, 0.55);
+    background: rgba(30, 41, 59, 0.9);
+    color: #fde68a;
+}
+.prompt-chip:focus-visible {
+    outline: 2px solid rgba(250, 204, 21, 0.65);
+    outline-offset: 2px;
+}
