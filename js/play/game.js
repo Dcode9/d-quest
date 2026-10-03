@@ -1,5 +1,6 @@
 // Solo quiz state machine: start, question, options, lock, reveal, finish.
 import { esc, icon, refreshIcons } from '../lib/dom.js';
+import { generateQuiz, suggestNextAI } from '../lib/generate.js';
 
 const TIME_PER_QUESTION = 30;
 const LOCK_MS = 1800;
@@ -29,7 +30,7 @@ export function createGame({ stage, hud, audio, quiz }) {
     setHud();
   }
 
-  function start() {
+  function start({ auto = false } = {}) {
     s.phase = 'start';
     render(`
       <section class="screen center animate-slideUp">
@@ -47,6 +48,8 @@ export function createGame({ stage, hud, audio, quiz }) {
       s.index = 0; s.score = 0; s.correct = 0;
       intro();
     });
+    // Arrived from a "next quiz" button: skip the start screen.
+    if (auto) document.getElementById('go').click();
   }
 
   function intro() {
@@ -161,6 +164,48 @@ export function createGame({ stage, hud, audio, quiz }) {
     } catch { /* related quizzes are optional */ }
   }
 
+  // "What next?" buttons. Each one creates the quiz with AI and starts it right away.
+  async function showNextButtons() {
+    const box = document.getElementById('next-quiz');
+    if (!box) return;
+    let list = Array.isArray(quiz.suggestions) ? quiz.suggestions.filter((x) => x?.prompt) : [];
+    if (!list.length) {
+      box.hidden = false;
+      box.innerHTML = '<h3>What next?</h3><p class="next-note">Thinking of what to try next…</p>';
+      try { list = await suggestNextAI(quiz); } catch { list = []; }
+    }
+    if (!list.length) {
+      const topic = quiz.metadata?.topic || quiz.title || 'this topic';
+      list = [
+        { emoji: '📈', title: `Harder ${topic}`, prompt: `A harder quiz on ${topic}` },
+        { emoji: '🔎', title: `More on ${topic}`, prompt: `Different questions on ${topic}` }
+      ];
+    }
+    box.hidden = false;
+    box.innerHTML = `<h3>What next?</h3><div class="next-list">${list.slice(0, 3).map((x, i) => `
+      <button type="button" class="next-btn" data-i="${i}"><span class="next-emoji">${esc(x.emoji || '🎯')}</span><span class="next-text"><b>${esc(x.title)}</b><small>Creates and starts instantly</small></span>${icon('arrow-right')}</button>`).join('')}</div>
+      <p class="next-note" id="next-note" role="status"></p>`;
+    refreshIcons(box);
+    const note = box.querySelector('#next-note');
+    box.querySelectorAll('.next-btn').forEach((btn) => btn.addEventListener('click', async () => {
+      const pick = list[Number(btn.dataset.i)];
+      box.querySelectorAll('.next-btn').forEach((b) => { b.disabled = true; });
+      btn.classList.add('is-busy');
+      btn.querySelector('small').textContent = 'Creating your quiz…';
+      note.textContent = '';
+      try {
+        const item = await generateQuiz(pick.prompt, (stage) => { note.textContent = stage; });
+        window.location.href = `player.html?id=${encodeURIComponent(item.id)}&autostart=1`;
+      } catch (error) {
+        box.querySelectorAll('.next-btn').forEach((b) => { b.disabled = false; });
+        btn.classList.remove('is-busy');
+        btn.querySelector('small').textContent = 'Creates and starts instantly';
+        note.textContent = error.message || 'Could not create that quiz. Try again.';
+        note.classList.add('err');
+      }
+    }));
+  }
+
   function finish() {
     s.phase = 'done';
     const total = questions.length;
@@ -179,8 +224,10 @@ export function createGame({ stage, hud, audio, quiz }) {
           <button id="again" class="btn btn-lime btn-big">${icon('rotate-ccw')}<span>Play again</span></button>
           <a class="btn" href="index.html">${icon('home')}<span>Home</span></a>
         </div>
+        <div id="next-quiz" class="next-quiz" hidden></div>
         <div id="up-next" class="up-next" hidden></div>
       </section>`);
+    showNextButtons();
     showUpNext();
     document.getElementById('again').addEventListener('click', () => { s.index = 0; s.score = 0; s.correct = 0; intro(); });
   }

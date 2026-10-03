@@ -37,7 +37,7 @@ async function boot() {
       : { title: 'Demo Quiz', questions: [{ question: 'This is a demo question to test the player.', options: ['Option A', 'Option B', 'Option C', 'Option D'], correctIndex: 0 }] };
     if (!Array.isArray(quiz.questions) || !quiz.questions.length) throw new Error('This quiz has no questions.');
     document.title = `${quiz.title} - D'Quest`;
-    createGame({ stage, hud, audio, quiz }).start();
+    createGame({ stage, hud, audio, quiz }).start({ auto: params.get('autostart') === '1' });
   } catch (error) {
     console.error('[player]', error);
     showError(error.message);

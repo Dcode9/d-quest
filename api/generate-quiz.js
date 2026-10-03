@@ -1,5 +1,8 @@
 const DAI_API_BASE_URL = (process.env.DAI_API_BASE_URL || 'https://d-m22f8yuju-dcode9s-projects.vercel.app/api').replace(/\/+$/, '');
 const MAX_QUESTIONS = 20;
+const MAX_TOTAL_QUESTIONS = 60;
+const RATE_LIMIT = { windowMs: 10 * 60 * 1000, max: 15 };
+const { allow } = require('./_rate');
 const MIN_QUESTIONS = 1;
 const REQUEST_TIMEOUT_MS = 48000;
 
@@ -12,7 +15,8 @@ const QUIZ_SYSTEM_PROMPT = [
   '{',
   '  "title": "Concise, polished quiz title",',
   '  "metadata": { "grade": 1, "topic": "Primary topic", "difficulty": "Easy", "emoji": "📚" },',
-  '  "questions": [{ "question": "A clear, unambiguous question?", "options": ["A", "B", "C", "D"], "correctIndex": 0 }]',
+  '  "questions": [{ "question": "A clear, unambiguous question?", "options": ["A", "B", "C", "D"], "correctIndex": 0 }],',
+  '  "suggestions": [{ "title": "Short button label for a follow-up quiz", "prompt": "Standalone request that generates that quiz", "emoji": "🎯" }]',
   '}',
   "",
   "Quality rules:",
@@ -28,6 +32,7 @@ const QUIZ_SYSTEM_PROMPT = [
   "- For quantitative questions, check arithmetic and units. For science and technical questions, use canonical terminology.",
   "- Treat the web research packet as evidence for current, time-sensitive, or source-specific facts. Do not invent unsupported current details.",
   "- If the research packet is empty, rely on stable knowledge and do not pretend that you verified live facts.",
+  "- suggestions: exactly 3 follow-up quizzes someone who just finished this one would enjoy next (go deeper, a harder level, or a closely related topic). Each prompt must be self-contained, under 160 characters, and must not mention this quiz.",
   '- grade must be 1-12; difficulty must be Easy, Medium, or Hard; emoji must be one emoji.'
 ].join('\\n');
 
@@ -81,7 +86,7 @@ function validateQuiz(quiz, count) {
     errors.push('questions must be an array');
     return errors;
   }
-  if (quiz.questions.length !== count) errors.push('questions must contain exactly ' + count + ' items');
+  if (count !== null && quiz.questions.length !== count) errors.push('questions must contain exactly ' + count + ' items');
 
   const questionKeys = new Set();
   for (let i = 0; i < quiz.questions.length; i += 1) {
@@ -118,11 +123,27 @@ function validateQuiz(quiz, count) {
   return errors;
 }
 
+function normalizeSuggestions(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const item of list) {
+    const title = cleanText(item?.title, 70);
+    const prompt = cleanText(item?.prompt || item?.title, 200);
+    if (!title || !prompt || seen.has(title.toLowerCase())) continue;
+    seen.add(title.toLowerCase());
+    out.push({ title, prompt, emoji: cleanText(item?.emoji, 8) || '🎯' });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 function normalizeQuiz(quiz, topic, count) {
   const metadata = quiz.metadata || {};
-  const questions = Array.isArray(quiz.questions) ? quiz.questions.slice(0, count) : [];
+  const questions = Array.isArray(quiz.questions) ? quiz.questions.slice(0, count || MAX_TOTAL_QUESTIONS) : [];
   return {
     title: cleanText(quiz.title, 160) || 'AI Quiz',
+    suggestions: normalizeSuggestions(quiz.suggestions),
     metadata: {
       grade: Number.isInteger(Number(metadata.grade)) ? Math.min(Math.max(Number(metadata.grade), 1), 12) : 7,
       topic: cleanText(metadata.topic, 160) || cleanText(topic, 160),
@@ -240,6 +261,145 @@ async function callDai(topic, count, research, repairContext = null) {
   return extractJson(content);
 }
 
+async function callJson(system, user, { maxTokens = 4500, temperature = 0.35 } = {}) {
+  const data = await fetchJson(
+    DAI_API_BASE_URL + '/chat',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user.slice(0, 20000) }],
+        stream: false,
+        enable_tools: false,
+        mode: 'Quiz',
+        max_tokens: maxTokens,
+        temperature
+      })
+    },
+    REQUEST_TIMEOUT_MS
+  );
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('D-Ai returned an empty response.');
+  return extractJson(content);
+}
+
+const JSON_ONLY = 'Return ONLY valid JSON. Never return markdown, commentary, or code fences.';
+const QUESTION_RULES = [
+  'Every question has exactly 4 non-empty, distinct options and exactly one defensible correct answer.',
+  'correctIndex is an integer 0 to 3 and varies across the new questions.',
+  'Distractors are plausible and wrong for a clear reason. No all/none-of-the-above options.'
+].join(' ');
+
+// Compact view of a quiz for the model. Keeps the prompt small and ignores anything unexpected.
+function briefQuiz(input) {
+  const quiz = input && typeof input === 'object' ? input : {};
+  const questions = (Array.isArray(quiz.questions) ? quiz.questions : []).slice(0, MAX_TOTAL_QUESTIONS).map((q) => ({
+    question: normalizeOption(q?.question),
+    options: (Array.isArray(q?.options) ? q.options : []).slice(0, 4).map(normalizeOption),
+    correctIndex: Number.isInteger(q?.correctIndex) ? q.correctIndex : 0
+  })).filter((q) => q.question);
+  const meta = quiz.metadata && typeof quiz.metadata === 'object' ? quiz.metadata : {};
+  return {
+    title: cleanText(quiz.title, 160),
+    metadata: { topic: cleanText(meta.topic, 160), grade: meta.grade ?? 7, difficulty: ['Easy', 'Medium', 'Hard'].includes(meta.difficulty) ? meta.difficulty : 'Medium', emoji: cleanText(meta.emoji, 10) || '🎯' },
+    questions
+  };
+}
+
+function checkQuestions(list, count, existing = []) {
+  const errors = [];
+  if (!Array.isArray(list) || list.length !== count) return ['questions must contain exactly ' + count + ' items'];
+  const seen = new Set(existing.map((q) => q.question.toLowerCase()));
+  list.forEach((item, i) => {
+    const text = normalizeOption(item?.question);
+    if (!text) errors.push('question ' + (i + 1) + ' text is required');
+    if (seen.has(text.toLowerCase())) errors.push('question ' + (i + 1) + ' repeats an existing question');
+    seen.add(text.toLowerCase());
+    const opts = Array.isArray(item?.options) ? item.options.map(normalizeOption) : [];
+    if (opts.length !== 4 || opts.some((o) => !o) || new Set(opts.map((o) => o.toLowerCase())).size !== 4) errors.push('question ' + (i + 1) + ' needs 4 distinct options');
+    if (!Number.isInteger(item?.correctIndex) || item.correctIndex < 0 || item.correctIndex > 3) errors.push('question ' + (i + 1) + ' correctIndex must be 0-3');
+  });
+  return errors;
+}
+
+const cleanQuestions = (list) => list.map((q) => ({ question: normalizeOption(q.question), options: q.options.slice(0, 4).map(normalizeOption), correctIndex: q.correctIndex }));
+
+async function extendQuiz(body) {
+  const quiz = briefQuiz(body.quiz);
+  if (!quiz.questions.length) { const e = new Error('Add at least one question before extending the quiz.'); e.status = 400; throw e; }
+  const room = MAX_TOTAL_QUESTIONS - quiz.questions.length;
+  if (room <= 0) { const e = new Error('This quiz already has the maximum of ' + MAX_TOTAL_QUESTIONS + ' questions.'); e.status = 400; throw e; }
+  const count = Math.min(clampCount(body.count), room);
+  const deeper = body.style === 'deeper';
+  const focus = cleanText(body.instruction, 400);
+  const system = [
+    "You are D'Quest, an expert quiz writer. " + JSON_ONLY,
+    'Write NEW multiple-choice questions that continue an existing quiz.',
+    deeper
+      ? 'Extend the quiz: go one level deeper than the existing questions. Cover related ideas the quiz has not touched yet and be somewhat harder.'
+      : 'Add more questions at the same level, grade and style as the existing ones, covering other parts of the same topic.',
+    QUESTION_RULES,
+    'Never repeat or lightly reword an existing question.',
+    'Shape: {"questions":[{"question":"...","options":["A","B","C","D"],"correctIndex":0}]}'
+  ].join('\n');
+  const user = [
+    'Existing quiz:', JSON.stringify(quiz),
+    'Write exactly ' + count + ' new questions.',
+    focus ? 'Extra direction from the user: ' + JSON.stringify(focus) : '',
+    'Return only the JSON object.'
+  ].filter(Boolean).join('\n\n');
+  const opts = { maxTokens: Math.min(9000, Math.max(2500, count * 480)), temperature: 0.4 };
+  let out = await callJson(system, user, opts);
+  let errors = checkQuestions(out?.questions, count, quiz.questions);
+  if (errors.length) {
+    out = await callJson(system, user + '\n\nFix these problems and return the full corrected JSON:\n' + errors.join('\n') + '\n\nPrevious attempt: ' + JSON.stringify(out), { ...opts, temperature: 0.2 });
+    errors = checkQuestions(out?.questions, count, quiz.questions);
+  }
+  if (errors.length) { const e = new Error('D-Ai produced questions that failed quality checks. Please try again.'); e.validation = errors.slice(0, 6); throw e; }
+  return { questions: cleanQuestions(out.questions) };
+}
+
+async function editQuiz(body) {
+  const quiz = briefQuiz(body.quiz);
+  const instruction = cleanText(body.instruction, 800);
+  if (!instruction) { const e = new Error('Tell the AI what to change.'); e.status = 400; throw e; }
+  if (!quiz.questions.length) { const e = new Error('Add at least one question before editing with AI.'); e.status = 400; throw e; }
+  const system = [
+    "You are D'Quest, an expert quiz editor. " + JSON_ONLY,
+    'Apply the user\'s instruction to the quiz and return the COMPLETE updated quiz.',
+    'Change only what the instruction asks for. Keep every other question exactly as it is. You may add, remove, reword, reorder or fix questions when asked.',
+    QUESTION_RULES,
+    'Keep metadata (grade 1-12 integer, difficulty Easy/Medium/Hard, topic, one emoji) valid; update it only if the instruction implies it.',
+    'Shape: {"title":"...","metadata":{"grade":7,"topic":"...","difficulty":"Medium","emoji":"📚"},"questions":[{"question":"...","options":["A","B","C","D"],"correctIndex":0}]}'
+  ].join('\n');
+  const user = ['Current quiz:', JSON.stringify(quiz), 'Instruction:', JSON.stringify(instruction), 'Return only the JSON object.'].join('\n\n');
+  const opts = { maxTokens: Math.min(12000, Math.max(4000, quiz.questions.length * 520)), temperature: 0.25 };
+  const check = (q) => { const errs = validateQuiz(q, null); if (Array.isArray(q?.questions) && (q.questions.length < 1 || q.questions.length > MAX_TOTAL_QUESTIONS)) errs.push('questions must have 1 to ' + MAX_TOTAL_QUESTIONS + ' items'); return errs; };
+  let out = await callJson(system, user, opts);
+  let errors = check(out);
+  if (errors.length) {
+    out = await callJson(system, user + '\n\nFix these problems and return the complete corrected JSON:\n' + errors.join('\n') + '\n\nPrevious attempt: ' + JSON.stringify(out), { ...opts, temperature: 0.15 });
+    errors = check(out);
+  }
+  if (errors.length) { const e = new Error('D-Ai produced an edit that failed quality checks. Please try again.'); e.validation = errors.slice(0, 6); throw e; }
+  const normalized = normalizeQuiz(out, quiz.metadata.topic, null);
+  delete normalized.suggestions;
+  return { quiz: normalized };
+}
+
+async function suggestNext(body) {
+  const quiz = briefQuiz(body.quiz);
+  if (!quiz.title && !quiz.questions.length) { const e = new Error('Quiz required.'); e.status = 400; throw e; }
+  const system = [
+    "You are D'Quest. " + JSON_ONLY,
+    'Someone just finished the quiz below. Suggest exactly 3 follow-up quizzes: go deeper, step up the difficulty, or move to a closely related topic.',
+    'Each prompt must be a self-contained request under 160 characters that does not mention the finished quiz.',
+    'Shape: {"suggestions":[{"title":"Short button label","prompt":"...","emoji":"🎯"}]}'
+  ].join('\n');
+  const brief = { ...quiz, questions: quiz.questions.slice(0, 8).map((q) => q.question) };
+  const out = await callJson(system, 'Finished quiz: ' + JSON.stringify(brief), { maxTokens: 700, temperature: 0.6 });
+  return { suggestions: normalizeSuggestions(out?.suggestions) };
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -252,13 +412,39 @@ module.exports = async function handler(req, res) {
       status: 'Online',
       backend: 'D-Ai',
       webGrounding: true,
-      maxQuestions: MAX_QUESTIONS
+      maxQuestions: MAX_QUESTIONS,
+      actions: ['generate', 'extend', 'edit', 'suggest']
     });
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = {}; } }
+  body = body && typeof body === 'object' ? body : {};
+  const action = ['extend', 'edit', 'suggest'].includes(body.action) ? body.action : 'generate';
+
+  // Anonymous callers share the AI backend, so cap how often one address can use it.
+  const gate = allow(req, RATE_LIMIT);
+  if (!gate.ok) {
+    res.setHeader('Retry-After', String(gate.retryAfterSec));
+    return res.status(429).json({ error: 'Too many AI requests from this connection. Try again in ' + Math.ceil(gate.retryAfterSec / 60) + ' min.' });
+  }
+
+  if (action !== 'generate') {
+    try {
+      const result = action === 'extend' ? await extendQuiz(body) : action === 'edit' ? await editQuiz(body) : await suggestNext(body);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error('[D-Quest] ' + action + ' error:', error.message);
+      return res.status(error.status || 502).json({
+        error: error.status ? error.message : (error.validation ? error.message : 'AI is temporarily unavailable.'),
+        validation: error.validation,
+        details: error.status ? undefined : cleanText(error.message, 300)
+      });
+    }
+  }
+
   const topic = cleanText(body.topic, 1200);
   const count = clampCount(body.count);
   if (!topic) return res.status(400).json({ error: 'Topic required' });
