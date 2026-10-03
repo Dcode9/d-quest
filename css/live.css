@@ -1,0 +1,161 @@
+/* Live quiz (host and player). Paper-and-lime, mobile first. Markup comes from js/live.js. */
+body.lv-open { overflow: hidden; }
+
+.lv { position: fixed; inset: 0; z-index: 60; background: var(--paper); color: var(--ink); overflow: hidden; animation: fadeIn .2s ease-out both; }
+.lv::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(var(--line) 1.2px, transparent 1.2px); background-size: 22px 22px; }
+.lv-frame { position: relative; height: 100%; }
+.lv-stage { position: relative; height: 100%; display: flex; flex-direction: column; padding: var(--safe-top) var(--safe-right) 0 var(--safe-left); }
+
+/* Top bar: everything visible, nothing behind hover */
+.lv-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0 10px; }
+.lv-top-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.lv-tracker { font: 900 15px/1 var(--mono); letter-spacing: .04em; padding: 7px 12px; border: var(--edge); border-radius: 999px; background: var(--surface); }
+.lv-tracker small { color: var(--muted); font-weight: 800; }
+.lv-me { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 46%; }
+.lv-me b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.lv-me-emoji { display: grid; place-items: center; width: 34px; height: 34px; border: var(--edge); border-radius: 12px; background: var(--lime-soft); font-size: 20px; flex: none; }
+
+.lv-main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 2px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+.lv-main > * { width: 100%; max-width: 1040px; margin-inline: auto; }
+.lv-stage.is-player .lv-main > * { max-width: 560px; }
+
+/* Sticky action bar: the main button is always on screen */
+.lv-bar { position: sticky; bottom: 0; margin-top: auto; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--paper) 70%, transparent); display: flex; justify-content: center; z-index: 2; }
+.lv-bar .btn { width: min(100%, 420px); }
+.btn-big { min-height: 54px; font-size: 17px; padding: 0 26px; }
+
+/* Typography */
+.lv-eyebrow { font: 800 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.lv-big { font-size: clamp(28px, 7vw, 54px); font-weight: 900; line-height: 1.08; letter-spacing: -.02em; text-wrap: balance; }
+.lv-h2 { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 900; margin-bottom: 12px; }
+.lv-h2 svg { width: 18px; height: 18px; }
+.lv-sub { color: var(--ink-soft); font-size: 16px; text-wrap: balance; }
+.lv-empty { color: var(--muted); font-weight: 700; padding: 18px 4px; text-align: center; }
+.lv-center { margin: auto; display: grid; justify-items: center; align-content: center; gap: 14px; text-align: center; padding: 8px 0; }
+.lv-pulse { animation: lvPulse 1.4s ease-in-out infinite; }
+@keyframes lvPulse { 50% { transform: scale(1.06); } }
+
+.lv-card { background: var(--surface); border: var(--edge); border-radius: var(--radius-l); box-shadow: var(--lift); padding: 18px; }
+
+/* Avatars */
+.lv-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border: var(--edge); border-radius: 14px; background: var(--lime-soft); font-size: 24px; }
+.lv-avatar-lg { width: 56px; height: 56px; font-size: 32px; border-radius: 18px; }
+.lv-avatar-xl { width: 88px; height: 88px; font-size: 52px; border-radius: 26px; box-shadow: var(--lift); animation: pop .5s both; }
+
+/* Host lobby */
+.lv-lobby { display: grid; gap: 14px; grid-template-columns: 1fr; align-items: start; }
+.lv-pin-card { display: grid; gap: 10px; justify-items: center; text-align: center; }
+.lv-pin-label { font: 800 12px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.lv-pin { font: 900 clamp(44px, 14vw, 84px)/1 var(--mono); letter-spacing: .08em; padding: 10px 18px; background: var(--lime); border: var(--edge); border-radius: 20px; box-shadow: var(--lift); user-select: all; }
+.lv-pin-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.lv-join-how { display: flex; gap: 14px; align-items: center; text-align: left; margin-top: 4px; }
+.lv-join-how img { background: #fff; border: var(--edge); border-radius: 14px; padding: 4px; width: 132px; height: 132px; flex: none; }
+.lv-join-how ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--ink-soft); }
+.lv-meta { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.lv-players { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: 1fr; }
+.lv-player { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border: 1.5px solid var(--line-strong); border-radius: 16px; background: var(--paper); }
+.lv-player-name { display: grid; min-width: 0; flex: 1; }
+.lv-player-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.lv-player-name small { color: var(--muted); font-weight: 700; font-size: 12px; }
+
+/* Question screens */
+.lv-qscreen { display: grid; gap: 14px; align-content: start; flex: 1; }
+.lv-prep, .lv-live-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lv-question { position: relative; background: var(--surface); border: var(--edge); border-radius: var(--radius-l); box-shadow: var(--lift); padding: 22px 18px 20px; animation: slideUp .4s cubic-bezier(.16,1,.3,1) both; }
+.lv-qnum { position: absolute; top: -14px; left: 16px; padding: 3px 12px; border: var(--edge); border-radius: 999px; background: var(--purple); font: 900 12px/1.5 var(--mono); letter-spacing: .1em; }
+.lv-question h2 { font-weight: 800; line-height: 1.25; text-wrap: balance; }
+.lv-question.is-short h2 { font-size: clamp(22px, 5.4vw, 40px); }
+.lv-question.is-medium h2 { font-size: clamp(19px, 4.6vw, 30px); }
+.lv-question.is-long h2 { font-size: clamp(17px, 3.8vw, 24px); }
+.lv-stage.is-host .lv-question { padding: 28px 22px 24px; text-align: center; }
+
+.lv-opts { display: grid; gap: 10px; grid-template-columns: 1fr; }
+.lv-opt { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 62px; padding: 10px 14px; text-align: left; overflow: hidden;
+  background: var(--surface); border: var(--edge); border-radius: 18px; box-shadow: var(--lift-s); font-weight: 800; font-size: clamp(16px, 4vw, 20px); line-height: 1.25;
+  transition: transform .08s ease, box-shadow .08s ease, background .15s ease, opacity .2s ease; animation: optionFlyIn .35s ease-out both; }
+.lv-opt:nth-child(2) { animation-delay: .05s; } .lv-opt:nth-child(3) { animation-delay: .1s; } .lv-opt:nth-child(4) { animation-delay: .15s; }
+button.lv-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.lv-opt-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lv-letter { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border: var(--edge); border-radius: 12px; font: 900 17px/1 var(--mono); background: var(--sun); }
+.lv-letter.l0 { background: var(--coral); } .lv-letter.l1 { background: var(--sky); } .lv-letter.l2 { background: var(--sun); } .lv-letter.l3 { background: var(--purple); }
+.lv-opt.is-locked { opacity: .55; box-shadow: none; border-style: dashed; }
+.lv-opt.is-selected { background: var(--purple); transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.lv-opt.is-correct { background: var(--lime); animation: pop .4s both; }
+.lv-opt.is-dim { opacity: .5; box-shadow: none; }
+.lv-opt:disabled:not(.is-selected):not(.is-correct) { cursor: default; }
+.lv-count { position: absolute; right: 0; bottom: 0; left: 0; height: 22px; display: flex; align-items: center; justify-content: flex-end; padding: 0 10px; font: 900 12px/1 var(--mono); }
+.lv-count i { position: absolute; inset: auto auto 0 0; height: 5px; background: var(--ink); border-radius: 0 4px 0 0; opacity: .75; }
+.lv-opt.is-correct .lv-count i { background: var(--lime-deep); }
+.lv-count b { position: relative; }
+.lv-opt:has(.lv-count) { padding-bottom: 26px; }
+
+/* Timer */
+.lv-timer { display: flex; align-items: center; gap: 12px; }
+.lv-timer-num { min-width: 52px; text-align: center; font: 900 28px/1 var(--mono); padding: 8px 10px; border: var(--edge); border-radius: 14px; background: var(--surface); box-shadow: var(--lift-s); }
+.lv-timer-track { flex: 1; height: 16px; border: var(--edge); border-radius: 999px; background: var(--surface); overflow: hidden; }
+.lv-timer-fill { display: block; height: 100%; width: 100%; background: var(--lime); border-right: 2px solid var(--ink); transition: width 1s linear, background .3s; }
+.lv-timer.is-low .lv-timer-num { background: var(--coral); animation: lvPulse .5s ease-in-out infinite; }
+.lv-timer.is-low .lv-timer-fill { background: var(--coral); }
+
+/* Result and finale */
+.lv-result-mark { font-size: clamp(64px, 20vw, 110px); line-height: 1; animation: pop .5s both; }
+.lv-points { font: 900 22px/1.2 var(--mono); }
+.lv-result.is-good .lv-points { color: var(--lime-deep); }
+
+.lv-board { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.lv-board > .lv-big { text-align: left; }
+.lv-ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; width: 100%; }
+.lv-rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: var(--edge); border-radius: 16px; box-shadow: var(--lift-s); will-change: transform; }
+.lv-rank-row.is-me { background: var(--lime-soft); }
+.lv-rank-row:first-child .lv-pos { background: var(--sun); }
+.lv-pos { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border: var(--edge); border-radius: 10px; font: 900 14px/1 var(--mono); background: var(--paper-2); }
+.lv-rise { font: 900 13px/1 var(--mono); color: var(--lime-deep); }
+
+.lv-finale { width: 100%; }
+.lv-podium { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; gap: 8px; width: min(100%, 520px); margin-top: 6px; }
+.lv-step { display: grid; justify-items: center; gap: 4px; padding: 12px 6px 10px; border: var(--edge); border-radius: 18px 18px 0 0; background: var(--surface); box-shadow: var(--lift-s); animation: slideUp .6s cubic-bezier(.16,1,.3,1) both; min-width: 0; }
+.lv-step.is-first { background: var(--lime); padding-top: 22px; padding-bottom: 28px; animation-delay: .25s; } .lv-step.is-second { padding-bottom: 14px; animation-delay: .1s; } .lv-step.is-third { animation-delay: .4s; }
+.lv-step.is-empty { border: 0; box-shadow: none; background: none; }
+.lv-step-medal { font-size: 26px; line-height: 1; }
+.lv-step-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.lv-step-pts { font: 800 12px/1 var(--mono); color: var(--ink-soft); }
+
+/* Join form */
+.lv-join { display: grid; gap: 16px; margin-top: 4px; }
+.lv-join-me { display: flex; align-items: center; gap: 12px; }
+.lv-join-me small { display: block; color: var(--muted); font-weight: 700; font-size: 12px; }
+.lv-join-me b { font-size: 20px; }
+.lv-pin-input { font: 900 28px/1 var(--mono); letter-spacing: .3em; text-align: center; min-height: 58px; }
+.lv-emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.lv-emoji { min-height: 46px; display: grid; place-items: center; font-size: 24px; background: var(--paper); border: 1.5px solid var(--line-strong); border-radius: 14px; transition: transform .1s ease; }
+.lv-emoji.is-on { background: var(--lime); border: var(--edge); box-shadow: var(--lift-s); }
+.lv-emoji:active { transform: scale(.94); }
+.lv-error { color: var(--coral-deep); font-weight: 800; font-size: 14px; }
+
+/* Dialog and toast */
+.lv-dialog { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgba(40,45,38,.45); animation: fadeIn .15s both; }
+.lv-dialog-card { width: min(380px, 100%); display: grid; gap: 16px; padding: 20px; background: var(--paper); border: var(--edge); border-radius: var(--radius-l); box-shadow: 0 6px 0 var(--ink); font-weight: 800; font-size: 17px; animation: pop .25s both; }
+.lv-dialog-actions { display: flex; gap: 10px; } .lv-dialog-actions .btn { flex: 1; }
+.lv-toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 120; max-width: min(92vw, 420px); padding: 12px 18px; border: var(--edge); border-radius: 14px; background: var(--ink); color: var(--paper); font-weight: 800; box-shadow: var(--lift); animation: slideUp .25s both; }
+.lv-toast.is-error { background: var(--coral-deep); }
+
+/* Wider screens: the host sees a projector-style layout */
+@media (min-width: 720px) {
+  .lv-stage { padding-inline: max(24px, env(safe-area-inset-left)); }
+  .lv-lobby { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px; }
+  .lv-players { grid-template-columns: repeat(2, 1fr); }
+  .lv-opts { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .lv-stage.is-host .lv-opt { min-height: 92px; font-size: clamp(18px, 2.4vw, 28px); }
+  .lv-stage.is-host .lv-letter { width: 48px; height: 48px; font-size: 22px; }
+  .lv-stage.is-player .lv-opts { grid-template-columns: 1fr; }
+  .lv-stage.is-host .lv-timer-num { font-size: 40px; min-width: 76px; }
+}
+@media (max-width: 380px) { .lv-emoji-grid { grid-template-columns: repeat(4, 1fr); } .lv-join-how img { width: 108px; height: 108px; } }
+@media (max-height: 560px) and (orientation: landscape) { .lv-question { padding: 16px; } .lv-opt { min-height: 50px; } .lv-big { font-size: 28px; } }
+@media (prefers-reduced-motion: reduce) { .lv *, .lv-toast { animation: none !important; transition: none !important; } }
+
+/* Re-rendered stages (live, reveal) should not replay the entrance animation */
+.stage-question-host.is-live .lv-question, .stage-question-host.is-live .lv-opt,
+.stage-answer-reveal .lv-question, .stage-answer-reveal .lv-opt:not(.is-correct), .stage-leaderboard .lv-board { animation: none; }
+.stage-answer-reveal .lv-bar { margin-top: 8px; }

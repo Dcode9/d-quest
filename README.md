@@ -13,12 +13,14 @@ D'Quest is a browser-based quiz platform that lets learners explore local quizze
 ## Project Structure
 - `/index.html` - home: search, library, entry buttons
 - `/player.html` - solo quiz player
-- `/css/` - design system: `tokens.css`, `base.css`, `components.css`, then page files (`home.css`, `play.css`, `preview-builder.css`) and `live-theme.css` for the live room skin
+- `/css/` - design system: `tokens.css`, `base.css`, `components.css`, then page files (`home.css`, `play.css`, `preview-builder.css`) and `live.css` for the live room
 - `/js/main.js` - home controller (ES module)
 - `/js/lib/` - `dom.js`, `storage.js`, `quizzes.js` (catalog and loading), `generate.js` (AI generate and publish)
 - `/js/views/` - `card.js`, `preview.js`, `builder.js`
 - `/js/play/` - `main.js` (loader), `game.js` (state machine), `audio.js`
-- `/js/live.js` - live room logic (unchanged behaviour, themed by `css/live-theme.css`)
+- `/js/live.js` - live room: host and player flows over Supabase realtime (markup built in JS, styled by `css/live.css`)
+- `/js/lib/sfx.js` - original sound effects, synthesised with WebAudio (no audio files)
+- `/js/lib/suggest.js` - picks the end-of-quiz "What next?" quizzes from the AI's candidates using the score
 - `/js/config.js`, `/js/dverse-auth.js` - Supabase config and D'Verse sign-in bridge
 - `/quizzes/` - built-in quiz JSON files, listed in `quizzes/index.json`
 - `/api/` - serverless endpoints (unchanged)
@@ -75,3 +77,26 @@ The D'Ai project owns the provider credentials (Gemini/Groq/Cerebras/Pollination
   - `js/search.js`
 - Add new local quiz files to both lists to make them searchable and visible in the UI.
 - Search prompts can be plain topics (for example, "photosynthesis") or richer requests such as "10 challenging questions about world geography".
+
+
+## End-of-quiz suggestions
+The AI returns about 10 candidate next quizzes, each tagged with a kind (`fundamentals`, `same`, `related`, `deeper`, `challenge`) and a difficulty. `js/lib/suggest.js` picks three from the player's score: a low score gets easier fundamentals practice, a great score gets deeper or harder quizzes.
+
+## AI usage guard
+`api/_rate.js` protects the anonymous AI endpoint in three layers, and all of them fail open (if a counter cannot be reached the request is allowed):
+1. 15 calls per 10 minutes per IP (memory of one serverless instance).
+2. A per-instance hourly ceiling (`AI_INSTANCE_HOURLY_LIMIT`, default 300).
+3. An optional shared daily budget across all instances (`AI_DAILY_LIMIT`, default 1500). It starts counting once this table exists in Supabase:
+
+```sql
+create table if not exists public.ai_usage (
+  id bigint generated always as identity primary key,
+  day date not null default (now() at time zone 'utc')::date,
+  created_at timestamptz not null default now()
+);
+create index if not exists ai_usage_day_idx on public.ai_usage (day);
+alter table public.ai_usage enable row level security;
+create policy "ai_usage_insert" on public.ai_usage for insert to anon, authenticated with check (true);
+create policy "ai_usage_count" on public.ai_usage for select to anon, authenticated using (true);
+```
+Until the table exists the shared layer stays off. The per-IP and per-instance layers cap requests, not dollars; a hard dollar limit belongs in the AI provider account.

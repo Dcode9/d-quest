@@ -1,8 +1,7 @@
 const DAI_API_BASE_URL = (process.env.DAI_API_BASE_URL || 'https://d-m22f8yuju-dcode9s-projects.vercel.app/api').replace(/\/+$/, '');
 const MAX_QUESTIONS = 20;
 const MAX_TOTAL_QUESTIONS = 60;
-const RATE_LIMIT = { windowMs: 10 * 60 * 1000, max: 15 };
-const { allow } = require('./_rate');
+const { guard } = require('./_rate');
 const MIN_QUESTIONS = 1;
 const REQUEST_TIMEOUT_MS = 48000;
 
@@ -16,7 +15,7 @@ const QUIZ_SYSTEM_PROMPT = [
   '  "title": "Concise, polished quiz title",',
   '  "metadata": { "grade": 1, "topic": "Primary topic", "difficulty": "Easy", "emoji": "📚" },',
   '  "questions": [{ "question": "A clear, unambiguous question?", "options": ["A", "B", "C", "D"], "correctIndex": 0 }],',
-  '  "suggestions": [{ "title": "Short button label for a follow-up quiz", "prompt": "Standalone request that generates that quiz", "emoji": "🎯" }]',
+  '  "suggestions": [{ "title": "Short button label for a follow-up quiz", "prompt": "Standalone request that generates that quiz", "emoji": "🎯", "kind": "fundamentals", "difficulty": "Easy" }]',
   '}',
   "",
   "Quality rules:",
@@ -32,7 +31,7 @@ const QUIZ_SYSTEM_PROMPT = [
   "- For quantitative questions, check arithmetic and units. For science and technical questions, use canonical terminology.",
   "- Treat the web research packet as evidence for current, time-sensitive, or source-specific facts. Do not invent unsupported current details.",
   "- If the research packet is empty, rely on stable knowledge and do not pretend that you verified live facts.",
-  "- suggestions: exactly 3 follow-up quizzes someone who just finished this one would enjoy next (go deeper, a harder level, or a closely related topic). Each prompt must be self-contained, under 160 characters, and must not mention this quiz.",
+  "- suggestions: exactly 10 follow-up quizzes someone who just finished this one might want next. The app picks the best three from how they scored, so cover a spread: 3 with kind fundamentals (easier practice of the basics behind this topic, difficulty Easy), 2 with kind same (same level, other parts of the topic), 2 with kind related (a closely related topic), 2 with kind deeper (a harder, more advanced step, difficulty Hard), 1 with kind challenge (a tough mixed test, difficulty Hard). Each prompt must be self-contained, under 160 characters, and must not mention this quiz.",
   '- grade must be 1-12; difficulty must be Easy, Medium, or Hard; emoji must be one emoji.'
 ].join('\\n');
 
@@ -123,6 +122,8 @@ function validateQuiz(quiz, count) {
   return errors;
 }
 
+const SUGGESTION_KINDS = ['fundamentals', 'same', 'related', 'deeper', 'challenge'];
+
 function normalizeSuggestions(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -132,8 +133,10 @@ function normalizeSuggestions(list) {
     const prompt = cleanText(item?.prompt || item?.title, 200);
     if (!title || !prompt || seen.has(title.toLowerCase())) continue;
     seen.add(title.toLowerCase());
-    out.push({ title, prompt, emoji: cleanText(item?.emoji, 8) || '🎯' });
-    if (out.length >= 3) break;
+    const kind = SUGGESTION_KINDS.includes(item?.kind) ? item.kind : '';
+    const difficulty = ['Easy', 'Medium', 'Hard'].includes(item?.difficulty) ? item.difficulty : '';
+    out.push({ title, prompt, emoji: cleanText(item?.emoji, 8) || '🎯', ...(kind ? { kind } : {}), ...(difficulty ? { difficulty } : {}) });
+    if (out.length >= 10) break;
   }
   return out;
 }
@@ -391,12 +394,13 @@ async function suggestNext(body) {
   if (!quiz.title && !quiz.questions.length) { const e = new Error('Quiz required.'); e.status = 400; throw e; }
   const system = [
     "You are D'Quest. " + JSON_ONLY,
-    'Someone just finished the quiz below. Suggest exactly 3 follow-up quizzes: go deeper, step up the difficulty, or move to a closely related topic.',
+    'Someone just finished the quiz below. Suggest exactly 10 follow-up quizzes. The app chooses the best three from how they scored, so cover a spread:',
+    '3 with kind "fundamentals" (easier practice of the basics behind this topic, difficulty Easy), 2 with kind "same" (same level, other parts of the topic), 2 with kind "related" (a closely related topic), 2 with kind "deeper" (a harder, more advanced step, difficulty Hard), 1 with kind "challenge" (a tough mixed test, difficulty Hard).',
     'Each prompt must be a self-contained request under 160 characters that does not mention the finished quiz.',
-    'Shape: {"suggestions":[{"title":"Short button label","prompt":"...","emoji":"🎯"}]}'
+    'Shape: {"suggestions":[{"title":"Short button label","prompt":"...","emoji":"🎯","kind":"fundamentals","difficulty":"Easy"}]}'
   ].join('\n');
   const brief = { ...quiz, questions: quiz.questions.slice(0, 8).map((q) => q.question) };
-  const out = await callJson(system, 'Finished quiz: ' + JSON.stringify(brief), { maxTokens: 700, temperature: 0.6 });
+  const out = await callJson(system, 'Finished quiz: ' + JSON.stringify(brief), { maxTokens: 1800, temperature: 0.6 });
   return { suggestions: normalizeSuggestions(out?.suggestions) };
 }
 
@@ -425,10 +429,10 @@ module.exports = async function handler(req, res) {
   const action = ['extend', 'edit', 'suggest'].includes(body.action) ? body.action : 'generate';
 
   // Anonymous callers share the AI backend, so cap how often one address can use it.
-  const gate = allow(req, RATE_LIMIT);
+  const gate = await guard(req);
   if (!gate.ok) {
     res.setHeader('Retry-After', String(gate.retryAfterSec));
-    return res.status(429).json({ error: 'Too many AI requests from this connection. Try again in ' + Math.ceil(gate.retryAfterSec / 60) + ' min.' });
+    return res.status(429).json({ error: gate.message });
   }
 
   if (action !== 'generate') {

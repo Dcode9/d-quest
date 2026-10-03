@@ -18,14 +18,14 @@ function showError(message) {
     </section>`;
 }
 
-soundBtn.addEventListener('click', () => {
-  const on = audio.toggle();
+function paintSound(on) {
   soundBtn.setAttribute('aria-pressed', String(!on));
   soundBtn.querySelector('span').textContent = on ? 'Sound on' : 'Sound off';
   soundBtn.querySelector('i, svg')?.remove();
   soundBtn.insertAdjacentHTML('afterbegin', `<i data-lucide="${on ? 'volume-2' : 'volume-x'}"></i>`);
   refreshIcons(soundBtn);
-});
+}
+soundBtn.addEventListener('click', () => { const on = audio.toggle(); paintSound(on); if (on) audio.play('tap'); });
 
 async function boot() {
   const params = new URLSearchParams(window.location.search);
@@ -45,4 +45,5 @@ async function boot() {
 }
 
 refreshIcons();
+if (!audio.enabled) paintSound(false);
 boot();

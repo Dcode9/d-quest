@@ -12,20 +12,7 @@
   <link rel="stylesheet" href="css/generation.css">
   <link rel="stylesheet" href="css/home.css">
   <link rel="stylesheet" href="css/preview-builder.css">
-  <link rel="stylesheet" href="css/live-theme.css">
-  <!-- The live room module still renders with utility class names, so Tailwind stays for it only.
-       Preflight is off and the palette is remapped to the paper theme. -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      corePlugins: { preflight: false },
-      theme: { extend: { colors: {
-        slate: { 100: '#282d26', 200: '#2f352e', 300: '#3b423b', 400: '#74776b', 500: '#8a8d80', 600: '#aaa89a', 700: '#c9c7b8', 800: '#efeadd', 900: '#fffdf8' },
-        yellow: { 300: '#4d7a12', 400: '#5f8f1a', 500: '#7fb02e' },
-        red: { 400: '#d4573d' }, emerald: { 400: '#3f8a2f' }
-      } } }
-    };
-  </script>
+  <link rel="stylesheet" href="css/live.css">
   <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
   <script src="js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.3/dist/umd/supabase.js"></script>
@@ -95,6 +82,7 @@
   </div>
 
   <script src="js/dverse-auth.js"></script>
+  <script src="js/lib/sfx.js"></script>
   <script src="js/live.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>

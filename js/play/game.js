@@ -4,6 +4,7 @@ import { generateQuiz, suggestNextAI, extendQuizAI } from '../lib/generate.js';
 
 import { generationCard } from '../views/generation.js';
 import { cacheQuiz } from '../lib/storage.js';
+import { pickSuggestions, nextHeading, fallbackPool } from '../lib/suggest.js';
 
 const TIME_PER_QUESTION = 30;
 const LOCK_MS = 1800;
@@ -113,6 +114,7 @@ export function createGame({ stage, hud, audio, quiz }) {
     clearInterval(s.timer);
     s.phase = 'locked'; s.picked = i;
     audio.pause('clock');
+    audio.play('lock');
     mark(i, 'is-picked');
     stage.querySelectorAll('.opt').forEach((b) => { b.disabled = true; });
     setTimeout(reveal, LOCK_MS);
@@ -121,6 +123,7 @@ export function createGame({ stage, hud, audio, quiz }) {
   function timeUp() {
     s.phase = 'locked';
     audio.pause('clock');
+    audio.play('timeup');
     stage.querySelectorAll('.opt').forEach((b) => { b.disabled = true; });
     reveal();
   }
@@ -134,7 +137,7 @@ export function createGame({ stage, hud, audio, quiz }) {
     const gotIt = s.picked === right;
     if (s.picked !== null && !gotIt) mark(s.picked, 'is-wrong');
     if (gotIt) { s.score += POINTS; s.correct += 1; }
-    audio.play(gotIt ? 'correct' : 'wrong');
+    if (s.picked !== null || gotIt) setTimeout(() => audio.play(gotIt ? 'correct' : 'wrong'), 80);
     const last = s.index >= questions.length - 1;
     document.getElementById('foot').innerHTML = `
       <p class="verdict ${gotIt ? 'good' : 'bad'}">${gotIt ? `Correct! +${POINTS}` : s.picked === null ? "Time's up" : 'Not quite'}</p>
@@ -167,25 +170,26 @@ export function createGame({ stage, hud, audio, quiz }) {
     } catch { /* related quizzes are optional */ }
   }
 
-  // "What next?" buttons. Each one creates the quiz with AI and starts it right away.
-  async function showNextButtons() {
+  // "What next?" buttons. The AI offers about ten candidates; the score decides which three show.
+  async function showNextButtons(pct) {
     const box = document.getElementById('next-quiz');
     if (!box) return;
-    let list = Array.isArray(quiz.suggestions) ? quiz.suggestions.filter((x) => x?.prompt) : [];
-    if (!list.length) {
+    const difficulty = quiz.metadata?.difficulty || 'Medium';
+    let pool = Array.isArray(quiz.suggestions) ? quiz.suggestions.filter((x) => x?.prompt) : [];
+    const needFresh = pool.length < 6 || pool.every((x) => !x.kind);
+    if (needFresh) {
       box.hidden = false;
-      box.innerHTML = '<h3>What next?</h3><p class="next-note">Thinking of what to try next…</p>';
-      try { list = await suggestNextAI(quiz); } catch { list = []; }
+      box.innerHTML = '<h3>What next?</h3><p class="next-note">Picking quizzes that fit your score…</p>';
+      try {
+        const fresh = await suggestNextAI(quiz);
+        if (fresh.length) pool = fresh.concat(pool.filter((x) => !fresh.some((f) => f.title === x.title)));
+      } catch { /* fall back below */ }
     }
-    if (!list.length) {
-      const topic = quiz.metadata?.topic || quiz.title || 'this topic';
-      list = [
-        { emoji: '📈', title: `Harder ${topic}`, prompt: `A harder quiz on ${topic}` },
-        { emoji: '🔎', title: `More on ${topic}`, prompt: `Different questions on ${topic}` }
-      ];
-    }
+    if (!pool.length) pool = fallbackPool(quiz);
+    let list = pickSuggestions(pool, { pct, difficulty, count: 3 });
+    if (!list.length) list = pickSuggestions(fallbackPool(quiz), { pct, difficulty, count: 3 });
     box.hidden = false;
-    box.innerHTML = `<h3>What next?</h3><div class="next-list">${list.slice(0, 3).map((x, i) => `
+    box.innerHTML = `<h3>${esc(nextHeading(pct))}</h3><div class="next-list">${list.map((x, i) => `
       <button type="button" class="next-btn" data-i="${i}"><span class="next-emoji">${esc(x.emoji || '🎯')}</span><span class="next-text"><b>${esc(x.title)}</b></span>${icon('arrow-right')}</button>`).join('')}</div>
       <p class="next-note" id="next-note" role="status"></p>`;
     refreshIcons(box);
@@ -236,7 +240,7 @@ export function createGame({ stage, hud, audio, quiz }) {
         <div id="next-quiz" class="next-quiz" hidden></div>
         <div id="up-next" class="up-next" hidden></div>
       </section>`);
-    showNextButtons();
+    showNextButtons(pct);
     showUpNext();
     document.getElementById('extend-run').addEventListener('click', async (event) => {
       const button = event.currentTarget;
@@ -263,6 +267,6 @@ export function createGame({ stage, hud, audio, quiz }) {
   }
 
   document.addEventListener('keydown', onKey);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) audio.pause('clock'); else if (s.phase === 'options') audio.play('clock', true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) audio.pause('clock'); else if (s.phase === 'options') window.DQSfx?.countdown(s.left); });
   return { start };
 }
