@@ -208,3 +208,18 @@ function init() {
 
 window.addEventListener('error', (e) => console.warn('[dquest]', e.message));
 init();
+
+// D'Ai bridge: lets the D'Ai Apps sidebar open a topic directly (?q=topic) or by message.
+(function daiBridge() {
+  const run = (q) => {
+    const topic = String(q || '').trim().slice(0, 200);
+    if (!topic) return;
+    ui.input.value = topic;
+    handleSearch();
+  };
+  try { run(new URLSearchParams(location.search).get('q')); } catch { /* ignore */ }
+  window.addEventListener('message', (ev) => {
+    if (!/^https:\/\/(ai\.d-verse\.in|d-ai[\w-]*\.vercel\.app)$/.test(ev.origin)) return;
+    if (ev.data && ev.data.type === 'dai:quest' && ev.data.topic) run(ev.data.topic);
+  });
+})();
