@@ -114,6 +114,9 @@
             const { data } = await client.auth.getSession();
             if (data.session) return;
             await client.auth.setSession({ access_token: d.access_token, refresh_token: d.refresh_token });
+            // Borrowed session: never rotate D'Ai's refresh token from here, and don't keep it after the panel closes.
+            client.auth.stopAutoRefresh();
+            window.addEventListener('pagehide', () => { try { client.auth.signOut({ scope: 'local' }); } catch (e) {} });
         } catch (e) { console.warn('[DVerse] handoff failed', e); }
     });
 
