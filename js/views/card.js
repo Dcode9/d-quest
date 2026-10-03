@@ -2,6 +2,7 @@ import { esc, icon, el } from '../lib/dom.js';
 import { describeQuiz, playUrl } from '../lib/quizzes.js';
 import { openPreview } from './preview.js';
 import { openBuilder } from './builder.js';
+import { recordInterest } from '../lib/discover.js';
 
 // Builds one quiz card. Edit is offered for AI drafts and quizzes saved on this device.
 export function quizCard(item) {
@@ -19,10 +20,11 @@ export function quizCard(item) {
       </div>
       <div class="quiz-meta">
         <span class="chip">${esc(info.grade)}</span>
-        <span class="chip">${esc(info.difficulty)}</span>
+        <span class="chip diff diff-${esc(String(info.difficulty).toLowerCase())}">${esc(info.difficulty)}</span>
         <span class="chip chip-lime">${info.count} ${info.count === 1 ? "question" : "questions"}</span>
         ${item.isCustomLocal ? '<span class="chip badge-local">On this device</span>' : ''}
         ${item.isAI && !item.isCustomLocal ? '<span class="chip chip-purple">AI made</span>' : ''}
+        ${item.mergedCount ? `<span class="chip" title="Duplicate copies merged into this one">${item.mergedCount + 1} copies merged</span>` : ''}
       </div>
       <div class="quiz-actions">
         <a class="btn btn-lime btn-play" href="${esc(playUrl(item))}">${icon('play')}<span>Play</span></a>
@@ -32,7 +34,8 @@ export function quizCard(item) {
       </div>
     </article>`);
 
-  node.querySelector('[data-act="preview"]').addEventListener('click', () => openPreview(quiz));
+  node.querySelector('[data-act="preview"]').addEventListener('click', () => { recordInterest(item, 0.5); openPreview(quiz, item); });
+  node.querySelector('.btn-play').addEventListener('click', () => recordInterest(item, 3));
   node.querySelector('[data-act="live"]').addEventListener('click', () => {
     if (typeof window.startLiveHost === 'function') window.startLiveHost(item);
     else alert('Live hosting is not available right now.');

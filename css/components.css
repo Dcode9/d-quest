@@ -76,3 +76,15 @@ button.chip:hover { background: var(--lime-soft); transform: translateY(-1px); }
 
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; max-width: min(92vw, 420px); padding: 12px 18px; border: var(--edge); border-radius: 14px; background: var(--ink); color: var(--paper); font-weight: 700; box-shadow: var(--lift); animation: slideUp .25s ease-out; }
 .toast.error { background: var(--coral-deep); }
+
+/* Related quiz rows (preview modal and the player result screen) */
+.related { margin-bottom: 18px; padding: 14px; border: 2px dashed var(--line-strong); border-radius: var(--radius-m); display: grid; gap: 8px; }
+.related h4 { font-size: 15px; font-weight: 900; }
+.related-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--surface); text-decoration: none; color: var(--ink); }
+.related-item:active { transform: translateY(2px); }
+.related-emoji { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: var(--edge); border-radius: 12px; background: var(--lime-soft); font-size: 22px; }
+.related-text { display: grid; min-width: 0; }
+.related-text b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.related-text small { color: var(--muted); font-weight: 700; font-size: 12px; }
+.up-next { width: min(460px, 100%); display: grid; gap: 8px; margin-top: 18px; text-align: left; }
+.up-next h3 { font-size: 16px; font-weight: 900; }

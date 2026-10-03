@@ -74,8 +74,18 @@
       </section>
 
       <section id="library">
+        <div id="hub-shelves"></div>
         <div class="section-head">
-          <div><h2>Quiz library</h2><p>Pick one and play, preview it, or host it live.</p></div>
+          <div><h2>Browse the library</h2><p id="library-count">Pick one and play, preview it, or host it live.</p></div>
+        </div>
+        <div class="filters">
+          <div id="diff-filter" class="seg" role="group" aria-label="Difficulty">
+            <button type="button" class="seg-btn is-on" data-diff="">All levels</button>
+            <button type="button" class="seg-btn" data-diff="Easy">Easy</button>
+            <button type="button" class="seg-btn" data-diff="Medium">Medium</button>
+            <button type="button" class="seg-btn" data-diff="Hard">Hard</button>
+          </div>
+          <div id="topic-filter" class="topic-row" aria-label="Topics"></div>
         </div>
         <div id="library-grid" class="grid-cards"></div>
       </section>

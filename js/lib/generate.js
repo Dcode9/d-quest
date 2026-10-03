@@ -1,5 +1,6 @@
 // AI quiz generation through the D'Ai backed /api/generate-quiz endpoint.
 import { cacheQuiz } from './storage.js';
+import { recordInterest } from './discover.js';
 
 const REQUEST_TIMEOUT_MS = 60000; // D'Ai plus web grounding plus an optional repair pass
 
@@ -46,7 +47,18 @@ export async function generateQuiz(topic, onStage = () => {}) {
     generationMeta: data.meta || {}
   };
   cacheQuiz(item.id, data.quiz);
-  return item;
+  recordInterest(topic, 2);
+
+  // Save it to the shared database right away so it survives a refresh and shows up for others.
+  // The server merges it into an existing quiz when the title and topic already exist.
+  onStage('Saving to the quiz library…');
+  try {
+    const saved = await publishQuiz(data.quiz);
+    return { ...item, ...saved, isAI: true, isTemp: false, saveState: saved.duplicate ? 'duplicate' : 'saved', generationMeta: item.generationMeta };
+  } catch (error) {
+    console.warn('[save]', error.message || error);
+    return { ...item, saveState: 'failed' };
+  }
 }
 
 export async function publishQuiz(content) {
@@ -58,5 +70,5 @@ export async function publishQuiz(content) {
   if (!response.ok) throw new Error((await response.text()) || 'Could not save quiz');
   const payload = await response.json();
   if (!payload?.quiz?.id) throw new Error('Save response missing quiz id');
-  return { ...payload.quiz, content: payload.quiz.content || content, isAI: true, isTemp: false };
+  return { ...payload.quiz, content: payload.quiz.content || content, isAI: true, isTemp: false, duplicate: Boolean(payload.duplicate) };
 }

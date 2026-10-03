@@ -144,6 +144,23 @@ export function createGame({ stage, hud, audio, quiz }) {
     if (s.index < questions.length - 1) { s.index += 1; intro(); } else finish();
   }
 
+  // Related quizzes after the result, like an "up next" shelf.
+  async function showUpNext() {
+    try {
+      const [{ loadLibrary, playUrl, describeQuiz }, { relatedTo, recordInterest }] = await Promise.all([import('../lib/quizzes.js'), import('../lib/discover.js')]);
+      const me = { id: quiz.id || '', content: quiz };
+      recordInterest(me, 2);
+      const more = relatedTo(me, await loadLibrary(), 3);
+      const box = document.getElementById('up-next');
+      if (!more.length || !box) return;
+      box.innerHTML = `<h3>Up next</h3>${more.map((m) => {
+        const mi = describeQuiz(m.content || {});
+        return `<a class="related-item" href="${esc(playUrl(m))}"><span class="related-emoji">${esc(mi.emoji)}</span><span class="related-text"><b>${esc(mi.title)}</b><small>${esc(mi.topic)} · ${esc(mi.difficulty)} · ${mi.count} questions</small></span></a>`;
+      }).join('')}`;
+      box.hidden = false;
+    } catch { /* related quizzes are optional */ }
+  }
+
   function finish() {
     s.phase = 'done';
     const total = questions.length;
@@ -162,7 +179,9 @@ export function createGame({ stage, hud, audio, quiz }) {
           <button id="again" class="btn btn-lime btn-big">${icon('rotate-ccw')}<span>Play again</span></button>
           <a class="btn" href="index.html">${icon('home')}<span>Home</span></a>
         </div>
+        <div id="up-next" class="up-next" hidden></div>
       </section>`);
+    showUpNext();
     document.getElementById('again').addEventListener('click', () => { s.index = 0; s.score = 0; s.correct = 0; intro(); });
   }
 
