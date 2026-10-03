@@ -3,6 +3,7 @@ import { $, esc, icon, refreshIcons, toast } from './lib/dom.js';
 import { loadLibrary, searchQuizzes } from './lib/quizzes.js';
 import { generateQuiz } from './lib/generate.js';
 import { quizCard } from './views/card.js';
+import { generationCard } from './views/generation.js';
 import { openBuilder } from './views/builder.js';
 import { recordInterest, recommend, topicsOf, normDifficulty } from './lib/discover.js';
 import { describeQuiz } from './lib/quizzes.js';
@@ -99,19 +100,22 @@ async function handleSearch(event) {
 async function generateFor(query, myRun) {
   try {
 
-    showStatus(loadingPanel("Nothing yet. Generating with D'Ai…"));
+    showStatus('');
+    ui.resultsGrid.replaceChildren();
+    const build = generationCard(ui.resultsGrid, query);
     const item = await generateQuiz(query, (stage) => {
-      if (myRun === runId) showStatus(loadingPanel(stage));
+      if (myRun === runId) build.stage(stage);
     });
     if (myRun !== runId) return;
     const saveNote = { saved: 'Saved to the quiz library', duplicate: 'Already in the library, showing the existing quiz', failed: 'Could not save to the library, it only lives in this tab' }[item.saveState] || '';
     const saveChip = saveNote ? `<span class="gen-note ${item.saveState === 'failed' ? '' : 'grounded'}">${icon(item.saveState === 'failed' ? 'alert-triangle' : 'check')}${esc(saveNote)}</span>` : '';
     showStatus(`<div class="results-bar"><span class="gen-row">${groundingNote(item.generationMeta)}${saveChip}</span></div>`);
     if (item.saveState && item.saveState !== 'failed') document.dispatchEvent(new CustomEvent('dquest:library-changed'));
-    fillGrid(ui.resultsGrid, [item]);
+    build.ready(item);
   } catch (error) {
     if (myRun !== runId) return;
     console.error('[search]', error);
+    ui.resultsGrid.replaceChildren();
     showStatus(`<div class="status-panel"><span class="status-emoji">😵</span><strong>That did not work</strong><span>${esc(error.message)}</span></div>`);
   }
 }

@@ -1,0 +1,28 @@
+/* The outline builds over ~24s, then breathes for longer requests. No fake progress. */
+.quiz-build { position: relative; width: min(100%, 380px); min-height: 248px; margin: 12px auto 20px; border-radius: 24px; isolation: isolate; }
+.build-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.build-outline rect { fill: none; vector-effect: non-scaling-stroke; stroke-width: 2.5; stroke-dasharray: 1 8; stroke-linecap: round; }
+.build-guide { stroke: var(--line-strong); opacity: .45; }
+.build-trace { stroke: var(--ink); clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); animation: build-draw 24s cubic-bezier(.12,.5,.4,1) forwards, build-breathe 3s 24s ease-in-out infinite; }
+.build-paper { position: absolute; inset: 18px; display: grid; grid-template-columns: 58px 1fr; gap: 14px; opacity: .65; }
+.build-symbol { width: 58px; height: 58px; display: grid; place-items: center; background: var(--lime-soft); border: 2px dotted var(--lime-deep); border-radius: 16px; font-size: 30px; animation: build-float 3s ease-in-out infinite; }
+.build-lines { padding-top: 8px; }
+.build-lines span, .build-tags span { display: block; height: 12px; border-radius: 7px; background: var(--paper-2); border: 1px dashed var(--line-strong); }
+.build-lines span + span { width: 65%; margin-top: 12px; }
+.build-tags { grid-column: 1 / -1; display: flex; gap: 8px; }
+.build-tags span { width: 66px; height: 22px; }
+.build-caption { position: relative; padding: 128px 22px 22px; display: grid; gap: 5px; text-align: left; }
+.build-caption b { font-size: 18px; font-weight: 900; }
+.build-topic { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.build-stage { font-size: 12px; color: var(--muted); margin-top: 7px; }
+.quiz-build.is-ready { min-height: 0; }
+.quiz-build.is-ready .quiz-card { animation: build-arrive .28s ease-out both; }
+.quiz-build.is-ready .quiz-emoji { animation: build-arrive .35s ease-out both; }
+@keyframes build-draw { to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); } }
+@keyframes build-breathe { 50% { opacity: .35; } }
+@keyframes build-float { 50% { transform: translateY(-3px) rotate(7deg); } }
+@keyframes build-arrive { from { opacity: .25; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .build-trace { animation: none; clip-path: none; }
+  .build-symbol, .quiz-build.is-ready .quiz-card, .quiz-build.is-ready .quiz-emoji { animation: none; }
+}

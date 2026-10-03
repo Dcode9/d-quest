@@ -1,6 +1,9 @@
 // Solo quiz state machine: start, question, options, lock, reveal, finish.
 import { esc, icon, refreshIcons } from '../lib/dom.js';
-import { generateQuiz, suggestNextAI } from '../lib/generate.js';
+import { generateQuiz, suggestNextAI, extendQuizAI } from '../lib/generate.js';
+
+import { generationCard } from '../views/generation.js';
+import { cacheQuiz } from '../lib/storage.js';
 
 const TIME_PER_QUESTION = 30;
 const LOCK_MS = 1800;
@@ -183,7 +186,7 @@ export function createGame({ stage, hud, audio, quiz }) {
     }
     box.hidden = false;
     box.innerHTML = `<h3>What next?</h3><div class="next-list">${list.slice(0, 3).map((x, i) => `
-      <button type="button" class="next-btn" data-i="${i}"><span class="next-emoji">${esc(x.emoji || '🎯')}</span><span class="next-text"><b>${esc(x.title)}</b><small>Creates and starts instantly</small></span>${icon('arrow-right')}</button>`).join('')}</div>
+      <button type="button" class="next-btn" data-i="${i}"><span class="next-emoji">${esc(x.emoji || '🎯')}</span><span class="next-text"><b>${esc(x.title)}</b></span>${icon('arrow-right')}</button>`).join('')}</div>
       <p class="next-note" id="next-note" role="status"></p>`;
     refreshIcons(box);
     const note = box.querySelector('#next-note');
@@ -191,15 +194,18 @@ export function createGame({ stage, hud, audio, quiz }) {
       const pick = list[Number(btn.dataset.i)];
       box.querySelectorAll('.next-btn').forEach((b) => { b.disabled = true; });
       btn.classList.add('is-busy');
-      btn.querySelector('small').textContent = 'Creating your quiz…';
+      const buildHost = document.createElement('div');
+      box.append(buildHost);
+      const build = generationCard(buildHost, pick.title);
       note.textContent = '';
       try {
-        const item = await generateQuiz(pick.prompt, (stage) => { note.textContent = stage; });
+        const item = await generateQuiz(pick.prompt, (stage) => { build.stage(stage); });
+        build.ready(item);
         window.location.href = `player.html?id=${encodeURIComponent(item.id)}&autostart=1`;
       } catch (error) {
         box.querySelectorAll('.next-btn').forEach((b) => { b.disabled = false; });
         btn.classList.remove('is-busy');
-        btn.querySelector('small').textContent = 'Creates and starts instantly';
+        build.remove();
         note.textContent = error.message || 'Could not create that quiz. Try again.';
         note.classList.add('err');
       }
@@ -222,13 +228,37 @@ export function createGame({ stage, hud, audio, quiz }) {
         </div>
         <div class="screen-actions">
           <button id="again" class="btn btn-lime btn-big">${icon('rotate-ccw')}<span>Play again</span></button>
-          <a class="btn" href="index.html">${icon('home')}<span>Home</span></a>
+          <button id="extend-run" class="btn btn-sm" type="button">${icon('layers')}<span>Extend +5</span></button>
+          <a class="btn btn-sm" href="index.html">${icon('home')}<span>Home</span></a>
         </div>
+        <p id="extend-note" class="next-note" role="status"></p>
+        <div id="extend-build"></div>
         <div id="next-quiz" class="next-quiz" hidden></div>
         <div id="up-next" class="up-next" hidden></div>
       </section>`);
     showNextButtons();
     showUpNext();
+    document.getElementById('extend-run').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const note = document.getElementById('extend-note');
+      button.disabled = true;
+      note.textContent = 'Five deeper questions. Your original quiz stays unchanged.';
+      const build = generationCard(document.getElementById('extend-build'), quiz.metadata?.topic || quiz.title);
+      build.stage('Writing new questions, without repeating this quiz…');
+      try {
+        const fresh = await extendQuizAI(quiz, { count: 5, style: 'deeper' });
+        const id = `practice-${Date.now()}`;
+        const content = { ...quiz, id, title: `${quiz.title} · Next level`, questions: fresh, suggestions: [] };
+        cacheQuiz(id, content);
+        build.ready({ id, content, isTemp: true });
+        window.location.href = `player.html?id=${encodeURIComponent(id)}&autostart=1`;
+      } catch (error) {
+        build.remove();
+        button.disabled = false;
+        note.textContent = error.message || 'Could not extend. Try again.';
+        note.classList.add('err');
+      }
+    });
     document.getElementById('again').addEventListener('click', () => { s.index = 0; s.score = 0; s.correct = 0; intro(); });
   }
 

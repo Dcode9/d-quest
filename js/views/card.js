@@ -23,15 +23,15 @@ export function quizCard(item) {
         <span class="chip diff diff-${esc(String(info.difficulty).toLowerCase())}">${esc(info.difficulty)}</span>
         <span class="chip chip-lime">${info.count} ${info.count === 1 ? "question" : "questions"}</span>
         ${item.isCustomLocal ? '<span class="chip badge-local">On this device</span>' : ''}
-        ${item.isAI && !item.isCustomLocal ? '<span class="chip chip-purple">AI made</span>' : ''}
-        ${item.mergedCount ? `<span class="chip" title="Duplicate copies merged into this one">${item.mergedCount + 1} copies merged</span>` : ''}
+        
+        
       </div>
       <div class="quiz-actions">
         <a class="btn btn-lime btn-play" href="${esc(playUrl(item))}">${icon('play')}<span>Play</span></a>
         <button type="button" class="btn btn-sm btn-icon" data-act="live" title="Host a live room" aria-label="Host live quiz">${icon('radio')}</button>
         <button type="button" class="btn btn-sm btn-icon" data-act="preview" title="Preview questions" aria-label="Preview">${icon('eye')}</button>
         <button type="button" class="btn btn-sm btn-icon" data-act="ai" title="Extend or edit with AI" aria-label="Extend or edit with AI">${icon('sparkles')}</button>
-        ${canEdit ? `<button type="button" class="btn btn-sm btn-icon" data-act="edit" title="Edit quiz" aria-label="Edit">${icon('pencil')}</button>` : ''}
+        
       </div>
     </article>`);
 

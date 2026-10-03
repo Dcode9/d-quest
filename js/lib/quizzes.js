@@ -83,7 +83,7 @@ export async function loadQuizForPlay({ id, file }) {
     if (!res.ok) throw new Error('Quiz file not found.');
     return res.json();
   }
-  if (id.startsWith('ai-') || id.startsWith('local-')) {
+  if (id.startsWith('ai-') || id.startsWith('local-') || id.startsWith('practice-')) {
     const cached = readCachedQuiz(id) || findCustomQuiz(id)?.content;
     if (!cached) throw new Error('This quiz only lived in your browser and is gone. Create or save it again.');
     return cached;
