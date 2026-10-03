@@ -26,3 +26,5 @@
   .build-trace { animation: none; clip-path: none; }
   .build-symbol, .quiz-build.is-ready .quiz-card, .quiz-build.is-ready .quiz-emoji { animation: none; }
 }
+
+.build-paper { align-content: start; }
