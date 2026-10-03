@@ -1,4 +1,5 @@
 const { dupKey, normalizeDifficulty, questionCount } = require('./_quiz-utils');
+const { allow } = require('./_rate');
 
 module.exports = async function handler(req, res) {
   const FALLBACK_SUPABASE_URL = 'https://gmwieijbrrztukqpfwkg.supabase.co';
@@ -81,10 +82,20 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid data: title and questions required' });
     }
 
+    if (questions.length > 60) return res.status(400).json({ error: 'A quiz can have at most 60 questions' });
+    const rate = allow(req, { windowMs: 10 * 60 * 1000, max: 40 }, 'save');
+    if (!rate.ok) return res.status(429).json({ error: 'Too many saves from this connection. Try again later.' });
+
+    // Follow-up suggestions travel with the quiz so the end screen needs no extra AI call.
+    const suggestions = (Array.isArray(body.suggestions || incomingContent?.suggestions) ? (body.suggestions || incomingContent.suggestions) : [])
+      .map((s) => ({ title: String(s?.title || '').slice(0, 70), prompt: String(s?.prompt || '').slice(0, 200), emoji: String(s?.emoji || '🎯').slice(0, 8) }))
+      .filter((s) => s.title && s.prompt)
+      .slice(0, 3);
     const content = {
       title,
       questions,
-      metadata: { ...(metadata || {}), difficulty: normalizeDifficulty(metadata?.difficulty) }
+      metadata: { ...(metadata || {}), difficulty: normalizeDifficulty(metadata?.difficulty) },
+      ...(suggestions.length ? { suggestions } : {})
     };
     const key = dupKey(title, content.metadata.topic);
 

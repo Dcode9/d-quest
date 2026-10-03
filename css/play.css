@@ -60,3 +60,20 @@ body.play-body { min-height: 100dvh; display: flex; flex-direction: column; }
   #foot .btn:only-child { margin: 0; }
   .verdict { text-align: center; }
 }
+
+/* "What next?" buttons on the result screen */
+.next-quiz { width: min(520px, 100%); display: grid; gap: 10px; margin-top: 22px; text-align: left; padding: 16px; background: var(--lime-soft); border: var(--edge); border-radius: var(--radius-m); box-shadow: var(--lift-s); }
+.next-quiz h3 { font-size: 18px; font-weight: 900; }
+.next-list { display: grid; gap: 10px; }
+.next-btn { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; text-align: left; background: var(--surface); border: var(--edge); border-radius: 16px; box-shadow: var(--lift); font-weight: 800; transition: transform .08s ease, box-shadow .08s ease, background .15s ease; }
+.next-btn:not(:disabled):hover { background: var(--lime); }
+.next-btn:not(:disabled):active { transform: translateY(4px); box-shadow: none; }
+.next-btn:disabled { opacity: .6; cursor: default; }
+.next-btn.is-busy { opacity: 1; background: var(--sun); }
+.next-emoji { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border: var(--edge); border-radius: 12px; background: var(--paper-2); font-size: 22px; }
+.next-text { flex: 1; min-width: 0; display: grid; }
+.next-text b { font-size: 16px; overflow-wrap: anywhere; }
+.next-text small { color: var(--muted); font-weight: 700; font-size: 12px; }
+.next-btn svg, .next-btn > i { flex: none; width: 20px; height: 20px; }
+.next-note { min-height: 18px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.next-note.err { color: var(--coral-deep); }

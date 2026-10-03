@@ -15,3 +15,15 @@
 .builder-status { min-height: 22px; font-weight: 800; font-size: 14px; margin: 4px 0 10px; }
 .builder-status.ok { color: #3f7d1e; } .builder-status.err { color: var(--coral-deep); } .builder-status.busy { color: var(--purple-deep); }
 @media (max-width: 560px) { .builder-grid { grid-template-columns: 1fr; } }
+
+/* AI helper inside the quiz editor */
+.ai-panel { margin: 14px 0 6px; padding: 14px; display: grid; gap: 10px; background: var(--purple); border: var(--edge); border-radius: var(--radius-m); box-shadow: var(--lift-s); }
+.ai-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ai-head b { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; font-size: 16px; }
+.ai-head i, .ai-head svg { width: 18px; height: 18px; }
+.ai-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.ai-row .input { flex: 1 1 220px; min-width: 0; }
+.ai-row .btn { flex: 1 1 150px; }
+.ai-count { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ai-count span { font: 800 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.ai-hint { font-size: 12.5px; color: var(--ink-soft); }
