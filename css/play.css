@@ -77,3 +77,13 @@ body.play-body { min-height: 100dvh; display: flex; flex-direction: column; }
 .next-btn svg, .next-btn > i { flex: none; width: 20px; height: 20px; }
 .next-note { min-height: 18px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .next-note.err { color: var(--coral-deep); }
+.screen.center:has(#next-quiz) { gap: 14px; }
+.screen.center:has(#next-quiz) .hero-emoji { font-size: 48px; }
+.screen.center:has(#next-quiz) .screen-actions .btn-big { min-height: 44px; padding: 0 16px; font-size: 15px; }
+.next-quiz { margin-top: 2px; padding: 12px; gap: 8px; }
+.next-list { gap: 8px; }
+.next-btn { min-height: 52px; padding: 8px 10px; box-shadow: var(--lift-s); gap: 10px; border-radius: 12px; }
+.next-emoji { width: 34px; height: 34px; font-size: 20px; border-radius: 10px; }
+.next-text b { font-size: 14px; }
+.next-note:empty { display: none; }
+#extend-build { width: min(380px, 100%); }

@@ -88,3 +88,14 @@
 .chip.diff-easy { background: var(--lime-soft); }
 .chip.diff-medium { background: var(--sun); }
 .chip.diff-hard { background: var(--coral-soft); }
+/* Less visual noise without shrinking touch targets. */
+.hero { gap: 16px; padding-top: 8px; }
+.hero-badges { display: none; }
+.quiz-card { gap: 12px; padding: 16px; }
+.quiz-emoji { width: 52px; height: 52px; font-size: 28px; border-radius: 15px; }
+.quiz-card-top { gap: 12px; }
+.quiz-actions { gap: 6px; }
+.quiz-actions .btn-icon { min-width: 44px; min-height: 44px; padding: 0; }
+.section-head { margin-top: 28px; }
+.filters { gap: 9px; }
+@media (max-width: 560px) { .actions .btn { flex: 1 1 auto; } .hero-title { font-size: 38px; } .page { padding-top: 18px; } }
