@@ -1,0 +1,22 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+a { color: inherit; }
+img, svg { max-width: 100%; }
+.hidden { display: none !important; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--purple-deep); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Compatibility helpers: the live room module renders with utility class names. */
+.fixed { position: fixed; } .absolute { position: absolute; } .relative { position: relative; }
+.flex { display: flex; } .grid { display: grid; } .inline-flex { display: inline-flex; }
