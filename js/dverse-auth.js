@@ -105,6 +105,18 @@
         await bridgeRequest({ type: 'dverse-auth:sign-out' }, 1500);
     }
 
+    // Handoff from D'Ai (embedded in the Apps sidebar). Only accepted from the D'Ai origin.
+    window.addEventListener('message', async (event) => {
+        if (event.origin !== 'https://ai.d-verse.in') return;
+        const d = event.data || {};
+        if (d.type !== 'dverse-auth:handoff' || !d.access_token || !d.refresh_token || !client) return;
+        try {
+            const { data } = await client.auth.getSession();
+            if (data.session) return;
+            await client.auth.setSession({ access_token: d.access_token, refresh_token: d.refresh_token });
+        } catch (e) { console.warn('[DVerse] handoff failed', e); }
+    });
+
     window.dverseAuth = {
         supabase: client,
         getSession: bootstrapFromPortal,
