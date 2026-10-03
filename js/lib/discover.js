@@ -2,7 +2,7 @@
 import { describeQuiz } from './quizzes.js';
 
 const INTEREST_KEY = 'dquest_interests';
-const STOP = new Set(['quiz', 'quizzes', 'test', 'the', 'a', 'an', 'of', 'on', 'about', 'and', 'for', 'in', 'to', 'questions', 'question', 'grade', 'all', 'with']);
+const STOP = new Set(['quiz', 'quizzes', 'test', 'the', 'a', 'an', 'of', 'on', 'about', 'and', 'for', 'in', 'to', 'questions', 'question', 'grade', 'all', 'with', 'about', 'some', 'me', 'make', 'generate', 'new', 'quick']);
 
 export const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
@@ -77,7 +77,8 @@ function stem(w) { return w.length > 4 ? w.replace(/(ing|ies|es|s)$/, '') : w; }
 export function searchScore(item, query) {
   const quiz = item.content || {};
   const info = describeQuiz(quiz);
-  const qWords = words(query).map(stem);
+  const all = words(query);
+  const qWords = (all.filter((w) => !/^\d+$/.test(w)).length ? all.filter((w) => !/^\d+$/.test(w)) : all).map(stem); // "10 questions about X" is about X
   if (!qWords.length) return 0;
   const title = words(info.title).map(stem);
   const topic = words(info.topic).map(stem);
@@ -85,6 +86,7 @@ export function searchScore(item, query) {
   const diff = info.difficulty.toLowerCase();
   let score = 0;
   let hit = 0;
+  let strong = 0;
   for (const w of qWords) {
     let best = 0;
     if (title.includes(w)) best = 10;
@@ -95,9 +97,10 @@ export function searchScore(item, query) {
     else if (extra.includes(w) || diff === w) best = 3;
     else if ((quiz.questions || []).some((q) => String(q.question).toLowerCase().includes(w))) best = 1.5;
     if (best) hit += 1;
+    if (best >= 3) strong += 1;
     score += best;
   }
-  if (hit < Math.ceil(qWords.length / 2)) return 0; // most of the words must match
+  if (!strong || hit < Math.ceil(qWords.length / 2)) return 0; // most of the words must match
   if (info.title.toLowerCase().includes(String(query).toLowerCase().trim())) score += 6;
   return score * (0.6 + 0.4 * (hit / qWords.length));
 }

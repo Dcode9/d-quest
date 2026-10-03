@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
       try {
         // Duplicate check: reuse an existing quiz with the same title and topic.
         const authHeaders = { apikey: candidate.key, Authorization: `Bearer ${candidate.key}`, 'Content-Type': 'application/json' };
-        const probe = String(title).replace(/[(),*%]/g, ' ').split(/\s+/).filter((w) => w.length > 2).slice(0, 2).join('*');
+        const probe = (String(title).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((w) => !['quiz', 'the', 'test'].includes(w))[0] || '';
         if (probe && key) {
           const found = await fetch(`${candidate.url}/rest/v1/quizzes?select=*&topic=ilike.*${encodeURIComponent(probe)}*&limit=100`, { headers: authHeaders });
           if (found.ok) {

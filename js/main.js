@@ -128,11 +128,11 @@ function shelf(title, sub, items) {
 function renderHub() {
   const shelves = $('#hub-shelves');
   const picks = recommend(allItems, 6);
-  const fresh = allItems.filter((i) => !i.isLocal && !i.isCustomLocal).slice(0, 6);
-  const featured = allItems.filter((i) => i.content?.metadata?.featured);
+  const first = (picks.length ? picks : (allItems.filter((i) => i.content?.metadata?.featured).length ? allItems.filter((i) => i.content?.metadata?.featured) : allItems)).slice(0, 6);
+  const fresh = allItems.filter((i) => !i.isLocal && !i.isCustomLocal && !first.includes(i)).slice(0, 6);
   const nodes = [
     picks.length ? shelf('Picked for you', 'Based on what you searched, previewed and played.', picks)
-      : shelf('Start here', 'A few good ones. Play some and this shelf learns your taste.', (featured.length ? featured : allItems).slice(0, 6)),
+      : shelf('Start here', 'A few good ones. Play some and this shelf learns your taste.', first),
     fresh.length ? shelf('Fresh from the community', 'Newest quizzes saved by D\'Ai and other players.', fresh) : null
   ].filter(Boolean);
   shelves.replaceChildren(...nodes);
