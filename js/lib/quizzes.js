@@ -1,5 +1,6 @@
 // Quiz catalog: built-in JSON files, the shared database, and quizzes saved on this device.
 import { getCustomQuizzes, findCustomQuiz, readCachedQuiz } from './storage.js';
+import { mergeDuplicates, rankSearch } from './discover.js';
 
 const FALLBACK_FILES = [
   'demo.json', 'general-knowledge.json', 'science.json', 'history.json', 'geography.json',
@@ -67,21 +68,12 @@ function dedupe(items) {
 
 export async function loadLibrary() {
   const [remote, builtIn] = await Promise.all([loadRemote(), loadBuiltIn()]);
-  return dedupe([...getCustomQuizzes(), ...remote, ...builtIn]);
+  return mergeDuplicates(dedupe([...getCustomQuizzes(), ...remote, ...builtIn]));
 }
 
-function matches(item, needle) {
-  const quiz = item.content || {};
-  const haystack = [quiz.title, quiz.metadata?.topic, quiz.metadata?.grade, item.fileName]
-    .map((v) => String(v || '').toLowerCase());
-  return haystack.some((text) => text.includes(needle));
-}
-
+// Real search over the whole catalog (built-in, shared database, this device), ranked by relevance.
 export async function searchQuizzes(query) {
-  const needle = query.toLowerCase();
-  const [builtIn, remote] = await Promise.all([loadBuiltIn(), loadRemote(query)]);
-  const custom = getCustomQuizzes().filter((item) => matches(item, needle));
-  return dedupe([...custom, ...builtIn.filter((item) => matches(item, needle)), ...remote]);
+  return rankSearch(await loadLibrary(), query);
 }
 
 // Used by the player: resolve a quiz from ?quiz=<file> or ?id=<id>.

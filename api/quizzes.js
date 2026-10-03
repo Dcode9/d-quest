@@ -1,3 +1,5 @@
+const { dedupeRows, normalizeDifficulty } = require('./_quiz-utils');
+
 module.exports = async function handler(req, res) {
   const FALLBACK_SUPABASE_URL = 'https://gmwieijbrrztukqpfwkg.supabase.co';
   const FALLBACK_SUPABASE_ANON_KEY = 'sb_publishable_KX3MYtV84QJJdy9bPDuMEA_V99sLKSE';
@@ -77,7 +79,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const { id, q, limit } = req.query || {};
+    const { id, q, limit, difficulty, topic, raw } = req.query || {};
     const params = new URLSearchParams();
     params.set('select', '*');
 
@@ -97,9 +99,8 @@ module.exports = async function handler(req, res) {
       );
     }
 
-    if (limit) {
-      params.set('limit', String(limit));
-    }
+    // Fetch a generous page, then merge duplicates and filter before applying the limit.
+    params.set('limit', id ? '1' : '500');
 
     if (!id) {
       params.set('order', 'created_at.desc');
@@ -119,7 +120,17 @@ module.exports = async function handler(req, res) {
         });
 
         if (response.ok) {
-          const quizzes = await response.json();
+          let quizzes = await response.json();
+          if (!id) {
+            if (!raw) quizzes = dedupeRows(quizzes);
+            if (difficulty) quizzes = quizzes.filter((r) => normalizeDifficulty(r?.content?.metadata?.difficulty) === normalizeDifficulty(difficulty));
+            if (topic) {
+              const t = String(topic).toLowerCase();
+              quizzes = quizzes.filter((r) => String(r?.content?.metadata?.topic || r?.topic || '').toLowerCase().includes(t));
+            }
+            const max = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
+            quizzes = quizzes.slice(0, max);
+          }
           return res.status(200).json({ quizzes });
         }
 

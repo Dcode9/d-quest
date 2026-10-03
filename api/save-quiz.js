@@ -1,3 +1,5 @@
+const { dupKey, normalizeDifficulty, questionCount } = require('./_quiz-utils');
+
 module.exports = async function handler(req, res) {
   const FALLBACK_SUPABASE_URL = 'https://gmwieijbrrztukqpfwkg.supabase.co';
   const FALLBACK_SUPABASE_ANON_KEY = 'sb_publishable_KX3MYtV84QJJdy9bPDuMEA_V99sLKSE';
@@ -82,8 +84,9 @@ module.exports = async function handler(req, res) {
     const content = {
       title,
       questions,
-      ...(metadata ? { metadata } : {})
+      metadata: { ...(metadata || {}), difficulty: normalizeDifficulty(metadata?.difficulty) }
     };
+    const key = dupKey(title, content.metadata.topic);
 
     const candidates = buildSupabaseCandidates();
 
@@ -98,6 +101,31 @@ module.exports = async function handler(req, res) {
 
     for (const candidate of candidates) {
       try {
+        // Duplicate check: reuse an existing quiz with the same title and topic.
+        const authHeaders = { apikey: candidate.key, Authorization: `Bearer ${candidate.key}`, 'Content-Type': 'application/json' };
+        const probe = (String(title).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((w) => !['quiz', 'the', 'test'].includes(w))[0] || '';
+        if (probe && key) {
+          const found = await fetch(`${candidate.url}/rest/v1/quizzes?select=*&topic=ilike.*${encodeURIComponent(probe)}*&limit=100`, { headers: authHeaders });
+          if (found.ok) {
+            const same = (await found.json()).filter((row) => dupKey(row?.content?.title || row?.topic, row?.content?.metadata?.topic) === key);
+            if (same.length) {
+              const existing = same.sort((a, b) => questionCount(b) - questionCount(a))[0];
+              if (questions.length > questionCount(existing)) {
+                const upd = await fetch(`${candidate.url}/rest/v1/quizzes?id=eq.${existing.id}`, {
+                  method: 'PATCH',
+                  headers: { ...authHeaders, Prefer: 'return=representation' },
+                  body: JSON.stringify({ content, updated_at: new Date().toISOString() })
+                });
+                if (upd.ok) {
+                  const rows = await upd.json();
+                  if (rows?.[0]) return res.status(200).json({ success: true, duplicate: true, updated: true, message: 'Merged into the existing quiz', quiz: rows[0] });
+                }
+              }
+              return res.status(200).json({ success: true, duplicate: true, message: 'This quiz is already in the library', quiz: existing });
+            }
+          }
+        }
+
         const response = await fetch(`${candidate.url}/rest/v1/quizzes`, {
           method: 'POST',
           headers: {
